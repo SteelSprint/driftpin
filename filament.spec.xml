@@ -124,6 +124,21 @@
     <clause id="versioning.amendments">Amendments follow the project's standard pull-request process.</clause>
   </section>
 
+  <section id="install" label="Install scripts">
+    <clause id="install.scripts">The project MUST provide install scripts in the scripts directory that download and install the filament binary.</clause>
+    <clause id="install.platform_detection">The install scripts MUST detect the host operating system and architecture. The scripts MUST exit with an error if the platform is unsupported.</clause>
+    <clause id="install.version">The install scripts MUST download the latest release from the project's GitHub releases.</clause>
+    <clause id="install.checksum">The install scripts MUST verify the SHA-256 checksum of the downloaded archive against the checksums file published with the release. The scripts MUST match the archive filename exactly in the checksums file. The scripts MUST exit with an error if the checksum does not match or if no checksum is found for the archive.</clause>
+    <clause id="install.archive_validation">The install scripts MUST validate the contents of the downloaded archive before extraction. If the archive contains unexpected entries, the scripts MUST exit with an error.</clause>
+    <clause id="install.no_overwrite">The install scripts MUST NOT overwrite an existing filament binary at the install location. If a binary already exists, the scripts MUST exit with an error that includes the command to remove the existing binary.</clause>
+    <clause id="install.permissions">The installed binary MUST be executable by its owner.</clause>
+    <clause id="install.no_temp_cleanup">The install scripts MUST NOT delete the temporary directory created during installation.</clause>
+    <clause id="install.install_dir">The install scripts MUST install to a user-local directory that does not require elevated privileges when possible, and MUST fall back to a system directory otherwise. The install scripts MUST NOT accept environment variables or flags that override the install directory.</clause>
+    <clause id="install.path_check">The install scripts MUST check whether the install directory is in the user's PATH. If it is not, the scripts MUST print instructions for adding it.</clause>
+    <clause id="install.network_security">The install scripts MUST use TLS 1.2 or higher for all network connections.</clause>
+    <clause id="install.errors">The install scripts MUST produce clear error messages that describe what went wrong and how to resolve it.</clause>
+  </section>
+
   <section id="parser_rules" label="Parser rules">
     <clause id="parser_rules.description_ignored">A description element, if present, MUST appear at most once and only at the top level. Its content is human-readable documentation and MUST NOT contribute to spec data or hashes.</clause>
     <clause id="parser_rules.path_group">The id of a clause or section that is a child of a section MUST equal the child_id of the section's id.</clause>

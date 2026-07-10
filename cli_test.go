@@ -180,6 +180,8 @@ func TestCLISelfHosting(t *testing.T) {
 		filepath.Join(filamentDir, "marker.go"),
 		filepath.Join(filamentDir, "lock.go"),
 		filepath.Join(filamentDir, "site.go"),
+		filepath.Join(filamentDir, "scripts", "install.sh"),
+		filepath.Join(filamentDir, "scripts", "install.ps1"),
 	}
 
 	// Init to create .filament

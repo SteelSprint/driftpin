@@ -87,15 +87,29 @@ drift, and resolves it — all prompted by you, all in prose.
 
 ## Install
 
+**macOS / Linux:**
+
+```
+curl -fsSL https://raw.githubusercontent.com/steelsprint/filament/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+
+```
+irm https://raw.githubusercontent.com/steelsprint/filament/main/scripts/install.ps1 | iex
+```
+
+Installs the latest release binary to `~/.local/bin` (macOS/Linux) or
+`%USERPROFILE%\.filament\bin` (Windows) and tells you how to add it to
+your PATH.
+
 **Go users:**
 
 ```
 go install github.com/steelsprint/filament@latest
 ```
 
-**Prebuilt binaries** (macOS, Linux, Windows):
-
-Download from [GitHub Releases](https://github.com/steelsprint/filament/releases).
+**Manual:** download from [GitHub Releases](https://github.com/steelsprint/filament/releases).
 
 ## Quickstart
 
