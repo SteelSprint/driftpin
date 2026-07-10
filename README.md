@@ -97,12 +97,6 @@ go install github.com/steelsprint/filament@latest
 
 Download from [GitHub Releases](https://github.com/steelsprint/filament/releases).
 
-Or with Homebrew (coming soon):
-
-```
-brew install monarchwadia/tap/filament
-```
-
 ## Quickstart
 
 <!-- #F id:n0j7m2mk public_api.subcommands -->
