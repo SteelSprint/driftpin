@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// #F id:5k4j8r5y doctor.subcommand doctor.migrate_spec doctor.version_detection doctor.migration_pipeline
+// #F id:5k4j8r5y doctor.migration_pipeline
 
 // semverPattern matches MAJOR.MINOR.PATCH where each component is a non-negative integer.
 var semverPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
@@ -44,6 +44,7 @@ func LatestVersion() string {
 	return migrations[len(migrations)-1].ToVersion
 }
 
+// #F id:d4ctv001 doctor.version_detection
 // DetectSpecVersion reads the version from spec XML content.
 // If no version attribute is present, returns "0.0.0" (pre-versioned).
 func DetectSpecVersion(content string) string {
@@ -166,6 +167,7 @@ func migrateToV020(content string) (string, error) {
 	return content, nil
 }
 
+// #F id:d4ctr001 doctor.subcommand
 // runDoctor handles the doctor command and its subcommands.
 func runDoctor(args []string) error {
 	if len(args) == 0 {
@@ -181,6 +183,7 @@ func runDoctor(args []string) error {
 	}
 }
 
+// #F id:d4ctm001 doctor.migrate_spec
 // runMigrateSpec handles the migrate-spec subcommand.
 func runMigrateSpec(args []string) error {
 	specPath := "./filament.spec.xml"
