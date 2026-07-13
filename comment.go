@@ -220,13 +220,43 @@ func Check(spec *Spec, lock *LockFile, paths []string, windowSize int) ([]Findin
 		}
 	}
 
-	// Detect missing clauses: in spec but no marker references them.
+	// Detect missing clauses: in spec but not covered (directly or transitively).
 	// #F id:ttsbgeqq drift.missing
+
+	// Build reference graph: for each element, what does it reference?
+	refsGraph := make(map[string][]string)
+	for _, e := range spec.All() {
+		if e.Kind == KindSection {
+			continue
+		}
+		refsGraph[e.ID] = ReferencesInOrder(e, defined)
+	}
+
+	// Compute transitively covered elements via BFS from markered clauses.
+	covered := make(map[string]bool)
+	for cid := range referenced {
+		covered[cid] = true
+	}
+	var queue []string
+	for cid := range covered {
+		queue = append(queue, cid)
+	}
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		for _, r := range refsGraph[curr] {
+			if !covered[r] {
+				covered[r] = true
+				queue = append(queue, r)
+			}
+		}
+	}
+
 	for _, e := range spec.All() {
 		if e.Kind != KindClause {
 			continue
 		}
-		if defined[e.ID] && !referenced[e.ID] {
+		if defined[e.ID] && !covered[e.ID] {
 			findings = append(findings, Finding{
 				Status:   "MISSING",
 				ClauseID: e.ID,
