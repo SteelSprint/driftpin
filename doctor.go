@@ -3,10 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 )
 
 // #F id:5k4j8r5y doctor.subcommand doctor.migrate_spec doctor.version_detection doctor.migration_pipeline
+
+// semverPattern matches MAJOR.MINOR.PATCH where each component is a non-negative integer.
+var semverPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 
 // Migration represents a spec migration from one version to another.
 type Migration struct {
@@ -19,7 +23,7 @@ type Migration struct {
 // migrations is the ordered list of all spec migrations.
 var migrations = []Migration{
 	{
-		FromVersion: "",
+		FromVersion: "0.0.0",
 		ToVersion:   "0.1.0",
 		Description: "Initial version with <ref> element support",
 		Migrate:     migrateToV010,
@@ -41,12 +45,11 @@ func LatestVersion() string {
 }
 
 // DetectSpecVersion reads the version from spec XML content.
+// If no version attribute is present, returns "0.0.0" (pre-versioned).
 func DetectSpecVersion(content string) string {
-	// Look for version="..." in the <spec> tag
 	for _, line := range strings.Split(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "<spec") {
-			// Find version=" in the line
 			idx := strings.Index(trimmed, "version=\"")
 			if idx >= 0 {
 				start := idx + len("version=\"")
@@ -55,16 +58,22 @@ func DetectSpecVersion(content string) string {
 					return trimmed[start : start+end]
 				}
 			}
-			return "" // No version found
+			return "0.0.0"
 		}
 	}
-	return ""
+	return "0.0.0"
+}
+
+// IsValidVersion checks whether a version string conforms to
+// semantic versioning (MAJOR.MINOR.PATCH).
+func IsValidVersion(version string) bool {
+	return semverPattern.MatchString(version)
 }
 
 // GetPendingMigrations returns migrations needed to go from current to latest.
 func GetPendingMigrations(currentVersion string) []Migration {
 	var pending []Migration
-	found := currentVersion == "" // Start from beginning if no version
+	found := currentVersion == "0.0.0" // Start from beginning if pre-versioned
 
 	for _, m := range migrations {
 		if found {
@@ -189,6 +198,9 @@ func runMigrateSpec(args []string) error {
 
 	// Detect current version
 	currentVersion := DetectSpecVersion(string(content))
+	if !IsValidVersion(currentVersion) {
+		return fmt.Errorf("invalid spec version %q: expected MAJOR.MINOR.PATCH format", currentVersion)
+	}
 	fmt.Fprintf(os.Stderr, "Current spec version: %s\n", currentVersion)
 	fmt.Fprintf(os.Stderr, "Latest spec version: %s\n", LatestVersion())
 

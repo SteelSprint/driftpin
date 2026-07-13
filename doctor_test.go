@@ -20,7 +20,7 @@ func TestDetectSpecVersion(t *testing.T) {
 		{
 			name:    "without version",
 			content: `<spec name="test">`,
-			want:    "",
+			want:    "0.0.0",
 		},
 		{
 			name:    "with version and other attrs",
@@ -30,7 +30,7 @@ func TestDetectSpecVersion(t *testing.T) {
 		{
 			name:    "multiline spec tag",
 			content: "<spec\n  name=\"test\"\n  version=\"0.1.0\">",
-			want:    "",
+			want:    "0.0.0",
 		},
 	}
 
@@ -59,7 +59,7 @@ func TestGetPendingMigrations(t *testing.T) {
 	}{
 		{
 			name:           "from beginning",
-			currentVersion: "",
+			currentVersion: "0.0.0",
 			wantCount:      len(migrations),
 		},
 		{
@@ -194,5 +194,33 @@ func TestRunDoctorUnknownSubcommand(t *testing.T) {
 	err := runDoctor([]string{"unknown"})
 	if err == nil {
 		t.Error("runDoctor() should fail with unknown subcommand")
+	}
+}
+
+func TestIsValidVersion(t *testing.T) {
+	tests := []struct {
+		version string
+		want    bool
+	}{
+		{"0.0.0", true},
+		{"1.0.0", true},
+		{"0.1.0", true},
+		{"0.2.0", true},
+		{"10.20.30", true},
+		{"", false},
+		{"1", false},
+		{"1.0", false},
+		{"1.0.0.0", false},
+		{"v1.0.0", false},
+		{"1.0.0-beta", false},
+		{"a.b.c", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			got := IsValidVersion(tt.version)
+			if got != tt.want {
+				t.Errorf("IsValidVersion(%q) = %v, want %v", tt.version, got, tt.want)
+			}
+		})
 	}
 }
