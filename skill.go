@@ -38,6 +38,64 @@ comment character that precedes it. This allows markers to work in any
 text file with any comment style.
 
 
+SPEC XML SCHEMA
+
+The spec XML has these elements:
+
+  <spec name="...">  — root element, name is required
+  <description>      — optional, at most one, top-level only, prose only
+  <definitions>      — optional, at most one, container for <term>
+  <term text="...">  — prose + optional <ref> children, text attr is the id
+  <section id="..." label="..."> — container, can nest sections and clauses
+  <clause id="...">  — leaf, prose + optional <ref> children
+  <ref>id</ref>      — inline reference inside clauses/terms only
+
+IDs are dotted-path identifiers, segments match [a-z0-9_]+. A child
+element's id must extend its parent section's id (e.g., parent
+'operations' → child 'operations.create'). Each id must be unique.
+
+References: <ref>id</ref> creates an explicit reference inside a clause
+or term. Prose words are NOT references — only <ref> elements are. The
+text inside <ref> must be a defined id. Terms may only reference other
+terms, not clauses or sections (vocabulary must not depend on requirements).
+
+Transitive coverage: if clause B <ref>s clause A and B has a marker, A
+is covered. Coverage follows refs through terms.
+
+Examples:
+
+  Minimal:
+    <spec name="simple">
+      <clause id="first">A single leaf clause.</clause>
+      <clause id="second">Another leaf clause.</clause>
+    </spec>
+
+  With definitions and refs:
+    <spec name="with_refs">
+      <definitions>
+        <term text="backend">The storage engine.</term>
+      </definitions>
+      <clause id="storage">The storage layer uses the <ref>backend</ref>.</clause>
+    </spec>
+
+  Nested sections:
+    <spec name="nested">
+      <definitions>
+        <term text="example">A term used in clauses.</term>
+      </definitions>
+      <section id="1" label="First section">
+        <clause id="1.1">A leaf clause referencing <ref>example</ref>.</clause>
+        <clause id="1.2">A second leaf referencing <ref>1.1</ref>.</clause>
+        <section id="1.3" label="Subsection">
+          <clause id="1.3.1">A deeply nested leaf.</clause>
+        </section>
+      </section>
+      <section id="2" label="Second section">
+        <clause id="2.1">References <ref>1.2</ref> and <ref>1.3.1</ref>.</clause>
+      </section>
+    </spec>
+
+
 THE STATE FILE (.filament)
 
 The .filament file stores three sections:
@@ -81,7 +139,9 @@ COMMANDS
     a failure gate. Default is current directory.
 
   filament status [file-or-dir]...
-    Show every marker and its drift state. Always exits 0.
+    Show every marker and its drift state, including OK markers. Detects
+    every condition that check detects. Prints a coverage summary. Exits 1
+    if any finding is found, 0 otherwise.
 
   filament init [file-or-dir]...
     Create .filament from the current spec and source markers.
