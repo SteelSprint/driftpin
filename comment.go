@@ -34,6 +34,37 @@ func ScanMarkers(path string) ([]MarkerMatch, error) {
 	return matches, scanner.Err()
 }
 
+// MalformedMatch represents a line that looks like a marker attempt
+// (contains #F followed by whitespace and id:) but doesn't conform
+// to the well_formed_marker syntax.
+type MalformedMatch struct {
+	Raw  string
+	Line int
+}
+
+// ScanMalformed scans a file for lines that look like marker attempts
+// but don't conform to the marker syntax.
+func ScanMalformed(path string) ([]MalformedMatch, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var matches []MalformedMatch
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 1024*1024), 16*1024*1024)
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		raw := scanner.Text()
+		if attemptPattern.MatchString(raw) && !markerPattern.MatchString(raw) {
+			matches = append(matches, MalformedMatch{Raw: raw, Line: lineNum})
+		}
+	}
+	return matches, scanner.Err()
+}
+
 // WalkPaths walks the given paths and returns all text files.
 func WalkPaths(paths []string) ([]string, error) {
 	var out []string
@@ -118,6 +149,23 @@ func Check(spec *Spec, lock *LockFile, paths []string, windowSize int) ([]Findin
 		if err != nil {
 			return nil, err
 		}
+
+		// Detect malformed markers: lines that look like marker attempts
+		// (contain #F + whitespace + id:) but don't conform to the full syntax.
+		// #F id:i8mfd9mm drift.malformed
+		malformed, err := ScanMalformed(f)
+		if err != nil {
+			return nil, err
+		}
+		for _, mm := range malformed {
+			findings = append(findings, Finding{
+				Status: "MALFORMED",
+				File:   f,
+				Line:   mm.Line,
+				Reason: mm.Raw,
+			})
+		}
+
 		for _, m := range markers {
 			// Check for duplicate marker ids across files
 			if firstFile, exists := seen[m.MarkerID]; exists {
@@ -173,7 +221,6 @@ func Check(spec *Spec, lock *LockFile, paths []string, windowSize int) ([]Findin
 				continue
 			}
 
-			// #F id:i8mfd9mm drift.malformed
 			// Check spec drift per clause
 			// #F id:zq057zar drift.spec_drift
 			for _, cid := range m.ClauseIDs {
@@ -305,10 +352,11 @@ func FormatFinding(f Finding) string {
 			f.ClauseID)
 	case "MALFORMED":
 		return fmt.Sprintf(
-			"MALFORMED  marker=%s  %s:%d\n"+
-				"  This marker has invalid syntax. Expected '# F id:<marker_id> <clause_id>...'.\n"+
-				"  See 'filament add --help'.",
-			f.MarkerID, f.File, f.Line)
+			"MALFORMED  %s:%d\n"+
+				"  This line looks like a marker but has invalid syntax: %q\n"+
+				"  Expected: #F id:<8-char-id> <clause_id> [clause_id]...\n"+
+				"  Fix the line or remove it if it was not meant to be a marker.",
+			f.File, f.Line, f.Reason)
 	case "DUPLICATE_MARKER":
 		return fmt.Sprintf(
 			"DUPLICATE_MARKER  marker=%s  %s:%d\n"+

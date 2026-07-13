@@ -13,6 +13,11 @@ import (
 // #F id:bnivtwrc marker_format.comment_prefix
 var markerPattern = regexp.MustCompile(`#F\s+id:([a-z0-9]{8})\s+(.+)`)
 
+// attemptPattern matches lines that look like marker attempts but may be malformed.
+// A line matching this but not markerPattern is a malformed marker.
+// Requires a word character after id: to avoid matching string literals and prose.
+var attemptPattern = regexp.MustCompile(`#F\s+id:\w`)
+
 const markerIDLength = 8
 const markerIDChars = "abcdefghijklmnopqrstuvwxyz0123456789"
 
