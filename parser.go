@@ -525,3 +525,42 @@ func checkTermRefsTerms(spec *Spec, out *[]Violation) {
 		}
 	}
 }
+
+func ruleExplanation(rule string) string {
+	switch rule {
+	case "parser_rules.description_ignored":
+		return "A description element must appear at most once and only at the top level. Remedy: remove duplicate description elements."
+	case "parser_rules.path_group":
+		return "A child element's id must extend its parent section's id. Remedy: rename the child id or move it under the correct parent."
+	case "parser_rules.no_forward_refs":
+		return "A <ref> must point to an element defined earlier in the spec. Remedy: reorder so the referenced element appears before the referencing one."
+	case "parser_rules.no_cycles":
+		return "The <ref> reference graph must be acyclic. Remedy: break the cycle by removing a <ref> that creates a circular dependency."
+	case "parser_rules.no_self_references":
+		return "An element must not <ref> itself. Remedy: remove the self-referencing <ref>."
+	case "parser_rules.no_text_on_sections":
+		return "A section must not contain non-whitespace text. Remedy: move text into a child clause."
+	case "parser_rules.no_empty_clauses":
+		return "A clause must contain non-whitespace text. Remedy: add content or remove the empty clause."
+	case "parser_rules.no_empty_sections":
+		return "A section must contain at least one sub-clause or sub-section. Remedy: add a child element or remove the empty section."
+	case "parser_rules.no_empty_terms":
+		return "A term must contain non-whitespace text. Remedy: add content or remove the empty term."
+	case "parser_rules.unique_ids":
+		return "Each id must be unique within the spec. Remedy: rename the duplicate element."
+	case "parser_rules.valid_id_format":
+		return "Each id segment must match [a-z0-9_]+. Remedy: rename using only lowercase letters, digits, and underscores."
+	case "parser_rules.single_definitions":
+		return "A spec must contain at most one definitions block. Remedy: merge the definitions blocks into one."
+	case "parser_rules.terms_in_definitions":
+		return "A term must appear inside a definitions block. Remedy: move the term inside a <definitions> element."
+	case "parser_rules.ref_content":
+		return "A <ref> element must contain non-empty text content matching a defined id. Remedy: add text content (the referenced id) inside the <ref> element."
+	case "parser_rules.ref_target_undefined":
+		return "A <ref> element's text content must match a defined clause, section, or term id. Remedy: fix the id or define the missing element."
+	case "parser_rules.term_refs_terms":
+		return "A <ref> inside a term must reference another term, not a clause or section. Terms are vocabulary; clauses are requirements — dependencies flow downward, not upward. Remedy: reword the term to not reference the clause, or move the dependency into a clause."
+	default:
+		return ""
+	}
+}

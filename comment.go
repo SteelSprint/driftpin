@@ -357,11 +357,8 @@ func FormatMarkerLine(markerID string, clauseIDs []string) string {
 // #F id:zmtuvlt0 output.neutral_language
 // Tooltip is the preamble printed at the top of every command's output.
 const Tooltip = `filament tracks whether a workspace's files stay aligned with their spec.
-Specs are the source of truth; #F markers in workspace files trace to spec
-clauses. Drift means a clause and the content referencing it may have
-diverged — each finding requires review, not just a command.
-
-This is a tooltip. You can suppress it with --quiet. Read the full guide
-with 'filament skill'.
-
+(Suppress this preamble with --quiet.) Specs are the source of truth; #F
+markers in workspace files trace to spec clauses. Drift means a clause and
+the content referencing it may have diverged — each finding requires review,
+not just a command. Read the full guide with 'filament skill'.
 `

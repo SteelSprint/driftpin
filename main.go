@@ -15,6 +15,21 @@ import (
 // #F id:cdi0ftqy versioning.amendments
 // #F id:ocwydxem self_hosting.test
 
+func printViolations(violations []Violation, quiet bool) {
+	for _, v := range violations {
+		fmt.Fprintf(os.Stderr, "PARSER_VIOLATION  %s: %s\n", v.Rule, v.Detail)
+		if !quiet {
+			explanation := ruleExplanation(v.Rule)
+			if explanation != "" {
+				fmt.Fprintf(os.Stderr, "  %s\n", explanation)
+			}
+		}
+	}
+	if quiet && len(violations) > 0 {
+		fmt.Fprintln(os.Stderr, "Run without --quiet for full parser rule explanations.")
+	}
+}
+
 // #F id:b3vm90d1 public_api.subcommands
 const usage = `filament — spec-driven drift detection
 
@@ -115,9 +130,7 @@ func runCheck(specPath string, paths []string, quiet bool) error {
 		return err
 	}
 	if len(violations) > 0 {
-		for _, v := range violations {
-			fmt.Fprintf(os.Stderr, "PARSER_VIOLATION  %s: %s\n", v.Rule, v.Detail)
-		}
+		printViolations(violations, quiet)
 		os.Exit(1)
 	}
 
@@ -171,9 +184,7 @@ func runStatus(specPath string, paths []string, quiet bool) error {
 		return err
 	}
 	if len(violations) > 0 {
-		for _, v := range violations {
-			fmt.Fprintf(os.Stderr, "PARSER_VIOLATION  %s: %s\n", v.Rule, v.Detail)
-		}
+		printViolations(violations, quiet)
 		return fmt.Errorf("spec has %d violation(s)", len(violations))
 	}
 
@@ -265,9 +276,7 @@ func runInit(specPath string, paths []string, quiet bool) error {
 		return err
 	}
 	if len(violations) > 0 {
-		for _, v := range violations {
-			fmt.Fprintf(os.Stderr, "PARSER_VIOLATION  %s: %s\n", v.Rule, v.Detail)
-		}
+		printViolations(violations, quiet)
 		return fmt.Errorf("spec has %d violation(s)", len(violations))
 	}
 
@@ -344,9 +353,7 @@ func runAdd(specPath string, clauseIDs []string, quiet bool) error {
 		return err
 	}
 	if len(violations) > 0 {
-		for _, v := range violations {
-			fmt.Fprintf(os.Stderr, "PARSER_VIOLATION  %s: %s\n", v.Rule, v.Detail)
-		}
+		printViolations(violations, quiet)
 		return fmt.Errorf("spec has %d violation(s)", len(violations))
 	}
 
@@ -407,9 +414,7 @@ func runResolve(specPath string, args []string, quiet bool) error {
 		return err
 	}
 	if len(violations) > 0 {
-		for _, v := range violations {
-			fmt.Fprintf(os.Stderr, "PARSER_VIOLATION  %s: %s\n", v.Rule, v.Detail)
-		}
+		printViolations(violations, quiet)
 		return fmt.Errorf("spec has %d violation(s)", len(violations))
 	}
 
@@ -508,9 +513,7 @@ func runSync(specPath string, quiet bool) error {
 		return err
 	}
 	if len(violations) > 0 {
-		for _, v := range violations {
-			fmt.Fprintf(os.Stderr, "PARSER_VIOLATION  %s: %s\n", v.Rule, v.Detail)
-		}
+		printViolations(violations, quiet)
 		return fmt.Errorf("spec has %d violation(s)", len(violations))
 	}
 
@@ -558,9 +561,7 @@ func runMigrate(specPath string, paths []string, quiet bool) error {
 		return err
 	}
 	if len(violations) > 0 {
-		for _, v := range violations {
-			fmt.Fprintf(os.Stderr, "PARSER_VIOLATION  %s: %s\n", v.Rule, v.Detail)
-		}
+		printViolations(violations, quiet)
 		return fmt.Errorf("spec has %d violation(s)", len(violations))
 	}
 
