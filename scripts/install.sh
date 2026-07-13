@@ -50,9 +50,9 @@ detect_install_dir() {
 latest_version() {
   url="https://api.github.com/repos/$REPO/releases/latest"
   if command -v jq >/dev/null 2>&1; then
-    version=$(curl -fsSL "$url" | jq -r .tag_name)
+    version=$(curl --tlsv1.2 -fsSL "$url" | jq -r .tag_name)
   else
-    version=$(curl -fsSL "$url" | grep -Eo '"tag_name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed 's/.*"//;s/"$//')
+    version=$(curl --tlsv1.2 -fsSL "$url" | grep -Eo '"tag_name"[[:space:]]*:[[:space:]]*"[^"]+"' | sed 's/.*"//;s/"$//')
   fi
   if [ -z "$version" ]; then
     echo "error: could not determine latest version" >&2
@@ -132,8 +132,8 @@ main() {
   tmpdir="$(mktemp -d)"
 
   echo "Downloading ${BINARY} ${version} for ${platform}..."
-  curl -fsSL -o "$tmpdir/$archive" "${base_url}/${archive}"
-  curl -fsSL -o "$tmpdir/checksums.txt" "${base_url}/checksums.txt"
+  curl --tlsv1.2 -fsSL -o "$tmpdir/$archive" "${base_url}/${archive}"
+  curl --tlsv1.2 -fsSL -o "$tmpdir/checksums.txt" "${base_url}/checksums.txt"
 
   echo "Verifying checksum..."
   verify_checksum "$tmpdir/$archive" "$tmpdir/checksums.txt"
