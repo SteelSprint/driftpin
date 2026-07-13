@@ -108,14 +108,17 @@ func TestParserRules_SingleDefinitions(t *testing.T) {
 	assertViolations(t, invalidCase("f14_single_definitions.spec.xml"))
 }
 
+// #F id:r3ftr001 parser_rules.ref_target_undefined
 func TestParserRules_RefTargetUndefined(t *testing.T) {
 	assertViolations(t, invalidCase("f14_ref_target_undefined.spec.xml"))
 }
 
+// #F id:t3rmr001 parser_rules.term_refs_terms
 func TestParserRules_TermRefsTerms(t *testing.T) {
 	assertViolations(t, invalidCase("f15_term_refs_clause.spec.xml"))
 }
 
+// #F id:r3fc0001 parser_rules.ref_content
 func TestParserRules_RefContent(t *testing.T) {
 	assertViolations(t, invalidCase("f16_empty_ref.spec.xml"))
 }
