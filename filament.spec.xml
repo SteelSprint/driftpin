@@ -129,6 +129,10 @@
     <clause id="self_hosting.test">The tool's test suite MUST include a test that runs filament check against the filament.spec.xml file, a .filament state file, and a fixture source file containing a well_formed_marker for each of the tool.name, public_api.subcommands, and path_format.structure clauses, and expects exit 0.</clause>
   </section>
 
+  <section id="best_practices" label="Best practices">
+    <clause id="best_practices.multiple_markers">A clause MAY have multiple markers across different files or locations in the same file. Multiple markers per clause are expected and encouraged: every location where a clause is implemented should have its own marker. This provides granular drift detection — when a spec clause changes, every implementation site is independently flagged for review, and when a site changes, only that specific site is flagged.</clause>
+  </section>
+
   <section id="versioning" label="Versioning">
     <clause id="versioning.source">This specification is versioned by the git commit that introduces it.</clause>
     <clause id="versioning.amendments">Amendments follow the project's standard pull-request process.</clause>

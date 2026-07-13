@@ -356,10 +356,13 @@ func FormatMarkerLine(markerID string, clauseIDs []string) string {
 
 // #F id:a47bacif output.tooltip
 // #F id:zmtuvlt0 output.neutral_language
+// #F id:m4rkr002 best_practices.multiple_markers
 // Tooltip is the preamble printed at the top of every command's output.
 const Tooltip = `filament tracks whether a workspace's files stay aligned with their spec.
 (Suppress this preamble with --quiet.) Specs are the source of truth; #F
-markers in workspace files trace to spec clauses. Drift means a clause and
-the content referencing it may have diverged — each finding requires review,
-not just a command. Read the full guide with 'filament skill'.
+markers in workspace files trace to spec clauses. A clause may have
+multiple markers — one at every site where it's implemented. Drift
+means a clause and the content referencing it may have diverged — each
+finding requires review, not just a command. Read the full guide with
+'filament skill'.
 `

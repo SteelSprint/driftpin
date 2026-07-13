@@ -90,6 +90,26 @@ func main() { ... }
 
 Each clause id is tracked independently for drift detection.
 
+## Multiple markers per clause
+
+<!-- #F id:m4rkr001 best_practices.multiple_markers -->
+
+A clause MAY have multiple markers across different files or within the same file. Every location where a clause is implemented should have its own marker. This is expected and encouraged — markers grow as you trace more implementation sites.
+
+Multiple markers give you granular drift detection:
+
+- When a **spec clause changes**, every marker referencing it is independently flagged for SPEC_DRIFT. You review each site to confirm it still matches the new spec wording.
+- When a **site changes**, only that specific marker is flagged for SITE_DRIFT. Other markers for the same clause are unaffected.
+
+```
+  spec clause: tool.binary
+
+  install.sh:9     #F id:abc12345 tool.binary    ← BINARY="filament"
+  main.go:33       #F id:def67890 tool.binary    ← const usage = "filament ..."
+```
+
+Without multiple markers, a change to `install.sh` would be invisible if the only marker were in `main.go`. With multiple markers, each implementation site is independently tracked.
+
 ## Comment-prefix agnosticism
 
 The tool matches `#F` as a substring. It does not parse or validate the comment prefix. This means markers work in any language that uses any comment style — `//`, `#`, `--`, `<!-- -->`, `/* */`, `%`, `;`, `"`, or any other prefix.

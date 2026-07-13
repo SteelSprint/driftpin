@@ -38,6 +38,13 @@ The tool matches the #F directive as a substring, regardless of the
 comment character that precedes it. This allows markers to work in any
 text file with any comment style.
 
+A clause MAY have multiple markers. Every location where a clause is
+implemented — across different files or within the same file — should
+have its own marker. This is expected and encouraged. Multiple markers
+give you granular drift detection: when a spec clause changes, every
+implementation site is independently flagged for review, and when a
+site changes, only that specific site is flagged.
+
 
 SPEC XML SCHEMA
 
