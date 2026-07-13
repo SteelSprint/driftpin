@@ -5,17 +5,6 @@ import (
 	"encoding/hex"
 )
 
-// #F id:3aewemki hash.algorithm hash.input.content hash.input.references hash.input.references_order hash.input.whitespace hash.input.separator hash.output.format path_format.structure path_format.charset path_format.depth
-
-
-
-
-
-
-
-
-
-
 type ElementKind int
 
 const (
@@ -158,6 +147,7 @@ func ComputeHash(e *Element, defined map[string]bool, hashes map[string]string) 
 	return hashOf(e.Content(), hashRefs)
 }
 
+// #F id:3aewemki hash.algorithm hash.input.content hash.input.references hash.input.references_order hash.input.whitespace hash.input.separator hash.output.format
 func hashOf(content string, refs []string) string {
 	h := sha256.New()
 	h.Write([]byte(content))

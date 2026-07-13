@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// #F id:p4thfrm1 path_format.structure path_format.charset path_format.depth
 var idPattern = regexp.MustCompile(`^[a-z0-9_]+(\.[a-z0-9_]+)*$`)
 
 type Violation struct {
