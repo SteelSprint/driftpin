@@ -22,7 +22,6 @@ const markerIDLength = 8
 const markerIDChars = "abcdefghijklmnopqrstuvwxyz0123456789"
 
 // #F id:xpn0winy marker_format.id_generation
-// #F id:zyph0jce marker_format.content_normalization
 
 type MarkerMatch struct {
 	MarkerID string

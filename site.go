@@ -48,6 +48,7 @@ func readLines(r io.Reader) ([]string, error) {
 	return lines, scanner.Err()
 }
 
+// #F id:zyph0jce marker_format.content_normalization
 func normalizeContent(s string) string {
 	lines := strings.Split(s, "\n")
 	var out []string
