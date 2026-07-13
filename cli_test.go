@@ -67,7 +67,7 @@ func TestCLI_Check(t *testing.T) {
 func TestCLI_Subcommands(t *testing.T) {
 	binary := buildBinary(t)
 
-	for _, sub := range []string{"check", "add", "resolve"} {
+	for _, sub := range []string{"add", "resolve"} {
 		cmd := exec.Command(binary, sub)
 		if err := cmd.Run(); err == nil {
 			t.Errorf("subcommand %s with no args should fail, but it succeeded", sub)

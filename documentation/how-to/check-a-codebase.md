@@ -8,7 +8,7 @@
 filament check
 ```
 
-This validates the spec, loads the state file, scans all text files in the current directory, and reports any drift, missing clauses, orphans, or malformed markers.
+This validates the spec, loads the state file, scans all text files in the current directory (skipping any files matching exclude patterns in the state file), and reports any drift, missing clauses, orphans, or malformed markers.
 
 ## Check specific files or directories
 

@@ -75,7 +75,7 @@
 
   <section id="state_file" label="State file">
     <clause id="state_file.location">The filament file MUST be located in the same directory as the spec XML file. The filament file MUST be named .filament.</clause>
-    <clause id="state_file.structure">The filament file MUST contain three sections: spec, site, and state. Each section MUST be preceded by a header line in the format [section_name]. Each section MUST contain one or more entries in the format key=value, one per line.</clause>
+    <clause id="state_file.structure">The filament file MUST contain three required sections — spec, site, and state — and MAY contain an optional exclude section. Each section MUST be preceded by a header line in the format [section_name]. The spec, site, and state sections MUST contain one or more entries in the format key=value, one per line. The exclude section entries are path or glob patterns, one per line.</clause>
     <section id="state_file.sections" label="Sections">
       <clause id="state_file.sections.spec">The spec section MUST contain one entry for each clause in the spec. Each entry MUST have the clause id as the key and the spec hash as the value.</clause>
       <clause id="state_file.sections.site">The site section MUST contain one entry for each well_formed_marker found in the workspace. Each entry MUST have the marker_id as the key and the content hash as the value.</clause>
