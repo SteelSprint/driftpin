@@ -125,6 +125,9 @@ func parseStartElement(t xml.StartElement, dec *xml.Decoder, parent *Element, sp
 			if attr.Name.Local == "name" {
 				spec.Name = attr.Value
 			}
+			if attr.Name.Local == "version" {
+				spec.Version = attr.Value
+			}
 		}
 		return &Element{Kind: KindSection, ID: "spec", Label: spec.Name}, false, nil
 	case "description":

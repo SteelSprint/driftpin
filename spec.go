@@ -53,6 +53,7 @@ func (e *Element) Path() string {
 
 type Spec struct {
 	Name        string
+	Version     string
 	Description string
 	Elements    []*Element
 }
