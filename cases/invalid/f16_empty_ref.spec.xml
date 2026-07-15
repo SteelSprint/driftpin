@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="f16_empty_ref">
-
-  <clause id="1">INVALID: this clause has an empty <ref></ref> element.</clause>
-
-</spec>

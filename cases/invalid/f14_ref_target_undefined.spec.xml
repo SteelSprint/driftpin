@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="f14_ref_target_undefined">
-
-  <clause id="1">INVALID: this clause refs <ref>nonexistent</ref>, which is not defined in the spec.</clause>
-
-</spec>

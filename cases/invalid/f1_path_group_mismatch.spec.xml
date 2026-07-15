@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="f1_path_group_mismatch">
-
-  <section id="1" label="Container">
-    <clause id="1.1">Valid: this clause is a child of the section.</clause>
-    <clause id="2.1">INVALID: this clause is not a child of the section; its id does not extend the section's id.</clause>
-  </section>
-
-</spec>

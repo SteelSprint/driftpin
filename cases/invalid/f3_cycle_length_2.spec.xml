@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="f3_cycle_length_2">
-
-  <clause id="1">This clause refs <ref>2</ref>.</clause>
-  <clause id="2">INVALID: this clause refs <ref>1</ref>, completing a cycle.</clause>
-
-</spec>

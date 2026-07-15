@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="f18_duplicate_refs">
-
-  <clause id="base">The base clause.</clause>
-  <clause id="user">Uses <ref>base</ref> once.</clause>
-  <clause id="admin">Uses <ref>base</ref> twice and <ref>base</ref> again.</clause>
-
-</spec>

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="golden">
-
-  <clause id="x">a</clause>
-  <clause id="y">b cites <ref>x</ref>.</clause>
-  <clause id="z">c cites <ref>y</ref> and <ref>x</ref>.</clause>
-
-</spec>

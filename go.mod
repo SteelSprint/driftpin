@@ -1,3 +1,3 @@
-module github.com/steelsprint/filament
+module drift
 
-go 1.22
+go 1.26

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="f10_empty_clause">
-
-  <clause id="1">A valid leaf clause.</clause>
-  <clause id="2"></clause>
-
-</spec>

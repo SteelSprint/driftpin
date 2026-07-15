@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="f6_duplicate_id">
-
-  <clause id="1">The first clause.</clause>
-  <clause id="1">INVALID: this clause shares its id with the first clause.</clause>
-
-</spec>

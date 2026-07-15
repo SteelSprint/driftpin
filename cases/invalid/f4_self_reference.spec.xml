@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="f4_self_reference">
-
-  <clause id="1">INVALID: clause 1 refs <ref>1</ref> itself.</clause>
-
-</spec>

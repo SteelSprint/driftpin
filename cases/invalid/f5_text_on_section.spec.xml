@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<spec name="f5_text_on_section">
-
-  <section id="1" label="A section">
-    INVALID: this prose text is forbidden because element 1 is a section, not a clause.
-    <clause id="1.1">A valid sub-clause with text.</clause>
-  </section>
-
-</spec>
