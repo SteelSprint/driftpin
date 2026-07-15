@@ -188,6 +188,7 @@ PinStore, Scanner (empty), Orchestrator, CLI dispatch, output formatting.
 
 ### Steel cable 5: `drift reset m1:s1` → edge resolved ✓ (covered by orchestrator tests)
 
-### Steel cable 6+: Many-to-many topologies
+### Steel cable 6: Many-to-many topologies ✓ DONE
 
-Partial resolution (1×2, 2×1, 2×2, 3×3), progressive collapse, matrix state tracking.
+E2E tests for 1×2, 2×1, 2×2, 3×3 topologies through real filesystem.
+All 144 test cases pass, `go vet` clean.
