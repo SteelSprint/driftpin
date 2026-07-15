@@ -8,7 +8,7 @@ import (
 
 func Run(args []string, dir string) (string, int) {
 	if len(args) == 0 {
-		return "usage: drift <init|todo|reset <marker>:<spec>>", 1
+		return "usage: drift <init|todo|reset <marker>:<spec>|link <marker>:<spec>>", 1
 	}
 
 	pin := NewFilePinStore(dir)
@@ -42,6 +42,20 @@ func Run(args []string, dir string) (string, int) {
 			return err.Error(), 1
 		}
 		return "", 0
+
+	case "link":
+		if len(args) < 2 {
+			return "usage: drift link <marker>:<spec>", 1
+		}
+		parts := strings.SplitN(args[1], ":", 2)
+		if len(parts) != 2 {
+			return "invalid format, expected <marker>:<spec>", 1
+		}
+		err := orch.Link(parts[0], parts[1])
+		if err != nil {
+			return err.Error(), 1
+		}
+		return fmt.Sprintf("Linked marker %q to spec %q", parts[0], parts[1]), 0
 
 	default:
 		return fmt.Sprintf("unknown command: %s", args[0]), 1

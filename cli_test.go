@@ -120,3 +120,189 @@ func TestCLIResetBadFormat(t *testing.T) {
 		}
 	})
 }
+
+func TestCLIFullFlowSpecMarkerLinkDrift(t *testing.T) {
+	t.Run("init_create_spec_create_marker_todo_no_links_no_drift", func(t *testing.T) {
+		dir := t.TempDir()
+		Run([]string{"init"}, dir)
+
+		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
+		writeCodeFile(t, dir, "main.go", `// #F abc123
+func handleRequest() {
+	doSomething()
+}
+`)
+
+		output, code := Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if output != "No changes detected." {
+			t.Fatalf("output = %q, want %q", output, "No changes detected.")
+		}
+	})
+
+	t.Run("link_then_todo_no_drift", func(t *testing.T) {
+		dir := t.TempDir()
+		Run([]string{"init"}, dir)
+
+		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
+		writeCodeFile(t, dir, "main.go", `// #F abc123
+func handleRequest() {
+	doSomething()
+}
+`)
+
+		Run([]string{"todo"}, dir)
+
+		output, code := Run([]string{"link", "abc123:validate_input"}, dir)
+		if code != 0 {
+			t.Fatalf("link failed, exit code = %d, output: %s", code, output)
+		}
+
+		output, code = Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if output != "No changes detected." {
+			t.Fatalf("output = %q, want %q", output, "No changes detected.")
+		}
+	})
+
+	t.Run("link_then_modify_code_then_todo_shows_drift", func(t *testing.T) {
+		dir := t.TempDir()
+		Run([]string{"init"}, dir)
+
+		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
+		writeCodeFile(t, dir, "main.go", `// #F abc123
+func handleRequest() {
+	doSomething()
+}
+`)
+
+		Run([]string{"todo"}, dir)
+		Run([]string{"link", "abc123:validate_input"}, dir)
+		Run([]string{"todo"}, dir)
+
+		writeCodeFile(t, dir, "main.go", `// #F abc123
+func handleRequest() {
+	doSomethingElse()
+}
+`)
+
+		output, code := Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "1 marker has unchecked changes") {
+			t.Fatalf("output should mention 1 marker with unchecked changes, got: %s", output)
+		}
+		if !strings.Contains(output, "abc123") {
+			t.Fatalf("output should contain marker id abc123, got: %s", output)
+		}
+		if !strings.Contains(output, "validate_input") {
+			t.Fatalf("output should contain spec id validate_input, got: %s", output)
+		}
+		if !strings.Contains(output, "drift reset abc123:validate_input") {
+			t.Fatalf("output should contain reset command, got: %s", output)
+		}
+	})
+
+	t.Run("drift_then_reset_clears_drift", func(t *testing.T) {
+		dir := t.TempDir()
+		Run([]string{"init"}, dir)
+
+		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
+		writeCodeFile(t, dir, "main.go", `// #F abc123
+func handleRequest() {
+	doSomething()
+}
+`)
+
+		Run([]string{"todo"}, dir)
+		Run([]string{"link", "abc123:validate_input"}, dir)
+		Run([]string{"todo"}, dir)
+
+		writeCodeFile(t, dir, "main.go", `// #F abc123
+func handleRequest() {
+	doSomethingElse()
+}
+`)
+
+		Run([]string{"todo"}, dir)
+
+		_, code := Run([]string{"reset", "abc123:validate_input"}, dir)
+		if code != 0 {
+			t.Fatalf("reset failed with non-zero exit code")
+		}
+
+		output, code := Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if output != "No changes detected." {
+			t.Fatalf("output = %q, want %q", output, "No changes detected.")
+		}
+	})
+}
+
+func TestCLILinkErrors(t *testing.T) {
+	t.Run("link_nonexistent_marker", func(t *testing.T) {
+		dir := t.TempDir()
+		Run([]string{"init"}, dir)
+		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="s1">spec</spec></specs>`)
+
+		output, code := Run([]string{"link", "nonexistent:s1"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
+		}
+	})
+
+	t.Run("link_nonexistent_spec", func(t *testing.T) {
+		dir := t.TempDir()
+		Run([]string{"init"}, dir)
+		writeCodeFile(t, dir, "main.go", `// #F m1
+func a() {}
+`)
+
+		output, code := Run([]string{"link", "m1:nonexistent"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
+		}
+	})
+
+	t.Run("link_duplicate", func(t *testing.T) {
+		dir := t.TempDir()
+		Run([]string{"init"}, dir)
+		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="s1">spec</spec></specs>`)
+		writeCodeFile(t, dir, "main.go", `// #F m1
+func a() {}
+`)
+
+		Run([]string{"todo"}, dir)
+		Run([]string{"link", "m1:s1"}, dir)
+
+		output, code := Run([]string{"link", "m1:s1"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code for duplicate link, got 0, output: %s", output)
+		}
+	})
+
+	t.Run("link_bad_format", func(t *testing.T) {
+		dir := t.TempDir()
+		Run([]string{"init"}, dir)
+
+		output, code := Run([]string{"link", "no_colon"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
+		}
+	})
+
+	t.Run("link_without_init", func(t *testing.T) {
+		dir := t.TempDir()
+		output, code := Run([]string{"link", "m1:s1"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
+		}
+	})
+}
