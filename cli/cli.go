@@ -14,7 +14,7 @@ import (
 // #F cdisp
 func Run(args []string, dir string) (string, int) {
 	if len(args) == 0 {
-		return "usage: drift <init|todo|reset <marker>:<spec>|link <marker>:<spec>>", 1
+		return "usage: drift <init|todo|reset <marker> <module.spec>|link <marker> <module.spec>>", 1
 	}
 
 	pin := pinstore.NewFilePinStore(dir)
@@ -37,14 +37,10 @@ func Run(args []string, dir string) (string, int) {
 
 	// #F crfmt
 	case "reset":
-		if len(args) < 2 {
-			return "usage: drift reset <marker>:<spec>", 1
+		if len(args) < 3 {
+			return "usage: drift reset <marker> <module.spec>", 1
 		}
-		parts := strings.SplitN(args[1], ":", 2)
-		if len(parts) != 2 {
-			return "invalid format, expected <marker>:<spec>", 1
-		}
-		_, err := orch.Reset(parts[0], parts[1])
+		_, err := orch.Reset(args[1], args[2])
 		if err != nil {
 			return err.Error(), 1
 		}
@@ -52,18 +48,14 @@ func Run(args []string, dir string) (string, int) {
 
 	// #F clfmt
 	case "link":
-		if len(args) < 2 {
-			return "usage: drift link <marker>:<spec>", 1
+		if len(args) < 3 {
+			return "usage: drift link <marker> <module.spec>", 1
 		}
-		parts := strings.SplitN(args[1], ":", 2)
-		if len(parts) != 2 {
-			return "invalid format, expected <marker>:<spec>", 1
-		}
-		err := orch.Link(parts[0], parts[1])
+		err := orch.Link(args[1], args[2])
 		if err != nil {
 			return err.Error(), 1
 		}
-		return fmt.Sprintf("Linked marker %q to spec %q", parts[0], parts[1]), 0
+		return fmt.Sprintf("Linked marker %q to spec %q", args[1], args[2]), 0
 
 	default:
 		return fmt.Sprintf("unknown command: %s", args[0]), 1
@@ -119,7 +111,7 @@ func formatTodo(state core.EvaluatedState) string {
 		markerLocation := todo.MarkerFilepath + ":" + strconv.Itoa(todo.MarkerLineNumber)
 		specLocation := todo.SpecFilepath + ":" + strconv.Itoa(todo.SpecLineNumber)
 
-		sb.WriteString(fmt.Sprintf("%d. [TODO] Edge between marker %q in %q and spec term %q in %q. %s Once you are satisfied, run `drift reset %s:%s` to mark this todo item as complete.\n",
+		sb.WriteString(fmt.Sprintf("%d. [TODO] Edge between marker %q in %q and spec term %q in %q. %s Once you are satisfied, run `drift reset %s %s` to mark this todo item as complete.\n",
 			i+1,
 			todo.MarkerID,
 			markerLocation,

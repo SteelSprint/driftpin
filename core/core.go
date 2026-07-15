@@ -15,6 +15,7 @@ type Spec struct {
 	Filepath   string
 	LineNumber int
 	ID         string
+	Module     string
 	Hash       string
 }
 

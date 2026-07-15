@@ -49,7 +49,7 @@ func (s *FileScanner) Scan() (ScanResult, error) {
 	if err != nil {
 		return ScanResult{}, err
 	}
-	specs, err := s.scanSpecs(ignore)
+	specs, err := s.scanSpecs()
 	if err != nil {
 		return ScanResult{}, err
 	}
@@ -60,9 +60,16 @@ func (s *FileScanner) Scan() (ScanResult, error) {
 	return ScanResult{Specs: specs, Markers: markers}, nil
 }
 
-type specFileXML struct {
-	XMLName xml.Name   `xml:"specs"`
-	Specs   []specElem `xml:"spec"`
+type pinFileXML struct {
+	XMLName xml.Name
+	Name    string       `xml:"name,attr"`
+	Imports []importElem `xml:"import"`
+	Specs   []specElem   `xml:"spec"`
+}
+
+type importElem struct {
+	XMLName xml.Name `xml:"import"`
+	Path    string   `xml:"path,attr"`
 }
 
 type specElem struct {
@@ -72,57 +79,91 @@ type specElem struct {
 }
 
 // #F sspec
-func (s *FileScanner) scanSpecs(ignore *driftIgnore) ([]core.Spec, error) {
-	var specs []core.Spec
-	seenIDs := make(map[string]bool)
-
-	err := filepath.WalkDir(s.dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		relPath, _ := filepath.Rel(s.dir, path)
-		if ignore.matches(relPath, d.IsDir()) {
-			if d.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(path, ".pin.xml") {
-			return nil
-		}
-		fileSpecs, err := parseSpecFile(path)
-		if err != nil {
-			return fmt.Errorf("%s: %w", path, err)
-		}
-		for _, spec := range fileSpecs {
-			// #F sdups
-			if seenIDs[spec.ID] {
-				return fmt.Errorf("duplicate spec id %q", spec.ID)
-			}
-			seenIDs[spec.ID] = true
-			specs = append(specs, spec)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+func (s *FileScanner) scanSpecs() ([]core.Spec, error) {
+	mainPath := filepath.Join(s.dir, "main.pin.xml")
+	if _, err := os.Stat(mainPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("main.pin.xml not found in %s", s.dir)
 	}
-	return specs, nil
+
+	loader := &importLoader{
+		seenIDs:    make(map[string]bool),
+		seenFiles:  make(map[string]bool),
+		seenNames:  make(map[string]string),
+		visitStack: nil,
+	}
+	return loader.load(mainPath)
 }
 
-func parseSpecFile(path string) ([]core.Spec, error) {
-	data, err := os.ReadFile(path)
+type importLoader struct {
+	seenIDs    map[string]bool
+	seenFiles  map[string]bool
+	seenNames  map[string]string
+	visitStack []string
+}
+
+func (l *importLoader) load(absPath string) ([]core.Spec, error) {
+	absPath, err := filepath.Abs(absPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var file specFileXML
-	if err := xml.Unmarshal(data, &file); err != nil {
+	for _, visited := range l.visitStack {
+		if visited == absPath {
+			var parts []string
+			for _, p := range l.visitStack {
+				parts = append(parts, filepath.Base(p))
+			}
+			parts = append(parts, filepath.Base(absPath))
+			return nil, fmt.Errorf("cycle detected: %s", strings.Join(parts, " → "))
+		}
+	}
+
+	if l.seenFiles[absPath] {
+		return nil, nil
+	}
+
+	l.visitStack = append(l.visitStack, absPath)
+	defer func() {
+		l.visitStack = l.visitStack[:len(l.visitStack)-1]
+	}()
+
+	l.seenFiles[absPath] = true
+
+	data, err := os.ReadFile(absPath)
+	if err != nil {
 		return nil, err
 	}
+
+	var file pinFileXML
+	if err := xml.Unmarshal(data, &file); err != nil {
+		return nil, fmt.Errorf("%s: %w", absPath, err)
+	}
+
+	isMain := file.XMLName.Local == "main"
+	isModule := file.XMLName.Local == "module"
+
+	if !isMain && !isModule {
+		return nil, fmt.Errorf("%s: expected <main> or <module> root element, got <%s>", absPath, file.XMLName.Local)
+	}
+
+	var moduleName string
+	if isMain {
+		moduleName = "main"
+	} else {
+		moduleName = file.Name
+		// #F smname
+		if moduleName == "" {
+			return nil, fmt.Errorf("%s: module element missing name attribute", absPath)
+		}
+	}
+
+	if existingPath, ok := l.seenNames[moduleName]; ok {
+		return nil, fmt.Errorf("duplicate module name %q (defined in %s and %s)", moduleName, filepath.Base(existingPath), filepath.Base(absPath))
+	}
+	l.seenNames[moduleName] = absPath
+	l.seenFiles[absPath] = true
+
+	dir := filepath.Dir(absPath)
 
 	var specs []core.Spec
 	for _, elem := range file.Specs {
@@ -135,17 +176,37 @@ func parseSpecFile(path string) ([]core.Spec, error) {
 		}
 		// #F smiss
 		if id == "" {
-			return nil, fmt.Errorf("spec element missing id attribute")
+			return nil, fmt.Errorf("%s: spec element missing id attribute", absPath)
 		}
+		qualifiedID := moduleName + "." + id
+		// #F sdups
+		if l.seenIDs[qualifiedID] {
+			return nil, fmt.Errorf("duplicate spec id %q", qualifiedID)
+		}
+		l.seenIDs[qualifiedID] = true
 		content := strings.TrimSpace(elem.Content)
 		hash := sha1Hex(content)
 		specs = append(specs, core.Spec{
-			ID:         id,
+			ID:         qualifiedID,
+			Module:     moduleName,
 			Hash:       hash,
-			Filepath:   path,
+			Filepath:   absPath,
 			LineNumber: 0,
 		})
 	}
+
+	for _, imp := range file.Imports {
+		importPath := filepath.Join(dir, imp.Path)
+		if _, err := os.Stat(importPath); os.IsNotExist(err) {
+			return nil, fmt.Errorf("import path not found: %s", imp.Path)
+		}
+		importedSpecs, err := l.load(importPath)
+		if err != nil {
+			return nil, err
+		}
+		specs = append(specs, importedSpecs...)
+	}
+
 	return specs, nil
 }
 

@@ -1,67 +1,68 @@
 <drift>
   <specs>
-    <spec id="core_validate" hash="afd4321ea69cdbad6013ed26ba4c38e68c5e7b68" filepath="core/core.pin.xml" line="0"></spec>
-    <spec id="orch_link" hash="e55072e8afeaebc8b4a2054bc0a3813cd7e210e7" filepath="orchestrator/orchestrator.pin.xml" line="0"></spec>
-    <spec id="orch_reconcile_markers" hash="152169f43b8e16a639f4fa19c8fd8c7b483bc224" filepath="orchestrator/orchestrator.pin.xml" line="0"></spec>
-    <spec id="pin_save" hash="04e8320d2c7799b57448d804ae30cb14f6b0974a" filepath="pinstore/pinstore.pin.xml" line="0"></spec>
-    <spec id="orch_init" hash="7633208b762401c8d28f7bce1edb8d108583258a" filepath="orchestrator/orchestrator.pin.xml" line="0"></spec>
-    <spec id="orch_reset" hash="a1b0e30b936f35c2e7d53530b5ed0de13b84aa96" filepath="orchestrator/orchestrator.pin.xml" line="0"></spec>
-    <spec id="scanner_spec_discovery" hash="74dbfc9c705f1b714e56f2ff2e304351005bb2b9" filepath="scanner/scanner.pin.xml" line="0"></spec>
-    <spec id="scanner_marker_discovery" hash="d4740e425281d5020df5af8064029b7ef5abdbe6" filepath="scanner/scanner.pin.xml" line="0"></spec>
-    <spec id="scanner_duplicate_marker" hash="7789ee0355979679ab27dd54d2ba27a74dca04cb" filepath="scanner/scanner.pin.xml" line="0"></spec>
-    <spec id="scanner_code_extensions" hash="e7cc5d8228aa0dc14f19eca8e167a7602745a141" filepath="scanner/scanner.pin.xml" line="0"></spec>
-    <spec id="core_reset_action" hash="0d1ea7a02ede8ed91db51a3ea007a1a2fc1fb894" filepath="core/core.pin.xml" line="0"></spec>
-    <spec id="core_collapse" hash="2b84edcb1a963c981172a8f2bc11706bcc36680a" filepath="core/core.pin.xml" line="0"></spec>
-    <spec id="core_edge_unchecked" hash="8c3be9769d9e0d0a6ef2c2d29f6ccc883267b6e1" filepath="core/core.pin.xml" line="0"></spec>
-    <spec id="core_scan_coverage" hash="d72c2d6c4231105f9e9c5b2bc9f47f2ae19b42b8" filepath="core/core.pin.xml" line="0"></spec>
-    <spec id="orch_todo" hash="74c8ab6140abca96dbafdd42ef695c9f5d3690b7" filepath="orchestrator/orchestrator.pin.xml" line="0"></spec>
-    <spec id="scanner_duplicate_spec" hash="e47a7e34194810e25bed444df9939d20d1466348" filepath="scanner/scanner.pin.xml" line="0"></spec>
-    <spec id="cli_dispatch" hash="b3afc6ae4125ba681206140a76a466a699497999" filepath="cli/cli.pin.xml" line="0"></spec>
-    <spec id="cli_link_format" hash="9769b5bd1731d1237cd29fa54c1e26d147714e81" filepath="cli/cli.pin.xml" line="0"></spec>
-    <spec id="core_todo_action" hash="29bd2e1b33c41abaf0d462116224c3c96b052d19" filepath="core/core.pin.xml" line="0"></spec>
-    <spec id="orch_reconcile_specs" hash="198a4b7939268bf7f4e830acbc0290563eacce52" filepath="orchestrator/orchestrator.pin.xml" line="0"></spec>
-    <spec id="pin_load" hash="2ad40ae5f5d709a9bf0ecfe9e3529397051ab0a5" filepath="pinstore/pinstore.pin.xml" line="0"></spec>
-    <spec id="pin_not_found" hash="151e1d272339f93733f72171c9f20bee68117492" filepath="pinstore/pinstore.pin.xml" line="0"></spec>
-    <spec id="scanner_hash_sha1" hash="b8621666e0108002b4c6df66a5aa22acca078e28" filepath="scanner/scanner.pin.xml" line="0"></spec>
-    <spec id="scanner_missing_id" hash="307753c619d7cfc2df20e285b9c024c9f788b884" filepath="scanner/scanner.pin.xml" line="0"></spec>
-    <spec id="cli_format_todo" hash="db9c335a579131fd28ec6e066807f550f2d5ed86" filepath="cli/cli.pin.xml" line="0"></spec>
-    <spec id="cli_reset_format" hash="f144f16070a94add56936f91c9846ac73aa9e2e9" filepath="cli/cli.pin.xml" line="0"></spec>
+    <spec id="core.collapse" hash="2b84edcb1a963c981172a8f2bc11706bcc36680a" filepath="/workspaces/filament/core/core.pin.xml" line="0"></spec>
+    <spec id="scanner.duplicate_spec" hash="9ba8f07aec32afab1ce06aba458a88e15fe6503b" filepath="/workspaces/filament/scanner/scanner.pin.xml" line="0"></spec>
+    <spec id="cli.dispatch" hash="b3afc6ae4125ba681206140a76a466a699497999" filepath="/workspaces/filament/cli/cli.pin.xml" line="0"></spec>
+    <spec id="cli.reset_format" hash="3f822c5dfd711fc546ee079e2d6552bc18837be7" filepath="/workspaces/filament/cli/cli.pin.xml" line="0"></spec>
+    <spec id="cli.link_format" hash="f1cda4d8883571b3ebb259040b468e871f6ae76d" filepath="/workspaces/filament/cli/cli.pin.xml" line="0"></spec>
+    <spec id="core.scan_coverage" hash="d72c2d6c4231105f9e9c5b2bc9f47f2ae19b42b8" filepath="/workspaces/filament/core/core.pin.xml" line="0"></spec>
+    <spec id="scanner.spec_discovery" hash="0c4f9115824f742acef9e1bbadbc7c431ee6b838" filepath="/workspaces/filament/scanner/scanner.pin.xml" line="0"></spec>
+    <spec id="scanner.hash_sha1" hash="b8621666e0108002b4c6df66a5aa22acca078e28" filepath="/workspaces/filament/scanner/scanner.pin.xml" line="0"></spec>
+    <spec id="scanner.duplicate_marker" hash="7789ee0355979679ab27dd54d2ba27a74dca04cb" filepath="/workspaces/filament/scanner/scanner.pin.xml" line="0"></spec>
+    <spec id="pinstore.save" hash="04e8320d2c7799b57448d804ae30cb14f6b0974a" filepath="/workspaces/filament/pinstore/pinstore.pin.xml" line="0"></spec>
+    <spec id="orch.link" hash="e55072e8afeaebc8b4a2054bc0a3813cd7e210e7" filepath="/workspaces/filament/orchestrator/orchestrator.pin.xml" line="0"></spec>
+    <spec id="scanner.marker_discovery" hash="d4740e425281d5020df5af8064029b7ef5abdbe6" filepath="/workspaces/filament/scanner/scanner.pin.xml" line="0"></spec>
+    <spec id="scanner.code_extensions" hash="e7cc5d8228aa0dc14f19eca8e167a7602745a141" filepath="/workspaces/filament/scanner/scanner.pin.xml" line="0"></spec>
+    <spec id="orch.init" hash="7633208b762401c8d28f7bce1edb8d108583258a" filepath="/workspaces/filament/orchestrator/orchestrator.pin.xml" line="0"></spec>
+    <spec id="orch.reset" hash="a1b0e30b936f35c2e7d53530b5ed0de13b84aa96" filepath="/workspaces/filament/orchestrator/orchestrator.pin.xml" line="0"></spec>
+    <spec id="orch.reconcile_specs" hash="198a4b7939268bf7f4e830acbc0290563eacce52" filepath="/workspaces/filament/orchestrator/orchestrator.pin.xml" line="0"></spec>
+    <spec id="orch.reconcile_markers" hash="152169f43b8e16a639f4fa19c8fd8c7b483bc224" filepath="/workspaces/filament/orchestrator/orchestrator.pin.xml" line="0"></spec>
+    <spec id="cli.format_todo" hash="db9c335a579131fd28ec6e066807f550f2d5ed86" filepath="/workspaces/filament/cli/cli.pin.xml" line="0"></spec>
+    <spec id="core.edge_unchecked" hash="8c3be9769d9e0d0a6ef2c2d29f6ccc883267b6e1" filepath="/workspaces/filament/core/core.pin.xml" line="0"></spec>
+    <spec id="scanner.missing_id" hash="307753c619d7cfc2df20e285b9c024c9f788b884" filepath="/workspaces/filament/scanner/scanner.pin.xml" line="0"></spec>
+    <spec id="pinstore.load" hash="2ad40ae5f5d709a9bf0ecfe9e3529397051ab0a5" filepath="/workspaces/filament/pinstore/pinstore.pin.xml" line="0"></spec>
+    <spec id="pinstore.not_found" hash="151e1d272339f93733f72171c9f20bee68117492" filepath="/workspaces/filament/pinstore/pinstore.pin.xml" line="0"></spec>
+    <spec id="orch.todo" hash="74c8ab6140abca96dbafdd42ef695c9f5d3690b7" filepath="/workspaces/filament/orchestrator/orchestrator.pin.xml" line="0"></spec>
+    <spec id="core.validate" hash="afd4321ea69cdbad6013ed26ba4c38e68c5e7b68" filepath="/workspaces/filament/core/core.pin.xml" line="0"></spec>
+    <spec id="core.todo_action" hash="29bd2e1b33c41abaf0d462116224c3c96b052d19" filepath="/workspaces/filament/core/core.pin.xml" line="0"></spec>
+    <spec id="core.reset_action" hash="0d1ea7a02ede8ed91db51a3ea007a1a2fc1fb894" filepath="/workspaces/filament/core/core.pin.xml" line="0"></spec>
   </specs>
   <markers>
-    <marker id="cfmt" hash="fb549eb209d2802f16dbf6a149ec7a1a393a0817" filepath="cli/cli.go" line="73"></marker>
-    <marker id="cval" hash="7dc34f7516f43f8948961e9f153afdd918cc1840" filepath="core/core.go" line="108"></marker>
+    <marker id="shash" hash="c1b43e87e49ea7581f9b842f9a1dd9d100af5550" filepath="scanner/scanner.go" line="296"></marker>
+    <marker id="crfmt" hash="9b84f483df1babb668be5df49e010af1befd27f1" filepath="cli/cli.go" line="38"></marker>
+    <marker id="cscn" hash="b0075a81fcac81125e06e7d135f30ed3951ecfcd" filepath="core/core.go" line="160"></marker>
+    <marker id="ccol" hash="9bf656f55b2a49d2ddb612f2214f1f19ca142c9e" filepath="core/core.go" line="273"></marker>
+    <marker id="oinit" hash="51476d9782642a604c92409bbe0497ab142a1792" filepath="orchestrator/orchestrator.go" line="33"></marker>
     <marker id="otodo" hash="c473c74e3da86c1414602f122b161538dbe40c9e" filepath="orchestrator/orchestrator.go" line="38"></marker>
-    <marker id="orest" hash="0c3614e0f885a1b0372f979b6a497dc045e0b9e8" filepath="orchestrator/orchestrator.go" line="73"></marker>
+    <marker id="olink" hash="1efcc61aa3cba3fab8d507db6c043618bc964bc4" filepath="orchestrator/orchestrator.go" line="127"></marker>
     <marker id="orspc" hash="3ea23941b9143960b5745a72c079c203174cf556" filepath="orchestrator/orchestrator.go" line="185"></marker>
     <marker id="pnope" hash="63893e70680b758bf110403dc838f3e1ffc75cb9" filepath="pinstore/pin_file.go" line="12"></marker>
-    <marker id="smiss" hash="5e0261f5c10aa001d313906c121bbd8c7c111e0c" filepath="scanner/scanner.go" line="136"></marker>
-    <marker id="cscn" hash="b0075a81fcac81125e06e7d135f30ed3951ecfcd" filepath="core/core.go" line="159"></marker>
-    <marker id="ctodo" hash="d6937c0075b21d56a0470023cacdd187537fb41e" filepath="core/core.go" line="212"></marker>
-    <marker id="oinit" hash="51476d9782642a604c92409bbe0497ab142a1792" filepath="orchestrator/orchestrator.go" line="33"></marker>
-    <marker id="scode" hash="7d07f0339643c461e8cec22b6a486ec3dc226d5b" filepath="scanner/scanner.go" line="18"></marker>
-    <marker id="sspec" hash="903722d96c5187c256f993f7301e51805c445d9b" filepath="scanner/scanner.go" line="74"></marker>
-    <marker id="cdisp" hash="76196d694eaa623b9e3eb2284e802c82153f98d2" filepath="cli/cli.go" line="14"></marker>
-    <marker id="crfmt" hash="964b6525c5393fb8133e1dfcbbddddde6f414f28" filepath="cli/cli.go" line="38"></marker>
-    <marker id="clfmt" hash="0d4946e8ccacf10f7e6092341b1b5298787c8b93" filepath="cli/cli.go" line="53"></marker>
-    <marker id="ccol" hash="9bf656f55b2a49d2ddb612f2214f1f19ca142c9e" filepath="core/core.go" line="272"></marker>
+    <marker id="cdisp" hash="b02a4d6cf789f59cff9ef735aff37b97270496eb" filepath="cli/cli.go" line="14"></marker>
+    <marker id="ctodo" hash="d6937c0075b21d56a0470023cacdd187537fb41e" filepath="core/core.go" line="213"></marker>
+    <marker id="crst" hash="857a64253de8055c6247046eb06198d91a15b6b4" filepath="core/core.go" line="234"></marker>
     <marker id="ormrk" hash="3c043da53b2233b64bf5e98833e871be2a9f663b" filepath="orchestrator/orchestrator.go" line="219"></marker>
     <marker id="pload" hash="4fb5aefd6f31a80f84a416d0ed14363276c083dd" filepath="pinstore/pin_file.go" line="69"></marker>
-    <marker id="smark" hash="db1f6e0ba1069bb7e6699240d77cbd48f87a93c3" filepath="scanner/scanner.go" line="152"></marker>
-    <marker id="sdupm" hash="39efae5a7d4cdfd5a5470f30f51c4204f7bbdb53" filepath="scanner/scanner.go" line="180"></marker>
-    <marker id="crst" hash="857a64253de8055c6247046eb06198d91a15b6b4" filepath="core/core.go" line="233"></marker>
-    <marker id="cedg" hash="0f567db69e49f4749ba5d0589dd850d2f0aaa174" filepath="core/core.go" line="350"></marker>
-    <marker id="olink" hash="1efcc61aa3cba3fab8d507db6c043618bc964bc4" filepath="orchestrator/orchestrator.go" line="127"></marker>
+    <marker id="smname" hash="a034459a24e5872ebb1bb37e8dab4cf71b9913bb" filepath="scanner/scanner.go" line="154"></marker>
+    <marker id="sdups" hash="87f28817a3e80ea03e0125a68f243f832bc9b323" filepath="scanner/scanner.go" line="182"></marker>
+    <marker id="sdupm" hash="39efae5a7d4cdfd5a5470f30f51c4204f7bbdb53" filepath="scanner/scanner.go" line="241"></marker>
+    <marker id="clfmt" hash="c154ba603a0f746bf4d30b9b77acd5aa83228b42" filepath="cli/cli.go" line="49"></marker>
+    <marker id="cfmt" hash="fb549eb209d2802f16dbf6a149ec7a1a393a0817" filepath="cli/cli.go" line="65"></marker>
+    <marker id="cedg" hash="0f567db69e49f4749ba5d0589dd850d2f0aaa174" filepath="core/core.go" line="351"></marker>
+    <marker id="sspec" hash="b809ae8f4101495275f9d71d69a3aa63185559bd" filepath="scanner/scanner.go" line="81"></marker>
+    <marker id="smiss" hash="c3588b873820f836ab17f5e8347fa151931f8baf" filepath="scanner/scanner.go" line="177"></marker>
+    <marker id="smark" hash="db1f6e0ba1069bb7e6699240d77cbd48f87a93c3" filepath="scanner/scanner.go" line="213"></marker>
+    <marker id="cval" hash="7dc34f7516f43f8948961e9f153afdd918cc1840" filepath="core/core.go" line="109"></marker>
+    <marker id="orest" hash="0c3614e0f885a1b0372f979b6a497dc045e0b9e8" filepath="orchestrator/orchestrator.go" line="73"></marker>
     <marker id="psave" hash="28731e3ec0d4a2ec2d67a96cfeb2e58b25c15ffc" filepath="pinstore/pin_file.go" line="130"></marker>
-    <marker id="sdups" hash="028f72381180176788508d95d8edbfaf2a5c9ca0" filepath="scanner/scanner.go" line="101"></marker>
-    <marker id="shash" hash="c1b43e87e49ea7581f9b842f9a1dd9d100af5550" filepath="scanner/scanner.go" line="235"></marker>
+    <marker id="scode" hash="7d07f0339643c461e8cec22b6a486ec3dc226d5b" filepath="scanner/scanner.go" line="18"></marker>
   </markers>
   <links>
-    <link specId="core_validate" markerId="cval"></link>
-    <link specId="core_todo_action" markerId="ctodo"></link>
-    <link specId="scanner_spec_discovery" markerId="sspec"></link>
-    <link specId="pin_load" markerId="pload"></link>
-    <link specId="orch_init" markerId="oinit"></link>
-    <link specId="cli_dispatch" markerId="cdisp"></link>
+    <link specId="core.validate" markerId="cval"></link>
+    <link specId="core.todo_action" markerId="ctodo"></link>
+    <link specId="scanner.spec_discovery" markerId="sspec"></link>
+    <link specId="pinstore.load" markerId="pload"></link>
+    <link specId="orch.init" markerId="oinit"></link>
+    <link specId="cli.dispatch" markerId="cdisp"></link>
   </links>
   <resolutions></resolutions>
 </drift>

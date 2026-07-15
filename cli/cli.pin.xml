@@ -1,6 +1,6 @@
-<specs>
-<spec id="cli_dispatch">Run dispatches on args[0] to init, todo, reset, or link. Unknown commands return an error message and exit code 1. Missing args return a usage message and exit code 1.</spec>
-<spec id="cli_format_todo">formatTodo returns "No changes detected." when there are no todos. Otherwise it prints a count of changed markers and changed specs, then lists each todo with its edge description, file locations, and the drift reason (marker changed, spec changed, or both), ending with the reset command to run.</spec>
-<spec id="cli_reset_format">The reset command requires a marker:spec argument. Invalid format returns a usage error. On success it returns empty string with exit code 0. On error it returns the error message with exit code 1.</spec>
-<spec id="cli_link_format">The link command requires a marker:spec argument. Invalid format returns a usage error. On success it returns "Linked marker X to spec Y" with exit code 0. On error it returns the error message with exit code 1.</spec>
-</specs>
+<module name="cli">
+<spec id="dispatch">Run dispatches on args[0] to init, todo, reset, or link. Unknown commands return an error message and exit code 1. Missing args return a usage message and exit code 1.</spec>
+<spec id="format_todo">formatTodo returns "No changes detected." when there are no todos. Otherwise it prints a count of changed markers and changed specs, then lists each todo with its edge description, file locations, and the drift reason (marker changed, spec changed, or both), ending with the reset command to run.</spec>
+<spec id="reset_format">The reset command requires a marker and a module.spec argument, space-separated. Missing arguments return a usage error. On success it returns empty string with exit code 0. On error it returns the error message with exit code 1.</spec>
+<spec id="link_format">The link command requires a marker and a module.spec argument, space-separated. Missing arguments return a usage error. On success it returns "Linked marker X to spec Y" with exit code 0. On error it returns the error message with exit code 1.</spec>
+</module>

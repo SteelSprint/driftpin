@@ -1,5 +1,5 @@
-<specs>
-<spec id="pin_load">FilePinStore.Load reads drift.pin from disk, unmarshals XML into Specs, Markers, Links, and ResolutionState, and returns the PinState. If the file does not exist, it returns ErrPinNotFound.</spec>
-<spec id="pin_save">FilePinStore.Save marshals PinState to indented XML and writes it to drift.pin, truncating any existing file. The XML root element is drift with nested specs, markers, links, and resolutions sections.</spec>
-<spec id="pin_not_found">When drift.pin does not exist on disk, Load returns ErrPinNotFound, prompting the user to run drift init first.</spec>
-</specs>
+<module name="pinstore">
+<spec id="load">FilePinStore.Load reads drift.pin from disk, unmarshals XML into Specs, Markers, Links, and ResolutionState, and returns the PinState. If the file does not exist, it returns ErrPinNotFound.</spec>
+<spec id="save">FilePinStore.Save marshals PinState to indented XML and writes it to drift.pin, truncating any existing file. The XML root element is drift with nested specs, markers, links, and resolutions sections.</spec>
+<spec id="not_found">When drift.pin does not exist on disk, Load returns ErrPinNotFound, prompting the user to run drift init first.</spec>
+</module>

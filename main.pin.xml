@@ -1,0 +1,7 @@
+<main>
+  <import path="./core/core.pin.xml" />
+  <import path="./scanner/scanner.pin.xml" />
+  <import path="./pinstore/pinstore.pin.xml" />
+  <import path="./orchestrator/orchestrator.pin.xml" />
+  <import path="./cli/cli.pin.xml" />
+</main>

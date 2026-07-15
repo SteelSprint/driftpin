@@ -123,26 +123,34 @@ Running `drift todo` in `services/auth/` uses `services/auth/main.pin.xml` and `
 ## File structure
 
 ```
-core.go              # ✓ done - pure algorithm (no changes needed)
-core_test.go         # ✓ done - no changes (uses bare string IDs)
-pin_file.go          # update - Spec gains Module field, specXML unchanged
-pin_file_test.go     # update - qualified spec IDs
-scanner.go           # rewrite - import graph instead of dir walk for specs
-scanner_test.go      # rewrite - module format, import graph, cycle detection
-orchestrator.go      # minor - find main.pin.xml, pass to scanner
-orchestrator_test.go # update - qualified spec IDs
-cli.go               # update - new link/reset syntax
-cli_test.go          # update - new syntax + module-format spec files
-testfixtures_test.go # no change
-cmd/drift/main.go    # no change
-Makefile             # no change
-main.pin.xml         # new - entry point importing all project modules
-core.pin.xml         # migrate - <specs> → <module name="core">
-cli.pin.xml          # migrate - <specs> → <module name="cli">
-scanner.pin.xml      # migrate - <specs> → <module name="scanner">
-orchestrator.pin.xml # migrate - <specs> → <module name="orch">
-pinstore.pin.xml     # migrate - <specs> → <module name="pinstore">
-examples/            # ✓ done - reference examples for all 4 structures
+cmd/drift/main.go        # entry point (imports cli)
+core/
+  core.go                # ✓ done - pure algorithm (no changes needed)
+  core_test.go           # ✓ done - no changes (uses bare string IDs)
+  core.pin.xml           # migrate - <specs> → <module name="core">
+scanner/
+  scanner.go             # rewrite - import graph instead of dir walk for specs
+  scanner_test.go        # rewrite - module format, import graph, cycle detection
+  scanner.pin.xml        # migrate - <specs> → <module name="scanner">
+pinstore/
+  pin_file.go            # update - Spec gains Module field, specXML unchanged
+  pin_file_test.go       # update - qualified spec IDs
+  pinstore.pin.xml       # migrate - <specs> → <module name="pinstore">
+orchestrator/
+  orchestrator.go        # minor - find main.pin.xml, pass to scanner
+  orchestrator_test.go   # update - qualified spec IDs
+  orchestrator.pin.xml   # migrate - <specs> → <module name="orch">
+cli/
+  cli.go                 # update - new link/reset syntax
+  cli_test.go            # update - new syntax + module-format spec files
+  cli.pin.xml            # migrate - <specs> → <module name="cli">
+internal/testutil/       # shared test helpers (NewSpec, AssertNoError, etc.)
+  testutil.go
+  fixtures.go            # markerLine() — excluded from drift scan
+main.pin.xml             # new - entry point importing all project modules
+drift.pin                # rebuilt after migration
+drift.ignore             # excludes internal/testutil/fixtures.go, examples/
+examples/                # ✓ done - reference examples for all 4 structures
 ```
 
 ## XML format for drift.pin
