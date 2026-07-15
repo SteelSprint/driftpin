@@ -1,10 +1,4 @@
-<module name="payments_service">
-  <import path="./specs.pin.xml"/>
-  <import path="../../shared/common.pin.xml"/>
-
-  <spec id="checkout">
-    Checkout MUST process payment and log transaction.
-    <ref module="common" spec="currency_format"/>
-    <ref module="payments_specs" spec="refund"/>
-  </spec>
-</module>
+<main>
+  <import path="./specs.pin.xml" />
+  <import path="../../shared/common.pin.xml" />
+</main>

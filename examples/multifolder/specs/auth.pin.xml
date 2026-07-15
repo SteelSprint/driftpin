@@ -1,9 +1,7 @@
 <module name="auth">
-  <import path="../shared/common.pin.xml"/>
+  <import path="../shared/common.pin.xml" />
 
-  <spec id="authenticate">
-    Authentication MUST verify tokens before granting access.
-    <ref module="common" spec="token_format"/>
-    Tokens MUST match the common token format.
+  <spec id="authenticate"> Authentication MUST verify tokens before granting access. Tokens MUST
+    match the common token format. <ref spec="common.token_format"></ref>
   </spec>
 </module>

@@ -1,8 +1,8 @@
 <module name="payments">
-  <import path="../shared/common.pin.xml"/>
+  <import path="../shared/common.pin.xml" />
 
   <spec id="charge">
-    Charges MUST validate amount and currency before processing.
-    <ref module="common" spec="currency_format"/>
+    Charges MUST validate <ref spec="common.currency_format">amount and currency</ref>
+    before processing.
   </spec>
 </module>

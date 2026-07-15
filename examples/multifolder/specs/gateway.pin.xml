@@ -1,0 +1,9 @@
+<module name="gateway">
+  <import path="./auth.pin.xml" />
+  <import path="./payments.pin.xml" />
+
+  <spec id="route">
+    The gateway MUST <ref spec="auth.authenticate">route requests to auth</ref> and
+    <ref spec="payments.charge">payments handlers</ref>.
+  </spec>
+</module>

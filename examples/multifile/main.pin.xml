@@ -1,4 +1,5 @@
 <main>
-  <include path="./core.pin.xml" />
-  <include path="./utils.pin.xml" />
+  <import path="./core.pin.xml" />
+  <import path="./utils.pin.xml" />
+  <import path="./dispatch.pin.xml" />
 </main>

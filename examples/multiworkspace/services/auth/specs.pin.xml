@@ -1,4 +1,9 @@
 <module name="auth_specs">
+  <spec id="login">
+    Login MUST authenticate via OAuth 2.0. Tokens MUST match
+    <ref spec="common.token_format">the common token format</ref>. Sessions MUST
+    <ref spec="auth_specs.session">expire after 24 hours</ref>.
+  </spec>
   <spec id="session">
     Sessions MUST expire after 24 hours.
   </spec>

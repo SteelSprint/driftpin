@@ -1,4 +1,9 @@
 <module name="payments_specs">
+  <spec id="checkout">
+    Checkout MUST process payment and log transaction. Charges MUST validate
+    <ref spec="common.currency_format">amount and currency</ref>. Refunds MUST be
+    <ref spec="payments_specs.refund">processed within 5 business days</ref>.
+  </spec>
   <spec id="refund">
     Refunds MUST be processed within 5 business days.
   </spec>
