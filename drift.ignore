@@ -1,0 +1,5 @@
+# Exclude test files (they contain #F markers in string literals)
+*_test.go
+
+# Exclude VCS
+.git/

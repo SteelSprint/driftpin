@@ -1,0 +1,8 @@
+<specs>
+<spec id="orch_init">Init creates an empty drift.pin file by saving an empty PinState.</spec>
+<spec id="orch_todo">Todo loads PinState, scans the filesystem, reconciles specs and markers, builds a CoreAlgorithmContext with TodoAction, runs the core algorithm, and returns the EvaluatedState without saving.</spec>
+<spec id="orch_reset">Reset loads PinState, scans the filesystem, reconciles specs and markers, builds a CoreAlgorithmContext with ResetAction targeting the given marker and spec, runs the core algorithm, and saves the resulting PinState to disk.</spec>
+<spec id="orch_link">Link loads PinState, scans the filesystem, reconciles, validates that the marker and spec exist, rejects duplicate links, and saves the PinState with the new link appended.</spec>
+<spec id="orch_reconcile_specs">ReconcileSpecs compares pinned specs against scanned specs. Pinned specs not found on disk cause an error. New specs in the scan get baseline equal to current hash. Existing specs keep their pinned baseline hash but update filepath and line number.</spec>
+<spec id="orch_reconcile_markers">ReconcileMarkers compares pinned markers against scanned markers. Pinned markers not found on disk cause an error. New markers in the scan get baseline equal to current hash. Existing markers keep their pinned baseline hash but update filepath and line number.</spec>
+</specs>

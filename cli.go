@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// #F cdisp
 func Run(args []string, dir string) (string, int) {
 	if len(args) == 0 {
 		return "usage: drift <init|todo|reset <marker>:<spec>|link <marker>:<spec>>", 1
@@ -29,6 +30,7 @@ func Run(args []string, dir string) (string, int) {
 		}
 		return formatTodo(state), 0
 
+	// #F crfmt
 	case "reset":
 		if len(args) < 2 {
 			return "usage: drift reset <marker>:<spec>", 1
@@ -43,6 +45,7 @@ func Run(args []string, dir string) (string, int) {
 		}
 		return "", 0
 
+	// #F clfmt
 	case "link":
 		if len(args) < 2 {
 			return "usage: drift link <marker>:<spec>", 1
@@ -62,6 +65,7 @@ func Run(args []string, dir string) (string, int) {
 	}
 }
 
+// #F cfmt
 func formatTodo(state EvaluatedState) string {
 	if len(state.Todos) == 0 {
 		return "No changes detected."

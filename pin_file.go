@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 )
 
+// #F pnope
 var ErrPinNotFound = errors.New("drift.pin not found, run 'drift init' first")
 
 type PinState struct {
@@ -63,6 +64,7 @@ type resolutionXML struct {
 	CurrentMarkerHash string `xml:"currentMarkerHash,attr"`
 }
 
+// #F pload
 func (s *FilePinStore) Load() (PinState, error) {
 	data, err := os.ReadFile(s.path)
 	if err != nil {
@@ -123,6 +125,7 @@ func (s *FilePinStore) Load() (PinState, error) {
 	}, nil
 }
 
+// #F psave
 func (s *FilePinStore) Save(state PinState) error {
 	file := pinFileXML{
 		Specs: make([]specXML, len(state.Specs)),

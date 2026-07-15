@@ -389,6 +389,158 @@ func validate() { check() }
 	})
 }
 
+func writeIgnoreFile(t *testing.T, dir, content string) {
+	t.Helper()
+	path := filepath.Join(dir, "drift.ignore")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write drift.ignore: %v", err)
+	}
+}
+
+func TestScannerDriftIgnore(t *testing.T) {
+	t.Run("no_drift_ignore_scans_all", func(t *testing.T) {
+		dir := t.TempDir()
+		writeCodeFile(t, dir, "main.go", `// #F keep
+func a() {}
+`)
+		writeCodeFile(t, dir, "main_test.go", `// #F drop
+func b() {}
+`)
+
+		scanner := NewFileScanner(dir)
+		result, err := scanner.Scan()
+		assertNoError(t, err)
+
+		if len(result.Markers) != 2 {
+			t.Fatalf("expected 2 markers without drift.ignore, got %d", len(result.Markers))
+		}
+	})
+
+	t.Run("star_test_go_excludes_test_files", func(t *testing.T) {
+		dir := t.TempDir()
+		writeIgnoreFile(t, dir, "*_test.go\n")
+		writeCodeFile(t, dir, "main.go", `// #F keep
+func a() {}
+`)
+		writeCodeFile(t, dir, "main_test.go", `// #F drop
+func b() {}
+`)
+
+		scanner := NewFileScanner(dir)
+		result, err := scanner.Scan()
+		assertNoError(t, err)
+
+		if len(result.Markers) != 1 {
+			t.Fatalf("expected 1 marker, got %d", len(result.Markers))
+		}
+		if _, ok := findScanResultMarker(result.Markers, "keep"); !ok {
+			t.Fatalf("expected marker 'keep', not found")
+		}
+		if _, ok := findScanResultMarker(result.Markers, "drop"); ok {
+			t.Fatalf("marker 'drop' should have been excluded")
+		}
+	})
+
+	t.Run("trailing_slash_skips_directory_subtree", func(t *testing.T) {
+		dir := t.TempDir()
+		writeIgnoreFile(t, dir, ".git/\n")
+		writeCodeFile(t, dir, "main.go", `// #F keep
+func a() {}
+`)
+		gitDir := filepath.Join(dir, ".git")
+		os.Mkdir(gitDir, 0755)
+		writeCodeFile(t, gitDir, "hook.go", `// #F drop
+func b() {}
+`)
+
+		scanner := NewFileScanner(dir)
+		result, err := scanner.Scan()
+		assertNoError(t, err)
+
+		if len(result.Markers) != 1 {
+			t.Fatalf("expected 1 marker, got %d", len(result.Markers))
+		}
+		if _, ok := findScanResultMarker(result.Markers, "keep"); !ok {
+			t.Fatalf("expected marker 'keep', not found")
+		}
+		if _, ok := findScanResultMarker(result.Markers, "drop"); ok {
+			t.Fatalf("marker 'drop' from .git/ should have been excluded")
+		}
+	})
+
+	t.Run("comments_and_empty_lines_ignored", func(t *testing.T) {
+		dir := t.TempDir()
+		writeIgnoreFile(t, dir, "# this is a comment\n\n*_test.go\n# another comment\n")
+		writeCodeFile(t, dir, "main.go", `// #F keep
+func a() {}
+`)
+		writeCodeFile(t, dir, "main_test.go", `// #F drop
+func b() {}
+`)
+
+		scanner := NewFileScanner(dir)
+		result, err := scanner.Scan()
+		assertNoError(t, err)
+
+		if len(result.Markers) != 1 {
+			t.Fatalf("expected 1 marker, got %d", len(result.Markers))
+		}
+		if _, ok := findScanResultMarker(result.Markers, "keep"); !ok {
+			t.Fatalf("expected marker 'keep', not found")
+		}
+		if _, ok := findScanResultMarker(result.Markers, "drop"); ok {
+			t.Fatalf("marker 'drop' should have been excluded")
+		}
+	})
+
+	t.Run("path_pattern_excludes_specific_file", func(t *testing.T) {
+		dir := t.TempDir()
+		writeIgnoreFile(t, dir, "sub/skip.go\n")
+		writeCodeFile(t, dir, "main.go", `// #F keep
+func a() {}
+`)
+		subDir := filepath.Join(dir, "sub")
+		os.Mkdir(subDir, 0755)
+		writeCodeFile(t, subDir, "skip.go", `// #F drop
+func b() {}
+`)
+		writeCodeFile(t, subDir, "keep.go", `// #F also_keep
+func c() {}
+`)
+
+		scanner := NewFileScanner(dir)
+		result, err := scanner.Scan()
+		assertNoError(t, err)
+
+		if len(result.Markers) != 2 {
+			t.Fatalf("expected 2 markers, got %d", len(result.Markers))
+		}
+		if _, ok := findScanResultMarker(result.Markers, "drop"); ok {
+			t.Fatalf("marker 'drop' should have been excluded by path pattern")
+		}
+		if _, ok := findScanResultMarker(result.Markers, "keep"); !ok {
+			t.Fatalf("expected marker 'keep', not found")
+		}
+		if _, ok := findScanResultMarker(result.Markers, "also_keep"); !ok {
+			t.Fatalf("expected marker 'also_keep', not found")
+		}
+	})
+
+	t.Run("ignore_applies_to_spec_files_too", func(t *testing.T) {
+		dir := t.TempDir()
+		writeIgnoreFile(t, dir, "*.pin.xml\n")
+		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="s1">spec content</spec></specs>`)
+
+		scanner := NewFileScanner(dir)
+		result, err := scanner.Scan()
+		assertNoError(t, err)
+
+		if len(result.Specs) != 0 {
+			t.Fatalf("expected 0 specs (all ignored), got %d", len(result.Specs))
+		}
+	})
+}
+
 func TestScannerIgnoresNonPinXmlNonCodeFiles(t *testing.T) {
 	t.Run("ignores_txt_md_json_files", func(t *testing.T) {
 		dir := t.TempDir()

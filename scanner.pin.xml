@@ -1,0 +1,9 @@
+<specs>
+<spec id="scanner_spec_discovery">FileScanner walks the project directory for files ending in .pin.xml, parses each as XML, extracts spec elements with their id attribute, SHA1-hashes the trimmed inner content, and returns Spec records with ID, Hash, Filepath, and LineNumber.</spec>
+<spec id="scanner_marker_discovery">FileScanner walks the project directory for code files by extension, finds lines matching the #F shortcode pattern, SHA1-hashes the next 10 lines from the marker line, and returns Marker records with ID, Hash, Filepath, and LineNumber.</spec>
+<spec id="scanner_hash_sha1">All hashing uses SHA1 hex-encoded via crypto/sha1 and fmt percent-x formatting. The hash is deterministic across runs for identical content.</spec>
+<spec id="scanner_duplicate_spec">Duplicate spec IDs across files cause an error with the duplicate ID quoted.</spec>
+<spec id="scanner_duplicate_marker">Duplicate marker shortcodes across files cause an error with the duplicate shortcode quoted.</spec>
+<spec id="scanner_missing_id">A spec element without an id attribute causes an error.</spec>
+<spec id="scanner_code_extensions">Only files with recognized code extensions are scanned for markers: .go, .py, .js, .ts, .jsx, .tsx, .java, .c, .cpp, .h, .hpp, .rs, .rb, .php, .swift, .kt, .cs, .scala, .sh, .bash, .lua, .dart, .vue, .svelte.</spec>
+</specs>

@@ -26,10 +26,12 @@ func NewOrchestrator(pin PinStore, scanner Scanner) *Orchestrator {
 	}
 }
 
+// #F oinit
 func (o *Orchestrator) Init() error {
 	return o.pin.Save(PinState{})
 }
 
+// #F otodo
 func (o *Orchestrator) Todo() (EvaluatedState, error) {
 	state, err := o.pin.Load()
 	if err != nil {
@@ -64,6 +66,7 @@ func (o *Orchestrator) Todo() (EvaluatedState, error) {
 	return o.core.EvaluateState(ctx)
 }
 
+// #F orest
 func (o *Orchestrator) Reset(markerID, specID string) (EvaluatedState, error) {
 	state, err := o.pin.Load()
 	if err != nil {
@@ -117,6 +120,7 @@ func (o *Orchestrator) Reset(markerID, specID string) (EvaluatedState, error) {
 	return evaluated, nil
 }
 
+// #F olink
 func (o *Orchestrator) Link(markerID, specID string) error {
 	state, err := o.pin.Load()
 	if err != nil {
@@ -174,6 +178,7 @@ func (o *Orchestrator) Link(markerID, specID string) error {
 	})
 }
 
+// #F orspc
 func reconcileSpecs(pinned []Spec, scanned []Spec) ([]Spec, error) {
 	pinnedByID := make(map[string]Spec, len(pinned))
 	for _, s := range pinned {
@@ -207,6 +212,7 @@ func reconcileSpecs(pinned []Spec, scanned []Spec) ([]Spec, error) {
 	return result, nil
 }
 
+// #F ormrk
 func reconcileMarkers(pinned []Marker, scanned []Marker) ([]Marker, error) {
 	pinnedByID := make(map[string]Marker, len(pinned))
 	for _, m := range pinned {
