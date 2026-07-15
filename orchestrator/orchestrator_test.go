@@ -1,25 +1,31 @@
-package driftpin
+package orchestrator_test
 
 import (
 	"errors"
 	"testing"
+
+	"driftpin/core"
+	"driftpin/internal/testutil"
+	"driftpin/orchestrator"
+	"driftpin/pinstore"
+	"driftpin/scanner"
 )
 
 type fakePinStore struct {
-	state   PinState
+	state   pinstore.PinState
 	loadErr error
 	saveErr error
-	saved   []PinState
+	saved   []pinstore.PinState
 }
 
-func (f *fakePinStore) Load() (PinState, error) {
+func (f *fakePinStore) Load() (pinstore.PinState, error) {
 	if f.loadErr != nil {
-		return PinState{}, f.loadErr
+		return pinstore.PinState{}, f.loadErr
 	}
 	return f.state, nil
 }
 
-func (f *fakePinStore) Save(state PinState) error {
+func (f *fakePinStore) Save(state pinstore.PinState) error {
 	if f.saveErr != nil {
 		return f.saveErr
 	}
@@ -29,61 +35,61 @@ func (f *fakePinStore) Save(state PinState) error {
 }
 
 type fakeScanner struct {
-	result ScanResult
+	result scanner.ScanResult
 	err    error
 }
 
-func (f *fakeScanner) Scan() (ScanResult, error) {
+func (f *fakeScanner) Scan() (scanner.ScanResult, error) {
 	if f.err != nil {
-		return ScanResult{}, f.err
+		return scanner.ScanResult{}, f.err
 	}
 	return f.result, nil
 }
 
-func scanResultFromSpecsMarkers(specs []Spec, markers []Marker) ScanResult {
-	return ScanResult{
+func scanResultFromSpecsMarkers(specs []core.Spec, markers []core.Marker) scanner.ScanResult {
+	return scanner.ScanResult{
 		Specs:   specs,
 		Markers: markers,
 	}
 }
 
-func scanResultWithOverrides(specs []Spec, markers []Marker, specOverrides, markerOverrides map[string]string) ScanResult {
-	resultSpecs := make([]Spec, len(specs))
+func scanResultWithOverrides(specs []core.Spec, markers []core.Marker, specOverrides, markerOverrides map[string]string) scanner.ScanResult {
+	resultSpecs := make([]core.Spec, len(specs))
 	for i, s := range specs {
 		resultSpecs[i] = s
 		if h, ok := specOverrides[s.ID]; ok {
 			resultSpecs[i].Hash = h
 		}
 	}
-	resultMarkers := make([]Marker, len(markers))
+	resultMarkers := make([]core.Marker, len(markers))
 	for i, m := range markers {
 		resultMarkers[i] = m
 		if h, ok := markerOverrides[m.ID]; ok {
 			resultMarkers[i].Hash = h
 		}
 	}
-	return ScanResult{Specs: resultSpecs, Markers: resultMarkers}
+	return scanner.ScanResult{Specs: resultSpecs, Markers: resultMarkers}
 }
 
 func TestOrchestratorInit(t *testing.T) {
 	t.Run("init_saves_empty_state", func(t *testing.T) {
 		pin := &fakePinStore{}
 		scanner := &fakeScanner{}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		err := orch.Init()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(pin.saved) != 1 {
 			t.Fatalf("expected 1 save, got %d", len(pin.saved))
 		}
-		assertPinStateEquals(t, pin.saved[0], PinState{})
+		testutil.AssertPinStateEquals(t, pin.saved[0], pinstore.PinState{})
 	})
 
 	t.Run("init_propagates_save_error", func(t *testing.T) {
 		pin := &fakePinStore{saveErr: errors.New("write failed")}
 		scanner := &fakeScanner{}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		err := orch.Init()
 		if err == nil {
@@ -95,22 +101,22 @@ func TestOrchestratorInit(t *testing.T) {
 func TestOrchestratorTodoArity(t *testing.T) {
 	shapes := []struct {
 		name    string
-		specs   []Spec
-		markers []Marker
-		links   []Link
+		specs   []core.Spec
+		markers []core.Marker
+		links   []core.Link
 	}{
 		{"0_specs_0_markers", nil, nil, nil},
-		{"1_spec_0_markers", []Spec{newSpec("s1", "b1")}, nil, nil},
-		{"0_specs_1_marker", nil, []Marker{newMarker("m1", "b1")}, nil},
-		{"1_spec_1_marker", []Spec{newSpec("s1", "b1")}, []Marker{newMarker("m1", "b1")}, []Link{newLink("s1", "m1")}},
-		{"many_specs_1_marker", []Spec{newSpec("s1", "b1")}, []Marker{newMarker("m1", "b1"), newMarker("m2", "b2")}, []Link{newLink("s1", "m1"), newLink("s1", "m2")}},
-		{"1_spec_many_markers", []Spec{newSpec("s1", "b1"), newSpec("s2", "b2")}, []Marker{newMarker("m1", "b1")}, []Link{newLink("s1", "m1"), newLink("s2", "m1")}},
-		{"many_specs_many_markers", []Spec{newSpec("s1", "b1"), newSpec("s2", "b2")}, []Marker{newMarker("m1", "b1"), newMarker("m2", "b2")}, []Link{newLink("s1", "m1"), newLink("s1", "m2"), newLink("s2", "m1"), newLink("s2", "m2")}},
+		{"1_spec_0_markers", []core.Spec{testutil.NewSpec("s1", "b1")}, nil, nil},
+		{"0_specs_1_marker", nil, []core.Marker{testutil.NewMarker("m1", "b1")}, nil},
+		{"1_spec_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Link{testutil.NewLink("s1", "m1")}},
+		{"many_specs_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}},
+		{"1_spec_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1")}},
+		{"many_specs_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")}},
 	}
 
 	for _, shape := range shapes {
 		t.Run(shape.name+"/no_drift", func(t *testing.T) {
-			pinState := PinState{
+			pinState := pinstore.PinState{
 				Specs:   shape.specs,
 				Markers: shape.markers,
 				Links:   shape.links,
@@ -118,18 +124,18 @@ func TestOrchestratorTodoArity(t *testing.T) {
 			scanResult := scanResultFromSpecsMarkers(shape.specs, shape.markers)
 			pin := &fakePinStore{state: pinState}
 			scanner := &fakeScanner{result: scanResult}
-			orch := NewOrchestrator(pin, scanner)
+			orch := orchestrator.NewOrchestrator(pin, scanner)
 
 			state, err := orch.Todo()
-			assertNoError(t, err)
-			assertTodoCount(t, state, 0)
+			testutil.AssertNoError(t, err)
+			testutil.AssertTodoCount(t, state, 0)
 		})
 
 		t.Run(shape.name+"/all_drifted", func(t *testing.T) {
 			if len(shape.links) == 0 {
 				return
 			}
-			pinState := PinState{
+			pinState := pinstore.PinState{
 				Specs:   shape.specs,
 				Markers: shape.markers,
 				Links:   shape.links,
@@ -145,28 +151,28 @@ func TestOrchestratorTodoArity(t *testing.T) {
 			scanResult := scanResultWithOverrides(shape.specs, shape.markers, specOverrides, markerOverrides)
 			pin := &fakePinStore{state: pinState}
 			scanner := &fakeScanner{result: scanResult}
-			orch := NewOrchestrator(pin, scanner)
+			orch := orchestrator.NewOrchestrator(pin, scanner)
 
 			state, err := orch.Todo()
-			assertNoError(t, err)
-			assertTodoCount(t, state, len(shape.links))
+			testutil.AssertNoError(t, err)
+			testutil.AssertTodoCount(t, state, len(shape.links))
 		})
 	}
 }
 
 func TestOrchestratorTodoErrorPropagation(t *testing.T) {
 	t.Run("pin_load_error", func(t *testing.T) {
-		pin := &fakePinStore{loadErr: ErrPinNotFound}
+		pin := &fakePinStore{loadErr: pinstore.ErrPinNotFound}
 		scanner := &fakeScanner{}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 		_, err := orch.Todo()
-		assertErrorWraps(t, err, ErrPinNotFound)
+		testutil.AssertErrorWraps(t, err, pinstore.ErrPinNotFound)
 	})
 
 	t.Run("scanner_error", func(t *testing.T) {
 		pin := &fakePinStore{}
 		scanner := &fakeScanner{err: errors.New("scan failed")}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 		_, err := orch.Todo()
 		if err == nil {
 			t.Fatalf("expected error from scanner")
@@ -176,20 +182,20 @@ func TestOrchestratorTodoErrorPropagation(t *testing.T) {
 
 func TestOrchestratorTodoDoesNotSave(t *testing.T) {
 	t.Run("todo_does_not_call_save", func(t *testing.T) {
-		pinState := PinState{
-			Specs:   []Spec{newSpec("s1", "b1")},
-			Markers: []Marker{newMarker("m1", "b1")},
-			Links:   []Link{newLink("s1", "m1")},
+		pinState := pinstore.PinState{
+			Specs:   []core.Spec{testutil.NewSpec("s1", "b1")},
+			Markers: []core.Marker{testutil.NewMarker("m1", "b1")},
+			Links:   []core.Link{testutil.NewLink("s1", "m1")},
 		}
 		scanResult := scanResultWithOverrides(pinState.Specs, pinState.Markers,
 			map[string]string{"s1": "changed"},
 			map[string]string{"m1": "changed"})
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		_, err := orch.Todo()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(pin.saved) != 0 {
 			t.Fatalf("todo should not save, but got %d saves", len(pin.saved))
@@ -199,25 +205,25 @@ func TestOrchestratorTodoDoesNotSave(t *testing.T) {
 
 func TestOrchestratorReset(t *testing.T) {
 	t.Run("reset_nonexistent_edge_errors", func(t *testing.T) {
-		pinState := PinState{
-			Specs:   []Spec{newSpec("s1", "b1")},
-			Markers: []Marker{newMarker("m1", "b1")},
-			Links:   []Link{newLink("s1", "m1")},
+		pinState := pinstore.PinState{
+			Specs:   []core.Spec{testutil.NewSpec("s1", "b1")},
+			Markers: []core.Marker{testutil.NewMarker("m1", "b1")},
+			Links:   []core.Link{testutil.NewLink("s1", "m1")},
 		}
 		scanResult := scanResultFromSpecsMarkers(pinState.Specs, pinState.Markers)
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		_, err := orch.Reset("nonexistent", "nonexistent")
-		assertErrorWraps(t, err, ErrResetEdgeNotLinked)
+		testutil.AssertErrorWraps(t, err, core.ErrResetEdgeNotLinked)
 	})
 
 	t.Run("reset_existing_edge_saves_state", func(t *testing.T) {
-		specs := []Spec{newSpec("s1", "b1")}
-		markers := []Marker{newMarker("m1", "b1")}
-		links := []Link{newLink("s1", "m1")}
-		pinState := PinState{
+		specs := []core.Spec{testutil.NewSpec("s1", "b1")}
+		markers := []core.Marker{testutil.NewMarker("m1", "b1")}
+		links := []core.Link{testutil.NewLink("s1", "m1")}
+		pinState := pinstore.PinState{
 			Specs:   specs,
 			Markers: markers,
 			Links:   links,
@@ -227,12 +233,12 @@ func TestOrchestratorReset(t *testing.T) {
 			map[string]string{"m1": "changed"})
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		state, err := orch.Reset("m1", "s1")
-		assertNoError(t, err)
-		assertResolutionStateCount(t, state, 0)
-		assertBaselineHashes(t, state, "s1", "changed", "m1", "changed")
+		testutil.AssertNoError(t, err)
+		testutil.AssertResolutionStateCount(t, state, 0)
+		testutil.AssertBaselineHashes(t, state, "s1", "changed", "m1", "changed")
 
 		if len(pin.saved) != 1 {
 			t.Fatalf("expected 1 save after reset, got %d", len(pin.saved))
@@ -240,17 +246,17 @@ func TestOrchestratorReset(t *testing.T) {
 	})
 
 	t.Run("reset_pin_load_error", func(t *testing.T) {
-		pin := &fakePinStore{loadErr: ErrPinNotFound}
+		pin := &fakePinStore{loadErr: pinstore.ErrPinNotFound}
 		scanner := &fakeScanner{}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 		_, err := orch.Reset("m1", "s1")
-		assertErrorWraps(t, err, ErrPinNotFound)
+		testutil.AssertErrorWraps(t, err, pinstore.ErrPinNotFound)
 	})
 
 	t.Run("reset_scanner_error", func(t *testing.T) {
 		pin := &fakePinStore{}
 		scanner := &fakeScanner{err: errors.New("scan failed")}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 		_, err := orch.Reset("m1", "s1")
 		if err == nil {
 			t.Fatalf("expected error from scanner")
@@ -258,10 +264,10 @@ func TestOrchestratorReset(t *testing.T) {
 	})
 
 	t.Run("reset_save_error", func(t *testing.T) {
-		specs := []Spec{newSpec("s1", "b1")}
-		markers := []Marker{newMarker("m1", "b1")}
-		links := []Link{newLink("s1", "m1")}
-		pinState := PinState{
+		specs := []core.Spec{testutil.NewSpec("s1", "b1")}
+		markers := []core.Marker{testutil.NewMarker("m1", "b1")}
+		links := []core.Link{testutil.NewLink("s1", "m1")}
+		pinState := pinstore.PinState{
 			Specs:   specs,
 			Markers: markers,
 			Links:   links,
@@ -271,7 +277,7 @@ func TestOrchestratorReset(t *testing.T) {
 			map[string]string{"m1": "changed"})
 		pin := &fakePinStore{state: pinState, saveErr: errors.New("save failed")}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		_, err := orch.Reset("m1", "s1")
 		if err == nil {
@@ -282,10 +288,10 @@ func TestOrchestratorReset(t *testing.T) {
 
 func TestOrchestratorResetPartialCollapse(t *testing.T) {
 	t.Run("reset_one_of_two_edges_saves_resolution", func(t *testing.T) {
-		specs := []Spec{newSpec("s1", "bs")}
-		markers := []Marker{newMarker("m1", "bm1"), newMarker("m2", "bm2")}
-		links := []Link{newLink("s1", "m1"), newLink("s1", "m2")}
-		pinState := PinState{
+		specs := []core.Spec{testutil.NewSpec("s1", "bs")}
+		markers := []core.Marker{testutil.NewMarker("m1", "bm1"), testutil.NewMarker("m2", "bm2")}
+		links := []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}
+		pinState := pinstore.PinState{
 			Specs:   specs,
 			Markers: markers,
 			Links:   links,
@@ -295,89 +301,89 @@ func TestOrchestratorResetPartialCollapse(t *testing.T) {
 			map[string]string{"m1": "cm1", "m2": "cm2"})
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		state, err := orch.Reset("m1", "s1")
-		assertNoError(t, err)
-		assertResolutionStateCount(t, state, 1)
-		assertBaselineHashes(t, state, "s1", "bs", "m1", "cm1")
-		assertBaselineHashes(t, state, "", "", "m2", "bm2")
+		testutil.AssertNoError(t, err)
+		testutil.AssertResolutionStateCount(t, state, 1)
+		testutil.AssertBaselineHashes(t, state, "s1", "bs", "m1", "cm1")
+		testutil.AssertBaselineHashes(t, state, "", "", "m2", "bm2")
 
 		if len(pin.saved) != 1 {
 			t.Fatalf("expected 1 save after reset, got %d", len(pin.saved))
 		}
-		assertPinStateEquals(t, pin.saved[0], evaluatedStateToPinState(state))
+		testutil.AssertPinStateEquals(t, pin.saved[0], testutil.EvaluatedStateToPinState(state))
 	})
 }
 
 func TestOrchestratorReconciliation(t *testing.T) {
 	t.Run("empty_pin_discovered_specs_markers_baselines_set_to_current", func(t *testing.T) {
-		discoveredSpecs := []Spec{newSpec("s1", "current_h1")}
-		discoveredMarkers := []Marker{newMarker("m1", "current_h2")}
+		discoveredSpecs := []core.Spec{testutil.NewSpec("s1", "current_h1")}
+		discoveredMarkers := []core.Marker{testutil.NewMarker("m1", "current_h2")}
 		scanResult := scanResultFromSpecsMarkers(discoveredSpecs, discoveredMarkers)
-		pin := &fakePinStore{state: PinState{}}
+		pin := &fakePinStore{state: pinstore.PinState{}}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		state, err := orch.Todo()
-		assertNoError(t, err)
-		assertTodoCount(t, state, 0)
+		testutil.AssertNoError(t, err)
+		testutil.AssertTodoCount(t, state, 0)
 
-		spec := findSpecInEvaluatedState(t, state, "s1")
+		spec := testutil.FindSpecInEvaluatedState(t, state, "s1")
 		if spec.Hash != "current_h1" {
 			t.Fatalf("new spec baseline = %q, want %q (current hash)", spec.Hash, "current_h1")
 		}
-		marker := findMarkerInEvaluatedState(t, state, "m1")
+		marker := testutil.FindMarkerInEvaluatedState(t, state, "m1")
 		if marker.Hash != "current_h2" {
 			t.Fatalf("new marker baseline = %q, want %q (current hash)", marker.Hash, "current_h2")
 		}
 	})
 
 	t.Run("pin_with_specs_scan_same_hashes_no_drift", func(t *testing.T) {
-		specs := []Spec{newSpec("s1", "h1")}
-		markers := []Marker{newMarker("m1", "h2")}
-		links := []Link{newLink("s1", "m1")}
-		pinState := PinState{Specs: specs, Markers: markers, Links: links}
+		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
+		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
+		links := []core.Link{testutil.NewLink("s1", "m1")}
+		pinState := pinstore.PinState{Specs: specs, Markers: markers, Links: links}
 		scanResult := scanResultFromSpecsMarkers(specs, markers)
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		state, err := orch.Todo()
-		assertNoError(t, err)
-		assertTodoCount(t, state, 0)
+		testutil.AssertNoError(t, err)
+		testutil.AssertTodoCount(t, state, 0)
 	})
 
 	t.Run("pin_with_specs_scan_changed_hash_drift_detected", func(t *testing.T) {
-		specs := []Spec{newSpec("s1", "h1")}
-		markers := []Marker{newMarker("m1", "h2")}
-		links := []Link{newLink("s1", "m1")}
-		pinState := PinState{Specs: specs, Markers: markers, Links: links}
+		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
+		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
+		links := []core.Link{testutil.NewLink("s1", "m1")}
+		pinState := pinstore.PinState{Specs: specs, Markers: markers, Links: links}
 		scanResult := scanResultWithOverrides(specs, markers,
 			map[string]string{"s1": "changed"},
 			nil)
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		state, err := orch.Todo()
-		assertNoError(t, err)
-		assertTodoCount(t, state, 1)
+		testutil.AssertNoError(t, err)
+		testutil.AssertTodoCount(t, state, 1)
 	})
 
 	t.Run("spec_in_pin_not_in_scan_errors", func(t *testing.T) {
-		pinState := PinState{
-			Specs:   []Spec{newSpec("s1", "h1")},
-			Markers: []Marker{newMarker("m1", "h2")},
-			Links:   []Link{newLink("s1", "m1")},
+		pinState := pinstore.PinState{
+			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
+			Markers: []core.Marker{testutil.NewMarker("m1", "h2")},
+			Links:   []core.Link{testutil.NewLink("s1", "m1")},
 		}
-		scanResult := ScanResult{
-			Specs:   []Spec{},
-			Markers: []Marker{newMarker("m1", "h2")},
+		scanResult := scanner.ScanResult{
+			Specs:   []core.Spec{},
+			Markers: []core.Marker{testutil.NewMarker("m1", "h2")},
 		}
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		_, err := orch.Todo()
 		if err == nil {
@@ -386,18 +392,18 @@ func TestOrchestratorReconciliation(t *testing.T) {
 	})
 
 	t.Run("marker_in_pin_not_in_scan_errors", func(t *testing.T) {
-		pinState := PinState{
-			Specs:   []Spec{newSpec("s1", "h1")},
-			Markers: []Marker{newMarker("m1", "h2")},
-			Links:   []Link{newLink("s1", "m1")},
+		pinState := pinstore.PinState{
+			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
+			Markers: []core.Marker{testutil.NewMarker("m1", "h2")},
+			Links:   []core.Link{testutil.NewLink("s1", "m1")},
 		}
-		scanResult := ScanResult{
-			Specs:   []Spec{newSpec("s1", "h1")},
-			Markers: []Marker{},
+		scanResult := scanner.ScanResult{
+			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
+			Markers: []core.Marker{},
 		}
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		_, err := orch.Todo()
 		if err == nil {
@@ -406,24 +412,24 @@ func TestOrchestratorReconciliation(t *testing.T) {
 	})
 
 	t.Run("new_spec_in_scan_not_in_pin_added_no_drift", func(t *testing.T) {
-		pinState := PinState{
-			Specs:   []Spec{newSpec("s1", "h1")},
-			Markers: []Marker{newMarker("m1", "h2")},
-			Links:   []Link{newLink("s1", "m1")},
+		pinState := pinstore.PinState{
+			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
+			Markers: []core.Marker{testutil.NewMarker("m1", "h2")},
+			Links:   []core.Link{testutil.NewLink("s1", "m1")},
 		}
-		scanResult := ScanResult{
-			Specs:   []Spec{newSpec("s1", "h1"), newSpec("s2", "h3")},
-			Markers: []Marker{newMarker("m1", "h2")},
+		scanResult := scanner.ScanResult{
+			Specs:   []core.Spec{testutil.NewSpec("s1", "h1"), testutil.NewSpec("s2", "h3")},
+			Markers: []core.Marker{testutil.NewMarker("m1", "h2")},
 		}
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		state, err := orch.Todo()
-		assertNoError(t, err)
-		assertTodoCount(t, state, 0)
+		testutil.AssertNoError(t, err)
+		testutil.AssertTodoCount(t, state, 0)
 
-		spec := findSpecInEvaluatedState(t, state, "s2")
+		spec := testutil.FindSpecInEvaluatedState(t, state, "s2")
 		if spec.Hash != "h3" {
 			t.Fatalf("new spec baseline = %q, want %q", spec.Hash, "h3")
 		}
@@ -432,19 +438,19 @@ func TestOrchestratorReconciliation(t *testing.T) {
 
 func TestOrchestratorLink(t *testing.T) {
 	t.Run("link_adds_link_to_pin", func(t *testing.T) {
-		specs := []Spec{newSpec("s1", "h1")}
-		markers := []Marker{newMarker("m1", "h2")}
-		pinState := PinState{
+		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
+		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
+		pinState := pinstore.PinState{
 			Specs:   specs,
 			Markers: markers,
 		}
 		scanResult := scanResultFromSpecsMarkers(specs, markers)
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		err := orch.Link("m1", "s1")
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(pin.saved) != 1 {
 			t.Fatalf("expected 1 save, got %d", len(pin.saved))
@@ -459,14 +465,14 @@ func TestOrchestratorLink(t *testing.T) {
 	})
 
 	t.Run("link_nonexistent_marker_errors", func(t *testing.T) {
-		specs := []Spec{newSpec("s1", "h1")}
-		pinState := PinState{
+		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
+		pinState := pinstore.PinState{
 			Specs: specs,
 		}
 		scanResult := scanResultFromSpecsMarkers(specs, nil)
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		err := orch.Link("nonexistent", "s1")
 		if err == nil {
@@ -475,14 +481,14 @@ func TestOrchestratorLink(t *testing.T) {
 	})
 
 	t.Run("link_nonexistent_spec_errors", func(t *testing.T) {
-		markers := []Marker{newMarker("m1", "h1")}
-		pinState := PinState{
+		markers := []core.Marker{testutil.NewMarker("m1", "h1")}
+		pinState := pinstore.PinState{
 			Markers: markers,
 		}
 		scanResult := scanResultFromSpecsMarkers(nil, markers)
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		err := orch.Link("m1", "nonexistent")
 		if err == nil {
@@ -491,17 +497,17 @@ func TestOrchestratorLink(t *testing.T) {
 	})
 
 	t.Run("link_duplicate_errors", func(t *testing.T) {
-		specs := []Spec{newSpec("s1", "h1")}
-		markers := []Marker{newMarker("m1", "h2")}
-		pinState := PinState{
+		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
+		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
+		pinState := pinstore.PinState{
 			Specs:   specs,
 			Markers: markers,
-			Links:   []Link{newLink("s1", "m1")},
+			Links:   []core.Link{testutil.NewLink("s1", "m1")},
 		}
 		scanResult := scanResultFromSpecsMarkers(specs, markers)
 		pin := &fakePinStore{state: pinState}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 
 		err := orch.Link("m1", "s1")
 		if err == nil {
@@ -510,58 +516,27 @@ func TestOrchestratorLink(t *testing.T) {
 	})
 
 	t.Run("link_pin_load_error", func(t *testing.T) {
-		pin := &fakePinStore{loadErr: ErrPinNotFound}
+		pin := &fakePinStore{loadErr: pinstore.ErrPinNotFound}
 		scanner := &fakeScanner{}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 		err := orch.Link("m1", "s1")
-		assertErrorWraps(t, err, ErrPinNotFound)
+		testutil.AssertErrorWraps(t, err, pinstore.ErrPinNotFound)
 	})
 
 	t.Run("link_save_error", func(t *testing.T) {
-		specs := []Spec{newSpec("s1", "h1")}
-		markers := []Marker{newMarker("m1", "h2")}
-		pinState := PinState{
+		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
+		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
+		pinState := pinstore.PinState{
 			Specs:   specs,
 			Markers: markers,
 		}
 		scanResult := scanResultFromSpecsMarkers(specs, markers)
 		pin := &fakePinStore{state: pinState, saveErr: errors.New("save failed")}
 		scanner := &fakeScanner{result: scanResult}
-		orch := NewOrchestrator(pin, scanner)
+		orch := orchestrator.NewOrchestrator(pin, scanner)
 		err := orch.Link("m1", "s1")
 		if err == nil {
 			t.Fatalf("expected error from save failure")
 		}
 	})
-}
-
-func findSpecInEvaluatedState(t *testing.T, state EvaluatedState, id string) Spec {
-	t.Helper()
-	for _, s := range state.Specs {
-		if s.ID == id {
-			return s
-		}
-	}
-	t.Fatalf("spec %q not found in evaluated state", id)
-	return Spec{}
-}
-
-func findMarkerInEvaluatedState(t *testing.T, state EvaluatedState, id string) Marker {
-	t.Helper()
-	for _, m := range state.Markers {
-		if m.ID == id {
-			return m
-		}
-	}
-	t.Fatalf("marker %q not found in evaluated state", id)
-	return Marker{}
-}
-
-func evaluatedStateToPinState(state EvaluatedState) PinState {
-	return PinState{
-		Specs:           state.Specs,
-		Markers:         state.Markers,
-		Links:           state.Links,
-		ResolutionState: state.ResolutionState,
-	}
 }

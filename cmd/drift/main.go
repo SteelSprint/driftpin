@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	driftpin "driftpin"
+	"driftpin/cli"
 )
 
 func main() {
-	output, code := driftpin.Run(os.Args[1:], ".")
+	output, code := cli.Run(os.Args[1:], ".")
 	if output != "" {
 		fmt.Println(output)
 	}

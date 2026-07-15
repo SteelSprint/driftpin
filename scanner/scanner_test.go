@@ -1,59 +1,21 @@
-package driftpin
+package scanner_test
 
 import (
-	"crypto/sha1"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"driftpin/internal/testutil"
+	"driftpin/scanner"
 )
-
-func writeSpecFile(t *testing.T, dir, name, content string) {
-	t.Helper()
-	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatalf("failed to write spec file %s: %v", name, err)
-	}
-}
-
-func writeCodeFile(t *testing.T, dir, name, content string) {
-	t.Helper()
-	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatalf("failed to write code file %s: %v", name, err)
-	}
-}
-
-func expectedSha1Hex(content string) string {
-	h := sha1.Sum([]byte(content))
-	return fmt.Sprintf("%x", h)
-}
-
-func findScanResultSpec(results []Spec, id string) (Spec, bool) {
-	for _, s := range results {
-		if s.ID == id {
-			return s, true
-		}
-	}
-	return Spec{}, false
-}
-
-func findScanResultMarker(results []Marker, id string) (Marker, bool) {
-	for _, m := range results {
-		if m.ID == id {
-			return m, true
-		}
-	}
-	return Marker{}, false
-}
 
 func TestScannerEmptyProject(t *testing.T) {
 	t.Run("no_files_returns_empty", func(t *testing.T) {
 		dir := t.TempDir()
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 		if len(result.Specs) != 0 {
 			t.Fatalf("expected 0 specs, got %d", len(result.Specs))
 		}
@@ -66,16 +28,16 @@ func TestScannerEmptyProject(t *testing.T) {
 func TestScannerSpecDiscovery(t *testing.T) {
 	t.Run("one_spec_file_one_spec_element", func(t *testing.T) {
 		dir := t.TempDir()
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Specs) != 1 {
 			t.Fatalf("expected 1 spec, got %d", len(result.Specs))
 		}
-		spec, ok := findScanResultSpec(result.Specs, "validate_input")
+		spec, ok := testutil.FindScanResultSpec(result.Specs, "validate_input")
 		if !ok {
 			t.Fatalf("expected spec validate_input, not found")
 		}
@@ -89,21 +51,21 @@ func TestScannerSpecDiscovery(t *testing.T) {
 
 	t.Run("one_spec_file_many_spec_elements", func(t *testing.T) {
 		dir := t.TempDir()
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs>
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs>
 			<spec id="validate_input">input must be validated</spec>
 			<spec id="auth_check">auth must be checked</spec>
 			<spec id="log_request">request must be logged</spec>
 		</specs>`)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Specs) != 3 {
 			t.Fatalf("expected 3 specs, got %d", len(result.Specs))
 		}
 		for _, id := range []string{"validate_input", "auth_check", "log_request"} {
-			if _, ok := findScanResultSpec(result.Specs, id); !ok {
+			if _, ok := testutil.FindScanResultSpec(result.Specs, id); !ok {
 				t.Fatalf("expected spec %s, not found", id)
 			}
 		}
@@ -111,21 +73,21 @@ func TestScannerSpecDiscovery(t *testing.T) {
 
 	t.Run("many_spec_files", func(t *testing.T) {
 		dir := t.TempDir()
-		writeSpecFile(t, dir, "auth.pin.xml", `<specs><spec id="auth">auth spec</spec></specs>`)
-		writeSpecFile(t, dir, "api.pin.xml", `<specs><spec id="api">api spec</spec></specs>`)
+		testutil.WriteSpecFile(t, dir, "auth.pin.xml", `<specs><spec id="auth">auth spec</spec></specs>`)
+		testutil.WriteSpecFile(t, dir, "api.pin.xml", `<specs><spec id="api">api spec</spec></specs>`)
 		subdir := filepath.Join(dir, "sub")
 		os.Mkdir(subdir, 0755)
-		writeSpecFile(t, subdir, "nested.pin.xml", `<specs><spec id="nested">nested spec</spec></specs>`)
+		testutil.WriteSpecFile(t, subdir, "nested.pin.xml", `<specs><spec id="nested">nested spec</spec></specs>`)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Specs) != 3 {
 			t.Fatalf("expected 3 specs, got %d", len(result.Specs))
 		}
 		for _, id := range []string{"auth", "api", "nested"} {
-			if _, ok := findScanResultSpec(result.Specs, id); !ok {
+			if _, ok := testutil.FindScanResultSpec(result.Specs, id); !ok {
 				t.Fatalf("expected spec %s, not found", id)
 			}
 		}
@@ -133,9 +95,9 @@ func TestScannerSpecDiscovery(t *testing.T) {
 
 	t.Run("spec_missing_id_attribute_errors", func(t *testing.T) {
 		dir := t.TempDir()
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec>no id here</spec></specs>`)
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec>no id here</spec></specs>`)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		_, err := scanner.Scan()
 		if err == nil {
 			t.Fatalf("expected error for spec missing id")
@@ -144,10 +106,10 @@ func TestScannerSpecDiscovery(t *testing.T) {
 
 	t.Run("duplicate_spec_ids_error", func(t *testing.T) {
 		dir := t.TempDir()
-		writeSpecFile(t, dir, "a.pin.xml", `<specs><spec id="dup">first</spec></specs>`)
-		writeSpecFile(t, dir, "b.pin.xml", `<specs><spec id="dup">second</spec></specs>`)
+		testutil.WriteSpecFile(t, dir, "a.pin.xml", `<specs><spec id="dup">first</spec></specs>`)
+		testutil.WriteSpecFile(t, dir, "b.pin.xml", `<specs><spec id="dup">second</spec></specs>`)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		_, err := scanner.Scan()
 		if err == nil {
 			t.Fatalf("expected error for duplicate spec id")
@@ -157,17 +119,17 @@ func TestScannerSpecDiscovery(t *testing.T) {
 	t.Run("hash_is_sha1_deterministic", func(t *testing.T) {
 		dir := t.TempDir()
 		content := `<specs><spec id="s1">deterministic content</spec></specs>`
-		writeSpecFile(t, dir, "specs.pin.xml", content)
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", content)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result1, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		result2, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
-		spec1, _ := findScanResultSpec(result1.Specs, "s1")
-		spec2, _ := findScanResultSpec(result2.Specs, "s1")
+		spec1, _ := testutil.FindScanResultSpec(result1.Specs, "s1")
+		spec2, _ := testutil.FindScanResultSpec(result2.Specs, "s1")
 
 		if spec1.Hash != spec2.Hash {
 			t.Fatalf("hash not deterministic: %q vs %q", spec1.Hash, spec2.Hash)
@@ -178,22 +140,22 @@ func TestScannerSpecDiscovery(t *testing.T) {
 func TestScannerMarkerDiscovery(t *testing.T) {
 	t.Run("one_code_file_one_marker", func(t *testing.T) {
 		dir := t.TempDir()
-		writeCodeFile(t, dir, "main.go", `package main
+		testutil.WriteCodeFile(t, dir, "main.go", `package main
 
-`+markerLine("abc123")+`
+`+testutil.MarkerLine("abc123")+`
 func handleRequest() {
 	doSomething()
 }
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Markers) != 1 {
 			t.Fatalf("expected 1 marker, got %d", len(result.Markers))
 		}
-		marker, ok := findScanResultMarker(result.Markers, "abc123")
+		marker, ok := testutil.FindScanResultMarker(result.Markers, "abc123")
 		if !ok {
 			t.Fatalf("expected marker abc123, not found")
 		}
@@ -207,28 +169,28 @@ func handleRequest() {
 
 	t.Run("one_code_file_many_markers", func(t *testing.T) {
 		dir := t.TempDir()
-		writeCodeFile(t, dir, "main.go", `package main
+		testutil.WriteCodeFile(t, dir, "main.go", `package main
 
-`+markerLine("m1")+`
+`+testutil.MarkerLine("m1")+`
 func handlerA() {
 	a()
 }
 
-`+markerLine("m2")+`
+`+testutil.MarkerLine("m2")+`
 func handlerB() {
 	b()
 }
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Markers) != 2 {
 			t.Fatalf("expected 2 markers, got %d", len(result.Markers))
 		}
 		for _, id := range []string{"m1", "m2"} {
-			if _, ok := findScanResultMarker(result.Markers, id); !ok {
+			if _, ok := testutil.FindScanResultMarker(result.Markers, id); !ok {
 				t.Fatalf("expected marker %s, not found", id)
 			}
 		}
@@ -236,22 +198,22 @@ func handlerB() {
 
 	t.Run("many_code_files", func(t *testing.T) {
 		dir := t.TempDir()
-		writeCodeFile(t, dir, "a.go", markerLine("ma")+`
+		testutil.WriteCodeFile(t, dir, "a.go", testutil.MarkerLine("ma")+`
 func a() { x() }
 `)
-		writeCodeFile(t, dir, "b.go", markerLine("mb")+`
+		testutil.WriteCodeFile(t, dir, "b.go", testutil.MarkerLine("mb")+`
 func b() { y() }
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Markers) != 2 {
 			t.Fatalf("expected 2 markers, got %d", len(result.Markers))
 		}
 		for _, id := range []string{"ma", "mb"} {
-			if _, ok := findScanResultMarker(result.Markers, id); !ok {
+			if _, ok := testutil.FindScanResultMarker(result.Markers, id); !ok {
 				t.Fatalf("expected marker %s, not found", id)
 			}
 		}
@@ -259,14 +221,14 @@ func b() { y() }
 
 	t.Run("duplicate_marker_shortcodes_error", func(t *testing.T) {
 		dir := t.TempDir()
-		writeCodeFile(t, dir, "a.go", markerLine("dup")+`
+		testutil.WriteCodeFile(t, dir, "a.go", testutil.MarkerLine("dup")+`
 func a() { }
 `)
-		writeCodeFile(t, dir, "b.go", markerLine("dup")+`
+		testutil.WriteCodeFile(t, dir, "b.go", testutil.MarkerLine("dup")+`
 func b() { }
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		_, err := scanner.Scan()
 		if err == nil {
 			t.Fatalf("expected error for duplicate marker shortcode")
@@ -275,21 +237,21 @@ func b() { }
 
 	t.Run("marker_hash_is_sha1_deterministic", func(t *testing.T) {
 		dir := t.TempDir()
-		writeCodeFile(t, dir, "main.go", markerLine("abc")+`
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("abc")+`
 func handler() {
 	doSomething()
 }
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result1, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		result2, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
-		m1, _ := findScanResultMarker(result1.Markers, "abc")
-		m2, _ := findScanResultMarker(result2.Markers, "abc")
+		m1, _ := testutil.FindScanResultMarker(result1.Markers, "abc")
+		m2, _ := testutil.FindScanResultMarker(result2.Markers, "abc")
 
 		if m1.Hash != m2.Hash {
 			t.Fatalf("hash not deterministic: %q vs %q", m1.Hash, m2.Hash)
@@ -300,7 +262,7 @@ func handler() {
 func TestScannerMarkerHashingWindow(t *testing.T) {
 	t.Run("hashes_exactly_10_lines_from_marker", func(t *testing.T) {
 		dir := t.TempDir()
-		code := markerLine("abc")+`
+		code := testutil.MarkerLine("abc") + `
 line2
 line3
 line4
@@ -313,13 +275,13 @@ line10
 line11
 line12
 `
-		writeCodeFile(t, dir, "main.go", code)
+		testutil.WriteCodeFile(t, dir, "main.go", code)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
-		marker, _ := findScanResultMarker(result.Markers, "abc")
+		marker, _ := testutil.FindScanResultMarker(result.Markers, "abc")
 
 		expectedContent := `line2
 line3
@@ -332,7 +294,7 @@ line9
 line10
 line11
 `
-		expectedHash := expectedSha1Hex(expectedContent)
+		expectedHash := testutil.ExpectedSha1Hex(expectedContent)
 		if marker.Hash != expectedHash {
 			t.Fatalf("hash = %q, want %q (content hash of 10 lines after marker)", marker.Hash, expectedHash)
 		}
@@ -340,22 +302,22 @@ line11
 
 	t.Run("fewer_than_10_lines_hashes_all_remaining", func(t *testing.T) {
 		dir := t.TempDir()
-		code := markerLine("abc")+`
+		code := testutil.MarkerLine("abc") + `
 line2
 line3
 `
-		writeCodeFile(t, dir, "main.go", code)
+		testutil.WriteCodeFile(t, dir, "main.go", code)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
-		marker, _ := findScanResultMarker(result.Markers, "abc")
+		marker, _ := testutil.FindScanResultMarker(result.Markers, "abc")
 
 		expectedContent := `line2
 line3
 `
-		expectedHash := expectedSha1Hex(expectedContent)
+		expectedHash := testutil.ExpectedSha1Hex(expectedContent)
 		if marker.Hash != expectedHash {
 			t.Fatalf("hash = %q, want %q", marker.Hash, expectedHash)
 		}
@@ -365,20 +327,20 @@ line3
 func TestScannerMixedSpecsAndMarkers(t *testing.T) {
 	t.Run("specs_and_markers_across_multiple_files", func(t *testing.T) {
 		dir := t.TempDir()
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs>
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs>
 			<spec id="validate_input">input must be validated</spec>
 			<spec id="auth_check">auth must be checked</spec>
 		</specs>`)
-		writeCodeFile(t, dir, "auth.go", markerLine("m1")+`
+		testutil.WriteCodeFile(t, dir, "auth.go", testutil.MarkerLine("m1")+`
 func auth() { check() }
 `)
-		writeCodeFile(t, dir, "input.go", markerLine("m2")+`
+		testutil.WriteCodeFile(t, dir, "input.go", testutil.MarkerLine("m2")+`
 func validate() { check() }
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Specs) != 2 {
 			t.Fatalf("expected 2 specs, got %d", len(result.Specs))
@@ -389,27 +351,19 @@ func validate() { check() }
 	})
 }
 
-func writeIgnoreFile(t *testing.T, dir, content string) {
-	t.Helper()
-	path := filepath.Join(dir, "drift.ignore")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		t.Fatalf("failed to write drift.ignore: %v", err)
-	}
-}
-
 func TestScannerDriftIgnore(t *testing.T) {
 	t.Run("no_drift_ignore_scans_all", func(t *testing.T) {
 		dir := t.TempDir()
-		writeCodeFile(t, dir, "main.go", markerLine("keep")+`
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("keep")+`
 func a() {}
 `)
-		writeCodeFile(t, dir, "main_test.go", markerLine("drop")+`
+		testutil.WriteCodeFile(t, dir, "main_test.go", testutil.MarkerLine("drop")+`
 func b() {}
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Markers) != 2 {
 			t.Fatalf("expected 2 markers without drift.ignore, got %d", len(result.Markers))
@@ -418,122 +372,122 @@ func b() {}
 
 	t.Run("star_test_go_excludes_test_files", func(t *testing.T) {
 		dir := t.TempDir()
-		writeIgnoreFile(t, dir, "*_test.go\n")
-		writeCodeFile(t, dir, "main.go", markerLine("keep")+`
+		testutil.WriteIgnoreFile(t, dir, "*_test.go\n")
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("keep")+`
 func a() {}
 `)
-		writeCodeFile(t, dir, "main_test.go", markerLine("drop")+`
+		testutil.WriteCodeFile(t, dir, "main_test.go", testutil.MarkerLine("drop")+`
 func b() {}
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Markers) != 1 {
 			t.Fatalf("expected 1 marker, got %d", len(result.Markers))
 		}
-		if _, ok := findScanResultMarker(result.Markers, "keep"); !ok {
+		if _, ok := testutil.FindScanResultMarker(result.Markers, "keep"); !ok {
 			t.Fatalf("expected marker 'keep', not found")
 		}
-		if _, ok := findScanResultMarker(result.Markers, "drop"); ok {
+		if _, ok := testutil.FindScanResultMarker(result.Markers, "drop"); ok {
 			t.Fatalf("marker 'drop' should have been excluded")
 		}
 	})
 
 	t.Run("trailing_slash_skips_directory_subtree", func(t *testing.T) {
 		dir := t.TempDir()
-		writeIgnoreFile(t, dir, ".git/\n")
-		writeCodeFile(t, dir, "main.go", markerLine("keep")+`
+		testutil.WriteIgnoreFile(t, dir, ".git/\n")
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("keep")+`
 func a() {}
 `)
 		gitDir := filepath.Join(dir, ".git")
 		os.Mkdir(gitDir, 0755)
-		writeCodeFile(t, gitDir, "hook.go", markerLine("drop")+`
+		testutil.WriteCodeFile(t, gitDir, "hook.go", testutil.MarkerLine("drop")+`
 func b() {}
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Markers) != 1 {
 			t.Fatalf("expected 1 marker, got %d", len(result.Markers))
 		}
-		if _, ok := findScanResultMarker(result.Markers, "keep"); !ok {
+		if _, ok := testutil.FindScanResultMarker(result.Markers, "keep"); !ok {
 			t.Fatalf("expected marker 'keep', not found")
 		}
-		if _, ok := findScanResultMarker(result.Markers, "drop"); ok {
+		if _, ok := testutil.FindScanResultMarker(result.Markers, "drop"); ok {
 			t.Fatalf("marker 'drop' from .git/ should have been excluded")
 		}
 	})
 
 	t.Run("comments_and_empty_lines_ignored", func(t *testing.T) {
 		dir := t.TempDir()
-		writeIgnoreFile(t, dir, "# this is a comment\n\n*_test.go\n# another comment\n")
-		writeCodeFile(t, dir, "main.go", markerLine("keep")+`
+		testutil.WriteIgnoreFile(t, dir, "# this is a comment\n\n*_test.go\n# another comment\n")
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("keep")+`
 func a() {}
 `)
-		writeCodeFile(t, dir, "main_test.go", markerLine("drop")+`
+		testutil.WriteCodeFile(t, dir, "main_test.go", testutil.MarkerLine("drop")+`
 func b() {}
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Markers) != 1 {
 			t.Fatalf("expected 1 marker, got %d", len(result.Markers))
 		}
-		if _, ok := findScanResultMarker(result.Markers, "keep"); !ok {
+		if _, ok := testutil.FindScanResultMarker(result.Markers, "keep"); !ok {
 			t.Fatalf("expected marker 'keep', not found")
 		}
-		if _, ok := findScanResultMarker(result.Markers, "drop"); ok {
+		if _, ok := testutil.FindScanResultMarker(result.Markers, "drop"); ok {
 			t.Fatalf("marker 'drop' should have been excluded")
 		}
 	})
 
 	t.Run("path_pattern_excludes_specific_file", func(t *testing.T) {
 		dir := t.TempDir()
-		writeIgnoreFile(t, dir, "sub/skip.go\n")
-		writeCodeFile(t, dir, "main.go", markerLine("keep")+`
+		testutil.WriteIgnoreFile(t, dir, "sub/skip.go\n")
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("keep")+`
 func a() {}
 `)
 		subDir := filepath.Join(dir, "sub")
 		os.Mkdir(subDir, 0755)
-		writeCodeFile(t, subDir, "skip.go", markerLine("drop")+`
+		testutil.WriteCodeFile(t, subDir, "skip.go", testutil.MarkerLine("drop")+`
 func b() {}
 `)
-		writeCodeFile(t, subDir, "keep.go", markerLine("also_keep")+`
+		testutil.WriteCodeFile(t, subDir, "keep.go", testutil.MarkerLine("also_keep")+`
 func c() {}
 `)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Markers) != 2 {
 			t.Fatalf("expected 2 markers, got %d", len(result.Markers))
 		}
-		if _, ok := findScanResultMarker(result.Markers, "drop"); ok {
+		if _, ok := testutil.FindScanResultMarker(result.Markers, "drop"); ok {
 			t.Fatalf("marker 'drop' should have been excluded by path pattern")
 		}
-		if _, ok := findScanResultMarker(result.Markers, "keep"); !ok {
+		if _, ok := testutil.FindScanResultMarker(result.Markers, "keep"); !ok {
 			t.Fatalf("expected marker 'keep', not found")
 		}
-		if _, ok := findScanResultMarker(result.Markers, "also_keep"); !ok {
+		if _, ok := testutil.FindScanResultMarker(result.Markers, "also_keep"); !ok {
 			t.Fatalf("expected marker 'also_keep', not found")
 		}
 	})
 
 	t.Run("ignore_applies_to_spec_files_too", func(t *testing.T) {
 		dir := t.TempDir()
-		writeIgnoreFile(t, dir, "*.pin.xml\n")
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="s1">spec content</spec></specs>`)
+		testutil.WriteIgnoreFile(t, dir, "*.pin.xml\n")
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="s1">spec content</spec></specs>`)
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Specs) != 0 {
 			t.Fatalf("expected 0 specs (all ignored), got %d", len(result.Specs))
@@ -544,13 +498,13 @@ func c() {}
 func TestScannerIgnoresNonPinXmlNonCodeFiles(t *testing.T) {
 	t.Run("ignores_txt_md_json_files", func(t *testing.T) {
 		dir := t.TempDir()
-		writeCodeFile(t, dir, "notes.txt", markerLine("should_not_find")+"\n")
-		writeCodeFile(t, dir, "readme.md", markerLine("should_not_find_either")+"\n")
-		writeCodeFile(t, dir, "data.json", markerLine("nope")+"\n")
+		testutil.WriteCodeFile(t, dir, "notes.txt", testutil.MarkerLine("should_not_find")+"\n")
+		testutil.WriteCodeFile(t, dir, "readme.md", testutil.MarkerLine("should_not_find_either")+"\n")
+		testutil.WriteCodeFile(t, dir, "data.json", testutil.MarkerLine("nope")+"\n")
 
-		scanner := NewFileScanner(dir)
+		scanner := scanner.NewFileScanner(dir)
 		result, err := scanner.Scan()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 
 		if len(result.Markers) != 0 {
 			t.Fatalf("expected 0 markers from non-code files, got %d", len(result.Markers))

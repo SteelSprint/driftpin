@@ -1,4 +1,4 @@
-package driftpin
+package core
 
 import (
 	"errors"
@@ -88,7 +88,7 @@ type EvaluatedState struct {
 }
 
 var (
-	ErrDuplicateSpecID          = errors.New("duplicate spec id")
+	ErrDuplicateSpecID         = errors.New("duplicate spec id")
 	ErrDuplicateMarkerID       = errors.New("duplicate marker id")
 	ErrDuplicateLink           = errors.New("duplicate link")
 	ErrLinkUnknownSpec         = errors.New("link references unknown spec")

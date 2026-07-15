@@ -1,20 +1,22 @@
-package driftpin
+package pinstore
 
 import (
 	"encoding/xml"
 	"errors"
 	"os"
 	"path/filepath"
+
+	"driftpin/core"
 )
 
 // #F pnope
 var ErrPinNotFound = errors.New("drift.pin not found, run 'drift init' first")
 
 type PinState struct {
-	Specs           []Spec
-	Markers         []Marker
-	Links           []Link
-	ResolutionState []ResolutionState
+	Specs           []core.Spec
+	Markers         []core.Marker
+	Links           []core.Link
+	ResolutionState []core.ResolutionState
 }
 
 type PinStore interface {
@@ -79,9 +81,9 @@ func (s *FilePinStore) Load() (PinState, error) {
 		return PinState{}, err
 	}
 
-	specs := make([]Spec, len(file.Specs))
+	specs := make([]core.Spec, len(file.Specs))
 	for i, s := range file.Specs {
-		specs[i] = Spec{
+		specs[i] = core.Spec{
 			ID:         s.ID,
 			Hash:       s.Hash,
 			Filepath:   s.Filepath,
@@ -89,9 +91,9 @@ func (s *FilePinStore) Load() (PinState, error) {
 		}
 	}
 
-	markers := make([]Marker, len(file.Markers))
+	markers := make([]core.Marker, len(file.Markers))
 	for i, m := range file.Markers {
-		markers[i] = Marker{
+		markers[i] = core.Marker{
 			ID:         m.ID,
 			Hash:       m.Hash,
 			Filepath:   m.Filepath,
@@ -99,17 +101,17 @@ func (s *FilePinStore) Load() (PinState, error) {
 		}
 	}
 
-	links := make([]Link, len(file.Links))
+	links := make([]core.Link, len(file.Links))
 	for i, l := range file.Links {
-		links[i] = Link{
+		links[i] = core.Link{
 			SpecID:   l.SpecID,
 			MarkerID: l.MarkerID,
 		}
 	}
 
-	resolutions := make([]ResolutionState, len(file.Resolutions))
+	resolutions := make([]core.ResolutionState, len(file.Resolutions))
 	for i, r := range file.Resolutions {
-		resolutions[i] = ResolutionState{
+		resolutions[i] = core.ResolutionState{
 			SpecID:            r.SpecID,
 			MarkerID:          r.MarkerID,
 			CurrentSpecHash:   r.CurrentSpecHash,
@@ -128,9 +130,9 @@ func (s *FilePinStore) Load() (PinState, error) {
 // #F psave
 func (s *FilePinStore) Save(state PinState) error {
 	file := pinFileXML{
-		Specs: make([]specXML, len(state.Specs)),
-		Markers: make([]markerXML, len(state.Markers)),
-		Links: make([]linkXML, len(state.Links)),
+		Specs:       make([]specXML, len(state.Specs)),
+		Markers:     make([]markerXML, len(state.Markers)),
+		Links:       make([]linkXML, len(state.Links)),
 		Resolutions: make([]resolutionXML, len(state.ResolutionState)),
 	}
 

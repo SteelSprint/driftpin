@@ -1,5 +1,5 @@
 # Exclude test fixture file (contains #F marker literals for test data)
-testfixtures_test.go
+internal/testutil/fixtures.go
 
 # Exclude VCS
 .git/

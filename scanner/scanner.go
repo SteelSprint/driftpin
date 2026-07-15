@@ -1,4 +1,4 @@
-package driftpin
+package scanner
 
 import (
 	"crypto/sha1"
@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"driftpin/core"
 )
 
 const markerLineWindow = 10
@@ -26,8 +28,8 @@ var codeExtensions = map[string]bool{
 var markerPattern = regexp.MustCompile(`#F\s+(\S+)`)
 
 type ScanResult struct {
-	Specs   []Spec
-	Markers []Marker
+	Specs   []core.Spec
+	Markers []core.Marker
 }
 
 type Scanner interface {
@@ -70,8 +72,8 @@ type specElem struct {
 }
 
 // #F sspec
-func (s *FileScanner) scanSpecs(ignore *driftIgnore) ([]Spec, error) {
-	var specs []Spec
+func (s *FileScanner) scanSpecs(ignore *driftIgnore) ([]core.Spec, error) {
+	var specs []core.Spec
 	seenIDs := make(map[string]bool)
 
 	err := filepath.WalkDir(s.dir, func(path string, d fs.DirEntry, err error) error {
@@ -111,7 +113,7 @@ func (s *FileScanner) scanSpecs(ignore *driftIgnore) ([]Spec, error) {
 	return specs, nil
 }
 
-func parseSpecFile(path string) ([]Spec, error) {
+func parseSpecFile(path string) ([]core.Spec, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -122,7 +124,7 @@ func parseSpecFile(path string) ([]Spec, error) {
 		return nil, err
 	}
 
-	var specs []Spec
+	var specs []core.Spec
 	for _, elem := range file.Specs {
 		var id string
 		for _, attr := range elem.Attr {
@@ -137,7 +139,7 @@ func parseSpecFile(path string) ([]Spec, error) {
 		}
 		content := strings.TrimSpace(elem.Content)
 		hash := sha1Hex(content)
-		specs = append(specs, Spec{
+		specs = append(specs, core.Spec{
 			ID:         id,
 			Hash:       hash,
 			Filepath:   path,
@@ -148,8 +150,8 @@ func parseSpecFile(path string) ([]Spec, error) {
 }
 
 // #F smark
-func (s *FileScanner) scanMarkers(ignore *driftIgnore) ([]Marker, error) {
-	var markers []Marker
+func (s *FileScanner) scanMarkers(ignore *driftIgnore) ([]core.Marker, error) {
+	var markers []core.Marker
 	seenIDs := make(map[string]bool)
 
 	err := filepath.WalkDir(s.dir, func(path string, d fs.DirEntry, err error) error {
@@ -190,7 +192,7 @@ func (s *FileScanner) scanMarkers(ignore *driftIgnore) ([]Marker, error) {
 	return markers, nil
 }
 
-func parseMarkerFile(path string) ([]Marker, error) {
+func parseMarkerFile(path string) ([]core.Marker, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -200,7 +202,7 @@ func parseMarkerFile(path string) ([]Marker, error) {
 	if len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
-	var markers []Marker
+	var markers []core.Marker
 
 	for i, line := range lines {
 		match := markerPattern.FindStringSubmatch(line)
@@ -220,7 +222,7 @@ func parseMarkerFile(path string) ([]Marker, error) {
 		}
 		hash := sha1Hex(content)
 
-		markers = append(markers, Marker{
+		markers = append(markers, core.Marker{
 			ID:         shortcode,
 			Hash:       hash,
 			Filepath:   path,
@@ -241,9 +243,9 @@ type driftIgnore struct {
 }
 
 type ignorePattern struct {
-	raw       string
-	dirOnly   bool
-	hasSlash  bool
+	raw      string
+	dirOnly  bool
+	hasSlash bool
 }
 
 func loadDriftIgnore(dir string) (*driftIgnore, error) {

@@ -1,101 +1,105 @@
-package driftpin
+package orchestrator
 
 import (
 	"fmt"
+
+	"driftpin/core"
+	"driftpin/pinstore"
+	"driftpin/scanner"
 )
 
 var (
-	ErrSpecNotFoundOnDisk    = fmt.Errorf("spec in drift.pin not found on disk")
-	ErrMarkerNotFoundOnDisk  = fmt.Errorf("marker in drift.pin not found on disk")
-	ErrLinkMarkerNotFound    = fmt.Errorf("link references unknown marker")
-	ErrLinkSpecNotFound      = fmt.Errorf("link references unknown spec")
-	ErrLinkAlreadyExists     = fmt.Errorf("link already exists")
+	ErrSpecNotFoundOnDisk   = fmt.Errorf("spec in drift.pin not found on disk")
+	ErrMarkerNotFoundOnDisk = fmt.Errorf("marker in drift.pin not found on disk")
+	ErrLinkMarkerNotFound   = fmt.Errorf("link references unknown marker")
+	ErrLinkSpecNotFound     = fmt.Errorf("link references unknown spec")
+	ErrLinkAlreadyExists    = fmt.Errorf("link already exists")
 )
 
 type Orchestrator struct {
-	pin     PinStore
-	scanner Scanner
-	core    *CoreAlgorithm
+	pin     pinstore.PinStore
+	scanner scanner.Scanner
+	core    *core.CoreAlgorithm
 }
 
-func NewOrchestrator(pin PinStore, scanner Scanner) *Orchestrator {
+func NewOrchestrator(pin pinstore.PinStore, scanner scanner.Scanner) *Orchestrator {
 	return &Orchestrator{
 		pin:     pin,
 		scanner: scanner,
-		core:    NewCoreAlgorithm(),
+		core:    core.NewCoreAlgorithm(),
 	}
 }
 
 // #F oinit
 func (o *Orchestrator) Init() error {
-	return o.pin.Save(PinState{})
+	return o.pin.Save(pinstore.PinState{})
 }
 
 // #F otodo
-func (o *Orchestrator) Todo() (EvaluatedState, error) {
+func (o *Orchestrator) Todo() (core.EvaluatedState, error) {
 	state, err := o.pin.Load()
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
 	scanResult, err := o.scanner.Scan()
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
 	reconciledSpecs, err := reconcileSpecs(state.Specs, scanResult.Specs)
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
 	reconciledMarkers, err := reconcileMarkers(state.Markers, scanResult.Markers)
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
 	scan := buildScan(scanResult)
 
-	ctx := CoreAlgorithmContext{
+	ctx := core.CoreAlgorithmContext{
 		Specs:           reconciledSpecs,
 		Markers:         reconciledMarkers,
 		Links:           state.Links,
 		ResolutionState: state.ResolutionState,
-		Action:          TodoAction{Scan: scan},
+		Action:          core.TodoAction{Scan: scan},
 	}
 
 	return o.core.EvaluateState(ctx)
 }
 
 // #F orest
-func (o *Orchestrator) Reset(markerID, specID string) (EvaluatedState, error) {
+func (o *Orchestrator) Reset(markerID, specID string) (core.EvaluatedState, error) {
 	state, err := o.pin.Load()
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
 	scanResult, err := o.scanner.Scan()
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
 	reconciledSpecs, err := reconcileSpecs(state.Specs, scanResult.Specs)
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
 	reconciledMarkers, err := reconcileMarkers(state.Markers, scanResult.Markers)
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
 	scan := buildScan(scanResult)
 
-	ctx := CoreAlgorithmContext{
+	ctx := core.CoreAlgorithmContext{
 		Specs:           reconciledSpecs,
 		Markers:         reconciledMarkers,
 		Links:           state.Links,
 		ResolutionState: state.ResolutionState,
-		Action: ResetAction{
+		Action: core.ResetAction{
 			SpecID:   specID,
 			MarkerID: markerID,
 			Scan:     scan,
@@ -104,17 +108,17 @@ func (o *Orchestrator) Reset(markerID, specID string) (EvaluatedState, error) {
 
 	evaluated, err := o.core.EvaluateState(ctx)
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
-	err = o.pin.Save(PinState{
+	err = o.pin.Save(pinstore.PinState{
 		Specs:           evaluated.Specs,
 		Markers:         evaluated.Markers,
 		Links:           evaluated.Links,
 		ResolutionState: evaluated.ResolutionState,
 	})
 	if err != nil {
-		return EvaluatedState{}, err
+		return core.EvaluatedState{}, err
 	}
 
 	return evaluated, nil
@@ -170,17 +174,17 @@ func (o *Orchestrator) Link(markerID, specID string) error {
 		}
 	}
 
-	return o.pin.Save(PinState{
+	return o.pin.Save(pinstore.PinState{
 		Specs:           reconciledSpecs,
 		Markers:         reconciledMarkers,
-		Links:           append(state.Links, Link{SpecID: specID, MarkerID: markerID}),
+		Links:           append(state.Links, core.Link{SpecID: specID, MarkerID: markerID}),
 		ResolutionState: state.ResolutionState,
 	})
 }
 
 // #F orspc
-func reconcileSpecs(pinned []Spec, scanned []Spec) ([]Spec, error) {
-	pinnedByID := make(map[string]Spec, len(pinned))
+func reconcileSpecs(pinned []core.Spec, scanned []core.Spec) ([]core.Spec, error) {
+	pinnedByID := make(map[string]core.Spec, len(pinned))
 	for _, s := range pinned {
 		pinnedByID[s.ID] = s
 	}
@@ -196,10 +200,10 @@ func reconcileSpecs(pinned []Spec, scanned []Spec) ([]Spec, error) {
 		}
 	}
 
-	result := make([]Spec, len(scanned))
+	result := make([]core.Spec, len(scanned))
 	for i, s := range scanned {
 		if pinned, ok := pinnedByID[s.ID]; ok {
-			result[i] = Spec{
+			result[i] = core.Spec{
 				ID:         s.ID,
 				Hash:       pinned.Hash,
 				Filepath:   s.Filepath,
@@ -213,8 +217,8 @@ func reconcileSpecs(pinned []Spec, scanned []Spec) ([]Spec, error) {
 }
 
 // #F ormrk
-func reconcileMarkers(pinned []Marker, scanned []Marker) ([]Marker, error) {
-	pinnedByID := make(map[string]Marker, len(pinned))
+func reconcileMarkers(pinned []core.Marker, scanned []core.Marker) ([]core.Marker, error) {
+	pinnedByID := make(map[string]core.Marker, len(pinned))
 	for _, m := range pinned {
 		pinnedByID[m.ID] = m
 	}
@@ -230,10 +234,10 @@ func reconcileMarkers(pinned []Marker, scanned []Marker) ([]Marker, error) {
 		}
 	}
 
-	result := make([]Marker, len(scanned))
+	result := make([]core.Marker, len(scanned))
 	for i, m := range scanned {
 		if pinned, ok := pinnedByID[m.ID]; ok {
-			result[i] = Marker{
+			result[i] = core.Marker{
 				ID:         m.ID,
 				Hash:       pinned.Hash,
 				Filepath:   m.Filepath,
@@ -246,7 +250,7 @@ func reconcileMarkers(pinned []Marker, scanned []Marker) ([]Marker, error) {
 	return result, nil
 }
 
-func buildScan(scanResult ScanResult) Scan {
+func buildScan(scanResult scanner.ScanResult) core.Scan {
 	specHashes := make(map[string]string, len(scanResult.Specs))
 	for _, s := range scanResult.Specs {
 		specHashes[s.ID] = s.Hash
@@ -255,7 +259,7 @@ func buildScan(scanResult ScanResult) Scan {
 	for _, m := range scanResult.Markers {
 		markerHashes[m.ID] = m.Hash
 	}
-	return Scan{
+	return core.Scan{
 		SpecHashes:   specHashes,
 		MarkerHashes: markerHashes,
 	}

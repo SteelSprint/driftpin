@@ -1,9 +1,14 @@
-package driftpin
+package cli
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"driftpin/core"
+	"driftpin/orchestrator"
+	"driftpin/pinstore"
+	"driftpin/scanner"
 )
 
 // #F cdisp
@@ -12,9 +17,9 @@ func Run(args []string, dir string) (string, int) {
 		return "usage: drift <init|todo|reset <marker>:<spec>|link <marker>:<spec>>", 1
 	}
 
-	pin := NewFilePinStore(dir)
-	scanner := NewFileScanner(dir)
-	orch := NewOrchestrator(pin, scanner)
+	pin := pinstore.NewFilePinStore(dir)
+	scanner := scanner.NewFileScanner(dir)
+	orch := orchestrator.NewOrchestrator(pin, scanner)
 
 	switch args[0] {
 	case "init":
@@ -66,7 +71,7 @@ func Run(args []string, dir string) (string, int) {
 }
 
 // #F cfmt
-func formatTodo(state EvaluatedState) string {
+func formatTodo(state core.EvaluatedState) string {
 	if len(state.Todos) == 0 {
 		return "No changes detected."
 	}

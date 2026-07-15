@@ -1,4 +1,4 @@
-package driftpin
+package cli_test
 
 import (
 	"fmt"
@@ -6,12 +6,16 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"driftpin/cli"
+	"driftpin/internal/testutil"
+	"driftpin/pinstore"
 )
 
 func TestCLIInit(t *testing.T) {
 	t.Run("init_creates_drift_pin", func(t *testing.T) {
 		dir := t.TempDir()
-		output, code := Run([]string{"init"}, dir)
+		output, code := cli.Run([]string{"init"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
@@ -24,12 +28,12 @@ func TestCLIInit(t *testing.T) {
 	t.Run("init_then_todo_no_changes", func(t *testing.T) {
 		dir := t.TempDir()
 
-		_, code := Run([]string{"init"}, dir)
+		_, code := cli.Run([]string{"init"}, dir)
 		if code != 0 {
 			t.Fatalf("init failed with non-zero exit code")
 		}
 
-		output, code := Run([]string{"todo"}, dir)
+		output, code := cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
@@ -41,22 +45,22 @@ func TestCLIInit(t *testing.T) {
 
 	t.Run("init_creates_valid_empty_pin", func(t *testing.T) {
 		dir := t.TempDir()
-		_, code := Run([]string{"init"}, dir)
+		_, code := cli.Run([]string{"init"}, dir)
 		if code != 0 {
 			t.Fatalf("init failed")
 		}
 
-		store := NewFilePinStore(dir)
+		store := pinstore.NewFilePinStore(dir)
 		state, err := store.Load()
-		assertNoError(t, err)
-		assertPinStateEquals(t, state, PinState{})
+		testutil.AssertNoError(t, err)
+		testutil.AssertPinStateEquals(t, state, pinstore.PinState{})
 	})
 }
 
 func TestCLITodoWithoutInit(t *testing.T) {
 	t.Run("todo_without_init_errors", func(t *testing.T) {
 		dir := t.TempDir()
-		output, code := Run([]string{"todo"}, dir)
+		output, code := cli.Run([]string{"todo"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
 		}
@@ -69,7 +73,7 @@ func TestCLITodoWithoutInit(t *testing.T) {
 func TestCLIResetWithoutInit(t *testing.T) {
 	t.Run("reset_without_init_errors", func(t *testing.T) {
 		dir := t.TempDir()
-		output, code := Run([]string{"reset", "m1:s1"}, dir)
+		output, code := cli.Run([]string{"reset", "m1:s1"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
 		}
@@ -79,7 +83,7 @@ func TestCLIResetWithoutInit(t *testing.T) {
 func TestCLINoArgs(t *testing.T) {
 	t.Run("no_args_shows_usage", func(t *testing.T) {
 		dir := t.TempDir()
-		output, code := Run([]string{}, dir)
+		output, code := cli.Run([]string{}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code for no args")
 		}
@@ -92,7 +96,7 @@ func TestCLINoArgs(t *testing.T) {
 func TestCLIUnknownCommand(t *testing.T) {
 	t.Run("unknown_command_errors", func(t *testing.T) {
 		dir := t.TempDir()
-		output, code := Run([]string{"frobnicate"}, dir)
+		output, code := cli.Run([]string{"frobnicate"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code for unknown command")
 		}
@@ -105,8 +109,8 @@ func TestCLIUnknownCommand(t *testing.T) {
 func TestCLIResetBadFormat(t *testing.T) {
 	t.Run("reset_without_argument", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
-		output, code := Run([]string{"reset"}, dir)
+		cli.Run([]string{"init"}, dir)
+		output, code := cli.Run([]string{"reset"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
 		}
@@ -114,8 +118,8 @@ func TestCLIResetBadFormat(t *testing.T) {
 
 	t.Run("reset_bad_format_no_colon", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
-		output, code := Run([]string{"reset", "no_colon_here"}, dir)
+		cli.Run([]string{"init"}, dir)
+		output, code := cli.Run([]string{"reset", "no_colon_here"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
 		}
@@ -125,16 +129,16 @@ func TestCLIResetBadFormat(t *testing.T) {
 func TestCLIFullFlowSpecMarkerLinkDrift(t *testing.T) {
 	t.Run("init_create_spec_create_marker_todo_no_links_no_drift", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
+		cli.Run([]string{"init"}, dir)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
-		writeCodeFile(t, dir, "main.go", markerLine("abc123")+`
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("abc123")+`
 func handleRequest() {
 	doSomething()
 }
 `)
 
-		output, code := Run([]string{"todo"}, dir)
+		output, code := cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
@@ -145,23 +149,23 @@ func handleRequest() {
 
 	t.Run("link_then_todo_no_drift", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
+		cli.Run([]string{"init"}, dir)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
-		writeCodeFile(t, dir, "main.go", markerLine("abc123")+`
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("abc123")+`
 func handleRequest() {
 	doSomething()
 }
 `)
 
-		Run([]string{"todo"}, dir)
+		cli.Run([]string{"todo"}, dir)
 
-		output, code := Run([]string{"link", "abc123:validate_input"}, dir)
+		output, code := cli.Run([]string{"link", "abc123:validate_input"}, dir)
 		if code != 0 {
 			t.Fatalf("link failed, exit code = %d, output: %s", code, output)
 		}
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
@@ -172,26 +176,26 @@ func handleRequest() {
 
 	t.Run("link_then_modify_code_then_todo_shows_drift", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
+		cli.Run([]string{"init"}, dir)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
-		writeCodeFile(t, dir, "main.go", markerLine("abc123")+`
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("abc123")+`
 func handleRequest() {
 	doSomething()
 }
 `)
 
-		Run([]string{"todo"}, dir)
-		Run([]string{"link", "abc123:validate_input"}, dir)
-		Run([]string{"todo"}, dir)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "abc123:validate_input"}, dir)
+		cli.Run([]string{"todo"}, dir)
 
-		writeCodeFile(t, dir, "main.go", markerLine("abc123")+`
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("abc123")+`
 func handleRequest() {
 	doSomethingElse()
 }
 `)
 
-		output, code := Run([]string{"todo"}, dir)
+		output, code := cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
@@ -211,33 +215,33 @@ func handleRequest() {
 
 	t.Run("drift_then_reset_clears_drift", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
+		cli.Run([]string{"init"}, dir)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
-		writeCodeFile(t, dir, "main.go", markerLine("abc123")+`
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="validate_input">input must be validated</spec></specs>`)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("abc123")+`
 func handleRequest() {
 	doSomething()
 }
 `)
 
-		Run([]string{"todo"}, dir)
-		Run([]string{"link", "abc123:validate_input"}, dir)
-		Run([]string{"todo"}, dir)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "abc123:validate_input"}, dir)
+		cli.Run([]string{"todo"}, dir)
 
-		writeCodeFile(t, dir, "main.go", markerLine("abc123")+`
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("abc123")+`
 func handleRequest() {
 	doSomethingElse()
 }
 `)
 
-		Run([]string{"todo"}, dir)
+		cli.Run([]string{"todo"}, dir)
 
-		_, code := Run([]string{"reset", "abc123:validate_input"}, dir)
+		_, code := cli.Run([]string{"reset", "abc123:validate_input"}, dir)
 		if code != 0 {
 			t.Fatalf("reset failed with non-zero exit code")
 		}
 
-		output, code := Run([]string{"todo"}, dir)
+		output, code := cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
@@ -250,10 +254,10 @@ func handleRequest() {
 func TestCLILinkErrors(t *testing.T) {
 	t.Run("link_nonexistent_marker", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="s1">spec</spec></specs>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="s1">spec</spec></specs>`)
 
-		output, code := Run([]string{"link", "nonexistent:s1"}, dir)
+		output, code := cli.Run([]string{"link", "nonexistent:s1"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
 		}
@@ -261,12 +265,12 @@ func TestCLILinkErrors(t *testing.T) {
 
 	t.Run("link_nonexistent_spec", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
-		writeCodeFile(t, dir, "main.go", markerLine("m1")+`
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
 func a() {}
 `)
 
-		output, code := Run([]string{"link", "m1:nonexistent"}, dir)
+		output, code := cli.Run([]string{"link", "m1:nonexistent"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
 		}
@@ -274,16 +278,16 @@ func a() {}
 
 	t.Run("link_duplicate", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="s1">spec</spec></specs>`)
-		writeCodeFile(t, dir, "main.go", markerLine("m1")+`
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="s1">spec</spec></specs>`)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
 func a() {}
 `)
 
-		Run([]string{"todo"}, dir)
-		Run([]string{"link", "m1:s1"}, dir)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1:s1"}, dir)
 
-		output, code := Run([]string{"link", "m1:s1"}, dir)
+		output, code := cli.Run([]string{"link", "m1:s1"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code for duplicate link, got 0, output: %s", output)
 		}
@@ -291,9 +295,9 @@ func a() {}
 
 	t.Run("link_bad_format", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
+		cli.Run([]string{"init"}, dir)
 
-		output, code := Run([]string{"link", "no_colon"}, dir)
+		output, code := cli.Run([]string{"link", "no_colon"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
 		}
@@ -301,7 +305,7 @@ func a() {}
 
 	t.Run("link_without_init", func(t *testing.T) {
 		dir := t.TempDir()
-		output, code := Run([]string{"link", "m1:s1"}, dir)
+		output, code := cli.Run([]string{"link", "m1:s1"}, dir)
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
 		}
@@ -327,9 +331,9 @@ func assertTodoCountInOutput(t *testing.T, output string, want int) {
 
 func assertPinResolutionCount(t *testing.T, dir string, want int) {
 	t.Helper()
-	store := NewFilePinStore(dir)
+	store := pinstore.NewFilePinStore(dir)
 	state, err := store.Load()
-	assertNoError(t, err)
+	testutil.AssertNoError(t, err)
 	if len(state.ResolutionState) != want {
 		t.Fatalf("resolution state count = %d, want %d", len(state.ResolutionState), want)
 	}
@@ -338,57 +342,57 @@ func assertPinResolutionCount(t *testing.T, dir string, want int) {
 func TestCLIManyToManyOneSpecManyMarkers(t *testing.T) {
 	t.Run("1_spec_2_markers_full_cycle", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
+		cli.Run([]string{"init"}, dir)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="auth_token_expiry">token must expire</spec></specs>`)
-		writeCodeFile(t, dir, "middleware.go", markerLine("m1")+`
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="auth_token_expiry">token must expire</spec></specs>`)
+		testutil.WriteCodeFile(t, dir, "middleware.go", testutil.MarkerLine("m1")+`
 func authMiddleware() {
 	checkExpiry()
 }
 `)
-		writeCodeFile(t, dir, "login.go", markerLine("m2")+`
+		testutil.WriteCodeFile(t, dir, "login.go", testutil.MarkerLine("m2")+`
 func loginHandler() {
 	checkExpiry()
 }
 `)
 
-		Run([]string{"todo"}, dir)
-		Run([]string{"link", "m1:auth_token_expiry"}, dir)
-		Run([]string{"link", "m2:auth_token_expiry"}, dir)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1:auth_token_expiry"}, dir)
+		cli.Run([]string{"link", "m2:auth_token_expiry"}, dir)
 
-		output, code := Run([]string{"todo"}, dir)
+		output, code := cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 0)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="auth_token_expiry">token must expire within 24 hours</spec></specs>`)
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs><spec id="auth_token_expiry">token must expire within 24 hours</spec></specs>`)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 2)
 
-		_, code = Run([]string{"reset", "m1:auth_token_expiry"}, dir)
+		_, code = cli.Run([]string{"reset", "m1:auth_token_expiry"}, dir)
 		if code != 0 {
 			t.Fatalf("reset m1 failed")
 		}
 		assertPinResolutionCount(t, dir, 1)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 1)
 
-		_, code = Run([]string{"reset", "m2:auth_token_expiry"}, dir)
+		_, code = cli.Run([]string{"reset", "m2:auth_token_expiry"}, dir)
 		if code != 0 {
 			t.Fatalf("reset m2 failed")
 		}
 		assertPinResolutionCount(t, dir, 0)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
@@ -399,60 +403,60 @@ func loginHandler() {
 func TestCLIManyToManyOneMarkerManySpecs(t *testing.T) {
 	t.Run("2_specs_1_marker_full_cycle", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
+		cli.Run([]string{"init"}, dir)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs>
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs>
 			<spec id="validate_file_size">file size must be validated</spec>
 			<spec id="scan_for_malware">files must be scanned for malware</spec>
 		</specs>`)
-		writeCodeFile(t, dir, "upload.go", markerLine("m1")+`
+		testutil.WriteCodeFile(t, dir, "upload.go", testutil.MarkerLine("m1")+`
 func uploadHandler() {
 	validateAndScan()
 }
 `)
 
-		Run([]string{"todo"}, dir)
-		Run([]string{"link", "m1:validate_file_size"}, dir)
-		Run([]string{"link", "m1:scan_for_malware"}, dir)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1:validate_file_size"}, dir)
+		cli.Run([]string{"link", "m1:scan_for_malware"}, dir)
 
-		output, code := Run([]string{"todo"}, dir)
+		output, code := cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 0)
 
-		writeCodeFile(t, dir, "upload.go", markerLine("m1")+`
+		testutil.WriteCodeFile(t, dir, "upload.go", testutil.MarkerLine("m1")+`
 func uploadHandler() {
 	// forgot to validate!
 	upload()
 }
 `)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 2)
 
-		_, code = Run([]string{"reset", "m1:validate_file_size"}, dir)
+		_, code = cli.Run([]string{"reset", "m1:validate_file_size"}, dir)
 		if code != 0 {
 			t.Fatalf("reset validate_file_size failed")
 		}
 		assertPinResolutionCount(t, dir, 1)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 1)
 
-		_, code = Run([]string{"reset", "m1:scan_for_malware"}, dir)
+		_, code = cli.Run([]string{"reset", "m1:scan_for_malware"}, dir)
 		if code != 0 {
 			t.Fatalf("reset scan_for_malware failed")
 		}
 		assertPinResolutionCount(t, dir, 0)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
@@ -463,87 +467,87 @@ func uploadHandler() {
 func TestCLIManyToManyTwoByTwo(t *testing.T) {
 	t.Run("2_specs_2_markers_4_edges_full_cycle", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
+		cli.Run([]string{"init"}, dir)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs>
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs>
 			<spec id="rate_limit_per_user">per-user rate limiting required</spec>
 			<spec id="log_rate_limit_hits">rate limit hits must be logged</spec>
 		</specs>`)
-		writeCodeFile(t, dir, "middleware.go", markerLine("m1")+`
+		testutil.WriteCodeFile(t, dir, "middleware.go", testutil.MarkerLine("m1")+`
 func rateLimitMiddleware() {
 	limit()
 }
 `)
-		writeCodeFile(t, dir, "handler.go", markerLine("m2")+`
+		testutil.WriteCodeFile(t, dir, "handler.go", testutil.MarkerLine("m2")+`
 func requestHandler() {
 	handle()
 }
 `)
 
-		Run([]string{"todo"}, dir)
-		Run([]string{"link", "m1:rate_limit_per_user"}, dir)
-		Run([]string{"link", "m1:log_rate_limit_hits"}, dir)
-		Run([]string{"link", "m2:rate_limit_per_user"}, dir)
-		Run([]string{"link", "m2:log_rate_limit_hits"}, dir)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1:rate_limit_per_user"}, dir)
+		cli.Run([]string{"link", "m1:log_rate_limit_hits"}, dir)
+		cli.Run([]string{"link", "m2:rate_limit_per_user"}, dir)
+		cli.Run([]string{"link", "m2:log_rate_limit_hits"}, dir)
 
-		output, code := Run([]string{"todo"}, dir)
+		output, code := cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 0)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs>
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs>
 			<spec id="rate_limit_per_user">per-user rate limiting required with 100 req/min</spec>
 			<spec id="log_rate_limit_hits">rate limit hits must be logged to syslog</spec>
 		</specs>`)
-		writeCodeFile(t, dir, "middleware.go", markerLine("m1")+`
+		testutil.WriteCodeFile(t, dir, "middleware.go", testutil.MarkerLine("m1")+`
 func rateLimitMiddleware() {
 	limitV2()
 }
 `)
-		writeCodeFile(t, dir, "handler.go", markerLine("m2")+`
+		testutil.WriteCodeFile(t, dir, "handler.go", testutil.MarkerLine("m2")+`
 func requestHandler() {
 	handleV2()
 }
 `)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 4)
 
-		_, code = Run([]string{"reset", "m1:rate_limit_per_user"}, dir)
+		_, code = cli.Run([]string{"reset", "m1:rate_limit_per_user"}, dir)
 		if code != 0 {
 			t.Fatalf("reset 1 failed")
 		}
 		assertPinResolutionCount(t, dir, 1)
-		output, _ = Run([]string{"todo"}, dir)
+		output, _ = cli.Run([]string{"todo"}, dir)
 		assertTodoCountInOutput(t, output, 3)
 
-		_, code = Run([]string{"reset", "m1:log_rate_limit_hits"}, dir)
+		_, code = cli.Run([]string{"reset", "m1:log_rate_limit_hits"}, dir)
 		if code != 0 {
 			t.Fatalf("reset 2 failed")
 		}
 		assertPinResolutionCount(t, dir, 2)
-		output, _ = Run([]string{"todo"}, dir)
+		output, _ = cli.Run([]string{"todo"}, dir)
 		assertTodoCountInOutput(t, output, 2)
 
-		_, code = Run([]string{"reset", "m2:rate_limit_per_user"}, dir)
+		_, code = cli.Run([]string{"reset", "m2:rate_limit_per_user"}, dir)
 		if code != 0 {
 			t.Fatalf("reset 3 failed")
 		}
 		assertPinResolutionCount(t, dir, 2)
-		output, _ = Run([]string{"todo"}, dir)
+		output, _ = cli.Run([]string{"todo"}, dir)
 		assertTodoCountInOutput(t, output, 1)
 
-		_, code = Run([]string{"reset", "m2:log_rate_limit_hits"}, dir)
+		_, code = cli.Run([]string{"reset", "m2:log_rate_limit_hits"}, dir)
 		if code != 0 {
 			t.Fatalf("reset 4 failed")
 		}
 		assertPinResolutionCount(t, dir, 0)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
@@ -554,30 +558,30 @@ func requestHandler() {
 func TestCLIManyToManyThreeByThree(t *testing.T) {
 	t.Run("3_specs_3_markers_9_edges_partial_then_full_collapse", func(t *testing.T) {
 		dir := t.TempDir()
-		Run([]string{"init"}, dir)
+		cli.Run([]string{"init"}, dir)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs>
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs>
 			<spec id="validate_amount">amount must be validated</spec>
 			<spec id="check_fraud_rules">fraud rules must be checked</spec>
 			<spec id="log_transaction">transactions must be logged</spec>
 		</specs>`)
-		writeCodeFile(t, dir, "card.go", markerLine("m1")+`
+		testutil.WriteCodeFile(t, dir, "card.go", testutil.MarkerLine("m1")+`
 func cardHandler() {
 	processCard()
 }
 `)
-		writeCodeFile(t, dir, "bank.go", markerLine("m2")+`
+		testutil.WriteCodeFile(t, dir, "bank.go", testutil.MarkerLine("m2")+`
 func bankTransferHandler() {
 	processBank()
 }
 `)
-		writeCodeFile(t, dir, "wallet.go", markerLine("m3")+`
+		testutil.WriteCodeFile(t, dir, "wallet.go", testutil.MarkerLine("m3")+`
 func walletHandler() {
 	processWallet()
 }
 `)
 
-		Run([]string{"todo"}, dir)
+		cli.Run([]string{"todo"}, dir)
 
 		links := []string{
 			"m1:validate_amount", "m1:check_fraud_rules", "m1:log_transaction",
@@ -585,78 +589,78 @@ func walletHandler() {
 			"m3:validate_amount", "m3:check_fraud_rules", "m3:log_transaction",
 		}
 		for _, link := range links {
-			_, code := Run([]string{"link", link}, dir)
+			_, code := cli.Run([]string{"link", link}, dir)
 			if code != 0 {
 				t.Fatalf("link %s failed", link)
 			}
 		}
 
-		output, code := Run([]string{"todo"}, dir)
+		output, code := cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 0)
 
-		writeSpecFile(t, dir, "specs.pin.xml", `<specs>
+		testutil.WriteSpecFile(t, dir, "specs.pin.xml", `<specs>
 			<spec id="validate_amount">amount must be validated and positive</spec>
 			<spec id="check_fraud_rules">fraud rules must be checked with ML model</spec>
 			<spec id="log_transaction">transactions must be logged with audit trail</spec>
 		</specs>`)
-		writeCodeFile(t, dir, "card.go", markerLine("m1")+`
+		testutil.WriteCodeFile(t, dir, "card.go", testutil.MarkerLine("m1")+`
 func cardHandler() {
 	processCardV2()
 }
 `)
-		writeCodeFile(t, dir, "bank.go", markerLine("m2")+`
+		testutil.WriteCodeFile(t, dir, "bank.go", testutil.MarkerLine("m2")+`
 func bankTransferHandler() {
 	processBankV2()
 }
 `)
-		writeCodeFile(t, dir, "wallet.go", markerLine("m3")+`
+		testutil.WriteCodeFile(t, dir, "wallet.go", testutil.MarkerLine("m3")+`
 func walletHandler() {
 	processWalletV2()
 }
 `)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 9)
 
-		_, code = Run([]string{"reset", "m1:validate_amount"}, dir)
+		_, code = cli.Run([]string{"reset", "m1:validate_amount"}, dir)
 		if code != 0 {
 			t.Fatalf("reset m1:validate_amount failed")
 		}
-		_, code = Run([]string{"reset", "m2:check_fraud_rules"}, dir)
+		_, code = cli.Run([]string{"reset", "m2:check_fraud_rules"}, dir)
 		if code != 0 {
 			t.Fatalf("reset m2:check_fraud_rules failed")
 		}
 		assertPinResolutionCount(t, dir, 2)
 
-		output, _ = Run([]string{"todo"}, dir)
+		output, _ = cli.Run([]string{"todo"}, dir)
 		assertTodoCountInOutput(t, output, 7)
 
 		for _, link := range links {
 			if link == "m1:validate_amount" || link == "m2:check_fraud_rules" {
 				continue
 			}
-			_, code := Run([]string{"reset", link}, dir)
+			_, code := cli.Run([]string{"reset", link}, dir)
 			if code != 0 {
 				t.Fatalf("reset %s failed", link)
 			}
 		}
 		assertPinResolutionCount(t, dir, 0)
 
-		output, code = Run([]string{"todo"}, dir)
+		output, code = cli.Run([]string{"todo"}, dir)
 		if code != 0 {
 			t.Fatalf("exit code = %d, output: %s", code, output)
 		}
 		assertTodoCountInOutput(t, output, 0)
 
-		store := NewFilePinStore(dir)
+		store := pinstore.NewFilePinStore(dir)
 		state, err := store.Load()
-		assertNoError(t, err)
+		testutil.AssertNoError(t, err)
 		if len(state.Links) != 9 {
 			t.Fatalf("expected 9 links in pin, got %d", len(state.Links))
 		}
