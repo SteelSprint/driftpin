@@ -15,7 +15,7 @@ You have a TODO app in Python. You wrote a rule: *"The title must not be empty."
 
 **Step 1 — Check for drift.** `drift todo` scans your rules and your code. If anything fell out of sync, it tells you exactly where:
 
-```
+```bash
 $ drift todo
 
 1 marker has unchecked changes.
@@ -33,7 +33,7 @@ Something changed. The tool doesn't just say "file changed" — it says **which 
 
 **Step 2 — See what changed.** The hint above says to run `drift diff`. This shows you a side-by-side comparison of the code before and after the change:
 
-```
+```bash
 $ drift diff add_func main.add_todo
 
 Spec: main.add_todo (main.pin.xml)
@@ -59,7 +59,7 @@ The `+` lines are what the agent added. Your rule said "must not be empty." The 
 
 **Step 3 — Review the full picture.** Before deciding, look at the rule and the code side by side with `drift show`:
 
-```
+```bash
 $ drift show main.add_todo
 
 === Spec: main.add_todo ===
