@@ -1336,3 +1336,148 @@ func a() { doSomething() }
 		}
 	})
 }
+
+func TestCLIShow(t *testing.T) {
+	t.Run("show_marker_displays_spec_and_content", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="validate_input">input must be validated</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("abc123")+`
+func handleRequest() {
+	doSomething()
+}
+`+testutil.MarkerEnd("abc123")+`
+`)
+
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "abc123", "main.validate_input"}, dir)
+
+		output, code := cli.Run([]string{"show", "abc123"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "=== Spec: main.validate_input ===") {
+			t.Fatalf("output should contain spec section header, got: %s", output)
+		}
+		if !strings.Contains(output, "input must be validated") {
+			t.Fatalf("output should contain spec text, got: %s", output)
+		}
+		if !strings.Contains(output, "=== Marker: abc123 ===") {
+			t.Fatalf("output should contain marker section header, got: %s", output)
+		}
+		if !strings.Contains(output, "func handleRequest()") {
+			t.Fatalf("output should contain marker code content, got: %s", output)
+		}
+		if !strings.Contains(output, "main.go") {
+			t.Fatalf("output should contain filepath, got: %s", output)
+		}
+	})
+
+	t.Run("show_spec_displays_spec_and_linked_markers", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="validate_input">input must be validated</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("abc123")+`
+func handleRequest() {
+	doSomething()
+}
+`+testutil.MarkerEnd("abc123")+`
+`)
+
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "abc123", "main.validate_input"}, dir)
+
+		output, code := cli.Run([]string{"show", "main.validate_input"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "=== Spec: main.validate_input ===") {
+			t.Fatalf("output should contain spec section header, got: %s", output)
+		}
+		if !strings.Contains(output, "input must be validated") {
+			t.Fatalf("output should contain spec text, got: %s", output)
+		}
+		if !strings.Contains(output, "=== Marker: abc123 ===") {
+			t.Fatalf("output should contain marker section header, got: %s", output)
+		}
+		if !strings.Contains(output, "func handleRequest()") {
+			t.Fatalf("output should contain marker code content, got: %s", output)
+		}
+	})
+
+	t.Run("show_nonexistent_marker_errors", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main></main>`)
+		cli.Run([]string{"init"}, dir)
+
+		output, code := cli.Run([]string{"show", "nonexistent"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
+		}
+		if !strings.Contains(output, "not found") {
+			t.Fatalf("error should mention 'not found', got: %s", output)
+		}
+	})
+
+	t.Run("show_nonexistent_spec_errors", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main></main>`)
+		cli.Run([]string{"init"}, dir)
+
+		output, code := cli.Run([]string{"show", "main.nonexistent"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
+		}
+		if !strings.Contains(output, "not found") {
+			t.Fatalf("error should mention 'not found', got: %s", output)
+		}
+	})
+
+	t.Run("show_missing_args_returns_usage", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main></main>`)
+		cli.Run([]string{"init"}, dir)
+
+		output, code := cli.Run([]string{"show"}, dir)
+		if code != 1 {
+			t.Fatalf("expected exit code 1, got %d", code)
+		}
+		if !strings.Contains(output, "usage") {
+			t.Fatalf("output should contain usage, got: %s", output)
+		}
+	})
+
+	t.Run("show_unlinked_marker_shows_no_specs", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="validate_input">input must be validated</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("abc123")+`
+func handleRequest() {
+	doSomething()
+}
+`+testutil.MarkerEnd("abc123")+`
+`)
+
+		cli.Run([]string{"todo"}, dir)
+
+		output, code := cli.Run([]string{"show", "abc123"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "=== Marker: abc123 ===") {
+			t.Fatalf("output should contain marker section header, got: %s", output)
+		}
+		if strings.Contains(output, "=== Spec:") {
+			t.Fatalf("output should not contain spec section for unlinked marker, got: %s", output)
+		}
+	})
+}

@@ -9,6 +9,7 @@ Commands:
   init                          Initialize: create drift.pin + starter main.pin.xml
   todo                          Scan specs and markers, report drift
   list                          Show all specs, markers, links, and sync state
+  show <marker|spec>            Show current content of a spec or marker
   link <marker> <module.spec>   Connect a marker to a spec
   unlink <marker> <module.spec>  Remove a link between a marker and a spec
   reset <marker> <module.spec>  Mark a drifted edge as resolved
@@ -16,7 +17,8 @@ Commands:
   skill                         Print comprehensive guide (for LLM agents)
 
 Marker syntax:
-  // D! id=<markerid>          Place above the code that implements a spec
+  // D! id=<markerid> range-start    Place above the code that implements a spec
+  // D! id=<markerid> range-end      Place below the code that implements a spec
 
 Spec files:
   *.pin.xml with <main> or <module name="..."> root

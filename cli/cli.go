@@ -2,8 +2,10 @@ package cli
 
 import (
 	_ "embed"
+	"encoding/xml"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -122,6 +124,21 @@ func Run(args []string, dir string) (string, int) {
 	case "skill":
 		return skillContent, 0
 
+	// D! id=cshow range-start
+	case "show":
+		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
+			return "Usage: drift show <marker|spec>\n\nShow current content of a spec or marker with filepath and line ranges.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\nLinked specs/markers are also displayed.\n\nExamples:\n  drift show cval\n  drift show core.validate", 0
+		}
+		if len(args) < 2 {
+			return "usage: drift show <marker|spec>\n\nExample: drift show cval\n         drift show core.validate", 1
+		}
+		state, err := orch.Todo()
+		if err != nil {
+			return err.Error(), 1
+		}
+		return formatShow(state, args[1])
+
+	// D! id=cshow range-end
 	default:
 		return fmt.Sprintf("unknown command: %s\n\n%s", args[0], helpText()), 1
 	}
@@ -316,4 +333,188 @@ func sortMarkersByID(markers []core.Marker) {
 			markers[j], markers[j-1] = markers[j-1], markers[j]
 		}
 	}
+}
+
+var showMarkerPattern = regexp.MustCompile(`D!\s+id=\S+`)
+
+func formatShow(state core.EvaluatedState, id string) (string, int) {
+	isSpec := strings.Contains(id, ".")
+
+	if isSpec {
+		return formatShowSpec(state, id)
+	}
+	return formatShowMarker(state, id)
+}
+
+func formatShowSpec(state core.EvaluatedState, specID string) (string, int) {
+	var spec *core.Spec
+	for i := range state.Specs {
+		if state.Specs[i].ID == specID {
+			spec = &state.Specs[i]
+			break
+		}
+	}
+	if spec == nil {
+		return fmt.Sprintf("spec %q not found", specID), 1
+	}
+
+	var sb strings.Builder
+
+	content, err := readSpecContent(spec.Filepath, spec.ID)
+	if err != nil {
+		return fmt.Sprintf("error reading spec content: %s", err), 1
+	}
+
+	sb.WriteString(fmt.Sprintf("=== Spec: %s ===\n", spec.ID))
+	sb.WriteString(fmt.Sprintf("File: %s\n", spec.Filepath))
+	sb.WriteString(fmt.Sprintf("Hash: %s\n\n", spec.Hash))
+	sb.WriteString(content)
+	sb.WriteString("\n")
+
+	for _, link := range state.Links {
+		if link.SpecID != specID {
+			continue
+		}
+		for i := range state.Markers {
+			if state.Markers[i].ID == link.MarkerID {
+				m := &state.Markers[i]
+				markerContent, err := readMarkerContent(m.Filepath, m.LineNumber, m.EndLineNumber)
+				if err != nil {
+					continue
+				}
+				sb.WriteString(fmt.Sprintf("\n=== Marker: %s ===\n", m.ID))
+				sb.WriteString(fmt.Sprintf("File: %s\n", m.Filepath))
+				sb.WriteString(fmt.Sprintf("Lines: %d-%d\n", m.LineNumber, m.EndLineNumber))
+				sb.WriteString(fmt.Sprintf("Hash: %s\n\n", m.Hash))
+				sb.WriteString(markerContent)
+				sb.WriteString("\n")
+				break
+			}
+		}
+	}
+
+	return strings.TrimRight(sb.String(), "\n"), 0
+}
+
+func formatShowMarker(state core.EvaluatedState, markerID string) (string, int) {
+	var marker *core.Marker
+	for i := range state.Markers {
+		if state.Markers[i].ID == markerID {
+			marker = &state.Markers[i]
+			break
+		}
+	}
+	if marker == nil {
+		return fmt.Sprintf("marker %q not found", markerID), 1
+	}
+
+	var sb strings.Builder
+
+	for _, link := range state.Links {
+		if link.MarkerID != markerID {
+			continue
+		}
+		for i := range state.Specs {
+			if state.Specs[i].ID == link.SpecID {
+				s := &state.Specs[i]
+				content, err := readSpecContent(s.Filepath, s.ID)
+				if err != nil {
+					continue
+				}
+				sb.WriteString(fmt.Sprintf("=== Spec: %s ===\n", s.ID))
+				sb.WriteString(fmt.Sprintf("File: %s\n", s.Filepath))
+				sb.WriteString(fmt.Sprintf("Hash: %s\n\n", s.Hash))
+				sb.WriteString(content)
+				sb.WriteString("\n\n")
+				break
+			}
+		}
+	}
+
+	markerContent, err := readMarkerContent(marker.Filepath, marker.LineNumber, marker.EndLineNumber)
+	if err != nil {
+		return fmt.Sprintf("error reading marker content: %s", err), 1
+	}
+
+	sb.WriteString(fmt.Sprintf("=== Marker: %s ===\n", marker.ID))
+	sb.WriteString(fmt.Sprintf("File: %s\n", marker.Filepath))
+	sb.WriteString(fmt.Sprintf("Lines: %d-%d\n", marker.LineNumber, marker.EndLineNumber))
+	sb.WriteString(fmt.Sprintf("Hash: %s\n\n", marker.Hash))
+	sb.WriteString(markerContent)
+
+	return strings.TrimRight(sb.String(), "\n"), 0
+}
+
+func readSpecContent(filepath, specID string) (string, error) {
+	parts := strings.SplitN(specID, ".", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid spec ID %q", specID)
+	}
+	localID := parts[1]
+
+	data, err := os.ReadFile(filepath)
+	if err != nil {
+		return "", err
+	}
+
+	type specElem struct {
+		ID      string `xml:"id,attr"`
+		Content string `xml:",innerxml"`
+	}
+	type pinFile struct {
+		XMLName xml.Name
+		Specs   []specElem `xml:"spec"`
+	}
+
+	var file pinFile
+	if err := xml.Unmarshal(data, &file); err != nil {
+		return "", err
+	}
+
+	for _, s := range file.Specs {
+		if s.ID == localID {
+			return strings.TrimSpace(s.Content), nil
+		}
+	}
+	return "", fmt.Errorf("spec %q not found in %s", specID, filepath)
+}
+
+func readMarkerContent(filepath string, startLine, endLine int) (string, error) {
+	data, err := os.ReadFile(filepath)
+	if err != nil {
+		return "", err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	markerLines := make(map[int]bool)
+	for i, line := range lines {
+		if showMarkerPattern.MatchString(line) {
+			markerLines[i] = true
+		}
+	}
+
+	var contentLines []string
+	for i := startLine; i < endLine-1; i++ {
+		if i >= len(lines) {
+			break
+		}
+		line := lines[i]
+		if markerLines[i] {
+			idx := strings.Index(line, "D!")
+			if idx >= 0 {
+				line = line[:idx]
+			}
+		}
+		contentLines = append(contentLines, line)
+	}
+
+	content := strings.Join(contentLines, "\n")
+	if len(contentLines) > 0 {
+		content += "\n"
+	}
+	return content, nil
 }
