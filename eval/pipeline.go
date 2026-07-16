@@ -137,23 +137,6 @@ func (p *Pipeline) copyFixture() error {
 		return err
 	}
 
-	setupPath := filepath.Join(p.workspaceDir, "setup.sh")
-	if _, err := os.Stat(setupPath); err != nil {
-		return nil
-	}
-
-	if err := os.Chmod(setupPath, 0755); err != nil {
-		return err
-	}
-
-	cmd := exec.Command("./setup.sh")
-	cmd.Dir = p.workspaceDir
-	cmd.Stdout = newMutexWriter(os.Stdout, p.runLabel)
-	cmd.Stderr = newMutexWriter(os.Stderr, p.runLabel)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("setup.sh: %w", err)
-	}
-
 	return nil
 }
 

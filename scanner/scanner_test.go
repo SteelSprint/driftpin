@@ -808,3 +808,56 @@ func TestScannerIgnoresNonPinXmlNonCodeFiles(t *testing.T) {
 		}
 	})
 }
+
+func TestScannerIDFormatValidation(t *testing.T) {
+	t.Run("spec_id_with_dot_errors", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="bad.id">spec with dot in id</spec>
+</main>`)
+		sc := scanner.NewFileScanner(dir)
+		assertScanError(t, sc, "must not contain a dot")
+	})
+
+	t.Run("marker_id_with_dot_errors", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec</spec>
+</main>`)
+		badMarker := "// D! id=bad" + ".marker\nfunc a() {}\n"
+		testutil.WriteCodeFile(t, dir, "main.go", badMarker)
+		sc := scanner.NewFileScanner(dir)
+		assertScanError(t, sc, "must not contain a dot")
+	})
+
+	t.Run("spec_id_without_dot_ok", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="good_id">spec without dot</spec>
+</main>`)
+		sc := scanner.NewFileScanner(dir)
+		result, err := sc.Scan()
+		testutil.AssertNoError(t, err)
+		if len(result.Specs) != 1 {
+			t.Fatalf("expected 1 spec, got %d", len(result.Specs))
+		}
+		if result.Specs[0].ID != "main.good_id" {
+			t.Fatalf("expected main.good_id, got %q", result.Specs[0].ID)
+		}
+	})
+
+	t.Run("marker_id_without_dot_ok", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main></main>`)
+		testutil.WriteCodeFile(t, dir, "main.go", "// D! id=good_marker\nfunc a() {}\n")
+		sc := scanner.NewFileScanner(dir)
+		result, err := sc.Scan()
+		testutil.AssertNoError(t, err)
+		if len(result.Markers) != 1 {
+			t.Fatalf("expected 1 marker, got %d", len(result.Markers))
+		}
+		if result.Markers[0].ID != "good_marker" {
+			t.Fatalf("expected good_marker, got %q", result.Markers[0].ID)
+		}
+	})
+}

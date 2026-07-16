@@ -7,4 +7,6 @@
 <spec id="missing_id">A spec element without an id attribute causes an error.</spec>
 <spec id="code_extensions">Only files with recognized code extensions are scanned for markers: .go, .py, .js, .ts, .jsx, .tsx, .java, .c, .cpp, .h, .hpp, .rs, .rb, .php, .swift, .kt, .cs, .scala, .sh, .bash, .lua, .dart, .vue, .svelte.</spec>
 <spec id="specs_wrapper_rejection">If spec elements are nested inside a specs wrapper element under main or module, the scanner returns an error explaining that specs must be direct children of the root element, not inside a specs wrapper.</spec>
+<spec id="spec_id_format">The id attribute in a spec element must not contain a dot. The scanner constructs the fully-qualified spec ID as moduleName + "." + localId. This ensures every qualified spec ID has exactly one dot, separating module from local ID.</spec>
+<spec id="marker_id_format">Marker shortcodes must not contain a dot. The scanner rejects any marker ID containing a dot with an error. Dots are reserved for spec ID qualification, enabling unambiguous disambiguation in CLI commands.</spec>
 </module>

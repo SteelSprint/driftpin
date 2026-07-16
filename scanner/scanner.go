@@ -184,6 +184,10 @@ func (l *importLoader) load(absPath string) ([]core.Spec, error) {
 		if id == "" {
 			return nil, fmt.Errorf("%s: spec element missing id attribute", absPath)
 		}
+		// D! id=sidfmt
+		if strings.Contains(id, ".") {
+			return nil, fmt.Errorf("%s: spec id %q must not contain a dot (dots are reserved for module qualification)", absPath, id)
+		}
 		qualifiedID := moduleName + "." + id
 		// D! id=sdups
 		if l.seenIDs[qualifiedID] {
@@ -278,6 +282,11 @@ func parseMarkerFile(path string) ([]core.Marker, error) {
 		}
 		shortcode := match[1]
 		lineNumber := i + 1
+
+		// D! id=midfmt
+		if strings.Contains(shortcode, ".") {
+			return nil, fmt.Errorf("%s:%d: marker id %q must not contain a dot (dots are reserved for spec ID qualification)", path, lineNumber, shortcode)
+		}
 
 		var contentLines []string
 		for j := i + 1; j < len(lines) && j <= i+markerLineWindow; j++ {

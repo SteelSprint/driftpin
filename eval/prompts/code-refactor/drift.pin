@@ -1,0 +1,12 @@
+<drift>
+  <specs>
+    <spec id="main.convert" hash="89382b49e5d6235453e58f991d4f119e269ceba1" filepath="/tmp/tmp.ciudTgcYgB/main.pin.xml" line="0"></spec>
+  </specs>
+  <markers>
+    <marker id="convert_func" hash="1c23c4d51423a72d00843d573b6df3a93fc9e21c" filepath="main.go" line="5"></marker>
+  </markers>
+  <links>
+    <link specId="main.convert" markerId="convert_func"></link>
+  </links>
+  <resolutions></resolutions>
+</drift>

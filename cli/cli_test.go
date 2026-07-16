@@ -996,8 +996,8 @@ func TestCLIPerSubcommandHelp(t *testing.T) {
 	}{
 		{[]string{"link", "--help"}, "Usage: drift link"},
 		{[]string{"link", "-h"}, "Usage: drift link"},
-		{[]string{"reset", "--help"}, "Usage: drift reset"},
-		{[]string{"reset", "-h"}, "Usage: drift reset"},
+		{[]string{"reset", "--help"}, "drift reset <marker>"},
+		{[]string{"reset", "-h"}, "drift reset <marker>"},
 		{[]string{"unlink", "--help"}, "Usage: drift unlink"},
 		{[]string{"unlink", "-h"}, "Usage: drift unlink"},
 		{[]string{"list", "--help"}, "Usage: drift list"},
@@ -1015,4 +1015,279 @@ func TestCLIPerSubcommandHelp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCLIDeletionDrift(t *testing.T) {
+	t.Run("spec_deleted_shows_deletion_message", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+  <spec id="s2">spec two</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+		cli.Run([]string{"todo"}, dir)
+
+		writeMainPin(t, dir, `<main>
+  <spec id="s2">spec two</spec>
+</main>`)
+
+		output, code := cli.Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "deleted from disk") {
+			t.Fatalf("output should mention deletion, got: %s", output)
+		}
+		if !strings.Contains(output, "drift reset m1 main.s1") {
+			t.Fatalf("output should contain reset command, got: %s", output)
+		}
+	})
+
+	t.Run("spec_deleted_reset_prunes_and_cleans", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+  <spec id="s2">spec two</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+		cli.Run([]string{"todo"}, dir)
+
+		writeMainPin(t, dir, `<main>
+  <spec id="s2">spec two</spec>
+</main>`)
+
+		_, code := cli.Run([]string{"reset", "m1", "main.s1"}, dir)
+		if code != 0 {
+			t.Fatalf("reset failed")
+		}
+
+		output, code := cli.Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.HasPrefix(output, "No changes detected.") {
+			t.Fatalf("expected clean todo after reset, got: %s", output)
+		}
+
+		store := pinstore.NewFilePinStore(dir)
+		state, err := store.Load()
+		testutil.AssertNoError(t, err)
+		for _, s := range state.Specs {
+			if s.ID == "main.s1" {
+				t.Fatalf("deleted spec main.s1 should have been pruned from drift.pin")
+			}
+		}
+		for _, l := range state.Links {
+			if l.SpecID == "main.s1" {
+				t.Fatalf("link to deleted spec should have been pruned")
+			}
+		}
+	})
+
+	t.Run("marker_deleted_shows_deletion_message", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerLine("m2")+`
+func b() { doOther() }
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+		cli.Run([]string{"link", "m2", "main.s1"}, dir)
+		cli.Run([]string{"todo"}, dir)
+
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`)
+
+		output, code := cli.Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "deleted from disk") {
+			t.Fatalf("output should mention deletion, got: %s", output)
+		}
+	})
+}
+
+func TestCLIOrphanReset(t *testing.T) {
+	t.Run("reset_orphan_spec", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+  <spec id="s2">spec two</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+		cli.Run([]string{"link", "m2", "main.s2"}, dir)
+		cli.Run([]string{"todo"}, dir)
+
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"reset", "m2", "main.s2"}, dir)
+
+		output, code := cli.Run([]string{"reset", "main.s2"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "Removed deleted spec") {
+			t.Fatalf("output should mention removal, got: %s", output)
+		}
+
+		store := pinstore.NewFilePinStore(dir)
+		state, _ := store.Load()
+		for _, s := range state.Specs {
+			if s.ID == "main.s2" {
+				t.Fatalf("orphan spec should have been removed from drift.pin")
+			}
+		}
+	})
+
+	t.Run("reset_orphan_marker", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerLine("m2")+`
+func b() { doOther() }
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+		// m2 is NOT linked — it's just baselined
+		cli.Run([]string{"todo"}, dir)
+
+		// Delete m2 from code — it becomes an orphan (no links)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`)
+
+		// m2 is now stale (in drift.pin but not on disk, no links)
+		output, code := cli.Run([]string{"reset", "m2"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "Removed deleted marker") {
+			t.Fatalf("output should mention removal, got: %s", output)
+		}
+
+		store := pinstore.NewFilePinStore(dir)
+		state, _ := store.Load()
+		for _, m := range state.Markers {
+			if m.ID == "m2" {
+				t.Fatalf("orphan marker should have been removed from drift.pin")
+			}
+		}
+	})
+
+	t.Run("reset_orphan_live_spec_errors", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+		cli.Run([]string{"todo"}, dir)
+
+		output, code := cli.Run([]string{"reset", "main.s1"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code for live spec, got 0, output: %s", output)
+		}
+		if !strings.Contains(strings.ToLower(output), "still on disk") {
+			t.Fatalf("error should mention 'still on disk', got: %s", output)
+		}
+	})
+
+	t.Run("reset_orphan_with_links_errors", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+  <spec id="s2">spec two</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s2"}, dir)
+		cli.Run([]string{"todo"}, dir)
+
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+
+		output, code := cli.Run([]string{"reset", "main.s2"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code for spec with links, got 0, output: %s", output)
+		}
+		if !strings.Contains(strings.ToLower(output), "link") {
+			t.Fatalf("error should mention links, got: %s", output)
+		}
+	})
+
+	t.Run("reset_orphan_nonexistent_errors", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main></main>`)
+		cli.Run([]string{"init"}, dir)
+
+		output, code := cli.Run([]string{"reset", "nonexistent"}, dir)
+		if code == 0 {
+			t.Fatalf("expected non-zero exit code, got 0, output: %s", output)
+		}
+	})
+}
+
+func TestCLIListDeletedTag(t *testing.T) {
+	t.Run("list_shows_deleted_spec", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+  <spec id="s2">spec two</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerLine("m1")+`
+func a() { doSomething() }
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+		cli.Run([]string{"todo"}, dir)
+
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+
+		output, code := cli.Run([]string{"list"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "[deleted]") {
+			t.Fatalf("output should show [deleted] tag, got: %s", output)
+		}
+	})
 }

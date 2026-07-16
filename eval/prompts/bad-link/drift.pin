@@ -1,0 +1,18 @@
+<drift>
+  <specs>
+    <spec id="main.reverse" hash="56d0fe42fd00172f3aee684add3b7d02e6892850" filepath="/tmp/tmp.bFNMjbE2Zy/main.pin.xml" line="0"></spec>
+    <spec id="main.palindrome" hash="ff80d65b087483aa4461d34cec025b1c19ac477f" filepath="/tmp/tmp.bFNMjbE2Zy/main.pin.xml" line="0"></spec>
+    <spec id="main.wordcount" hash="db003b7372b660cee9d0d2a338dd352e073805ca" filepath="/tmp/tmp.bFNMjbE2Zy/main.pin.xml" line="0"></spec>
+  </specs>
+  <markers>
+    <marker id="reverse_func" hash="125713ab9e241efdd180bf795e87d73ecbd013ea" filepath="main.go" line="8"></marker>
+    <marker id="palindrome_func" hash="e7926132fdd9ef1f72d71691bb09b98f66e3e8e0" filepath="main.go" line="17"></marker>
+    <marker id="wordcount_func" hash="9a4acde1a1db2a660c0f029ad7aa6ae514f7dcae" filepath="main.go" line="23"></marker>
+  </markers>
+  <links>
+    <link specId="main.reverse" markerId="reverse_func"></link>
+    <link specId="main.wordcount" markerId="wordcount_func"></link>
+    <link specId="main.reverse" markerId="palindrome_func"></link>
+  </links>
+  <resolutions></resolutions>
+</drift>

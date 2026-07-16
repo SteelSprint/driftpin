@@ -1,5 +1,7 @@
 drift — spec-drift detection for LLM coding agents
 
+First time? Run `drift skill` for the full guide.
+
 Usage:
   drift <command> [args]
 

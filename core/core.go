@@ -17,6 +17,7 @@ type Spec struct {
 	ID         string
 	Module     string
 	Hash       string
+	Deleted    bool
 }
 
 type Marker struct {
@@ -24,6 +25,7 @@ type Marker struct {
 	LineNumber int
 	ID         string
 	Hash       string
+	Deleted    bool
 }
 
 type Link struct {
@@ -78,6 +80,8 @@ type Todo struct {
 	MarkerLineNumber int
 	SpecChanged      bool
 	MarkerChanged    bool
+	SpecDeleted      bool
+	MarkerDeleted    bool
 }
 
 type EvaluatedState struct {
@@ -262,10 +266,12 @@ func (algorithm *CoreAlgorithm) evaluateResetAction(ctx CoreAlgorithmContext, ac
 	collapsedSpecs := map[string]bool{}
 	collapseResolvedNodes(ctx.Links, specsByID, markersByID, resolutionStateByEdge, action.Scan, collapsedMarkers, collapsedSpecs)
 
+	filteredLinks := filterLinksByNodes(ctx.Links, specsByID, markersByID)
+
 	return EvaluatedState{
 		Specs:           specsFromMutableMap(specsByID),
 		Markers:         markersFromMutableMap(markersByID),
-		Links:           ctx.Links,
+		Links:           filteredLinks,
 		ResolutionState: resolutionStateFromMutableMap(resolutionStateByEdge),
 	}, nil
 }
@@ -287,8 +293,13 @@ func collapseResolvedNodes(
 				continue
 			}
 			if markerHasAllEdgesChecked(markerID, links, specsByID, markersByID, resolutionStateByEdge, scan) {
-				marker.Hash = scan.MarkerHashes[markerID]
-				collapsedMarkers[markerID] = true
+				if scan.MarkerHashes[markerID] == "" {
+					delete(markersByID, markerID)
+					collapsedMarkers[markerID] = true
+				} else {
+					marker.Hash = scan.MarkerHashes[markerID]
+					collapsedMarkers[markerID] = true
+				}
 				anyNodeCollapsed = true
 				pruneResolutionEntriesForCollapsedMarker(resolutionStateByEdge, markerID, links, specsByID, scan)
 			}
@@ -298,8 +309,13 @@ func collapseResolvedNodes(
 				continue
 			}
 			if specHasAllEdgesChecked(specID, links, specsByID, markersByID, resolutionStateByEdge, scan) {
-				spec.Hash = scan.SpecHashes[specID]
-				collapsedSpecs[specID] = true
+				if scan.SpecHashes[specID] == "" {
+					delete(specsByID, specID)
+					collapsedSpecs[specID] = true
+				} else {
+					spec.Hash = scan.SpecHashes[specID]
+					collapsedSpecs[specID] = true
+				}
 				anyNodeCollapsed = true
 				pruneResolutionEntriesForCollapsedSpec(resolutionStateByEdge, specID, links, markersByID, scan)
 			}
@@ -360,7 +376,14 @@ func edgeIsUnchecked(
 	currentSpecHash := scan.SpecHashes[link.SpecID]
 	marker := markersByID[link.MarkerID]
 	spec := specsByID[link.SpecID]
-	edgeIsConsistent := marker.Hash == currentMarkerHash && spec.Hash == currentSpecHash
+	var markerBaseline, specBaseline string
+	if marker != nil {
+		markerBaseline = marker.Hash
+	}
+	if spec != nil {
+		specBaseline = spec.Hash
+	}
+	edgeIsConsistent := markerBaseline == currentMarkerHash && specBaseline == currentSpecHash
 	if edgeIsConsistent {
 		return false
 	}
@@ -414,6 +437,7 @@ func pruneResolutionEntriesForCollapsedSpec(
 	}
 }
 
+// D! id=cdeld
 func computeTodoList(
 	links []Link,
 	specsByID map[string]Spec,
@@ -446,6 +470,8 @@ func computeTodoList(
 			MarkerLineNumber: marker.LineNumber,
 			SpecChanged:      specChanged,
 			MarkerChanged:    markerChanged,
+			SpecDeleted:      currentSpecHash == "",
+			MarkerDeleted:    currentMarkerHash == "",
 		})
 	}
 	return todos
@@ -517,6 +543,20 @@ func resolutionStateFromMutableMap(resolutionStateByEdge map[string]ResolutionSt
 	out := make([]ResolutionState, 0, len(resolutionStateByEdge))
 	for _, res := range resolutionStateByEdge {
 		out = append(out, res)
+	}
+	return out
+}
+
+func filterLinksByNodes(links []Link, specsByID map[string]*Spec, markersByID map[string]*Marker) []Link {
+	var out []Link
+	for _, link := range links {
+		if _, ok := specsByID[link.SpecID]; !ok {
+			continue
+		}
+		if _, ok := markersByID[link.MarkerID]; !ok {
+			continue
+		}
+		out = append(out, link)
 	}
 	return out
 }

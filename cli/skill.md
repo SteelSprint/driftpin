@@ -44,6 +44,8 @@ Specs live in `*.pin.xml` files. The entry point is `main.pin.xml` in the projec
 
 Spec IDs are qualified as `<module>.<specId>`. Specs in `main.pin.xml` use the `main.` prefix (e.g. `main.bootstrap`). Imports are relative to the importing file. Diamond imports are deduplicated by absolute path. Cycles are detected and reported with a trace.
 
+**ID format invariants:** The local `id` attribute in a `<spec>` element must NOT contain a dot — dots are reserved for module qualification (e.g. `module.specid`). Marker shortcodes must NOT contain a dot either. This ensures every spec ID has exactly one dot (separating module from local ID) and marker IDs have none, enabling unambiguous disambiguation in CLI commands like `drift reset <id>`.
+
 # Markers
 
 Markers are comment lines in code files matching the pattern `D! id=<shortcode>`. They go on the line **above** the code they annotate. The scanner hashes the 10 lines following the marker line.

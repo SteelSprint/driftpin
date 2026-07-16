@@ -54,10 +54,20 @@ func Run(args []string, dir string) (string, int) {
 	// D! id=crfmt
 	case "reset":
 		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
-			return "Usage: drift reset <marker> <module.spec>\n\nMark a drifted edge as resolved. Collapses baselines when all edges for a node are resolved.\n\nExample: drift reset validate_input core.validate_input", 0
+			return "Usage:\n  drift reset <marker> <module.spec>  Resolve a drifted edge\n  drift reset <id>                Remove an orphaned (deleted, no links) spec/marker\n\nMark a drifted edge as resolved. Collapses baselines when all edges for a node are resolved.\nWhen a spec or marker has been deleted and has no links, use a single ID to remove it from drift.pin.\n\nExamples:\n  drift reset validate_input core.validate_input\n  drift reset main.deleted_spec", 0
 		}
-		if len(args) < 3 {
-			return "usage: drift reset <marker> <module.spec>\n\nExample: drift reset validate_input core.validate_input", 1
+		if len(args) < 2 {
+			return "usage:\n  drift reset <marker> <module.spec>\n  drift reset <id>\n\nExample: drift reset validate_input core.validate_input", 1
+		}
+		if len(args) == 2 {
+			err := orch.ResetOrphan(args[1])
+			if err != nil {
+				return err.Error(), 1
+			}
+			if strings.Contains(args[1], ".") {
+				return fmt.Sprintf("Removed deleted spec %q from drift.pin", args[1]), 0
+			}
+			return fmt.Sprintf("Removed deleted marker %q from drift.pin", args[1]), 0
 		}
 		_, err := orch.Reset(args[1], args[2])
 		if err != nil {
@@ -182,11 +192,16 @@ func formatTodo(state core.EvaluatedState) string {
 
 	for i, todo := range state.Todos {
 		var driftDescription string
-		if todo.MarkerChanged && todo.SpecChanged {
+		switch {
+		case todo.SpecDeleted:
+			driftDescription = "The spec term has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
+		case todo.MarkerDeleted:
+			driftDescription = "The marker has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
+		case todo.MarkerChanged && todo.SpecChanged:
 			driftDescription = "Both the marker and the spec term have changed. Please check whether the changed code still complies with the new version of the spec term and make any modifications necessary on either side."
-		} else if todo.MarkerChanged {
+		case todo.MarkerChanged:
 			driftDescription = "The marker has changed but not the spec term. Please check whether the changed code still complies with the spec term and make any modifications necessary."
-		} else {
+		default:
 			driftDescription = "The spec term has changed but not the marker. Please check whether the new version of the spec term is still reflected in the code and make any modifications necessary."
 		}
 
@@ -235,7 +250,9 @@ func formatList(state core.EvaluatedState) string {
 	sb.WriteString(fmt.Sprintf("Specs (%d):\n", len(sortedSpecs)))
 	for _, spec := range sortedSpecs {
 		linkFlag := ""
-		if !linkedSpecs[spec.ID] {
+		if spec.Deleted {
+			linkFlag = " [deleted]"
+		} else if !linkedSpecs[spec.ID] {
 			linkFlag = " [unlinked]"
 		}
 		sb.WriteString(fmt.Sprintf("  %-30s %s:%d%s\n", spec.ID, spec.Filepath, spec.LineNumber, linkFlag))
@@ -248,7 +265,9 @@ func formatList(state core.EvaluatedState) string {
 	sb.WriteString(fmt.Sprintf("\nMarkers (%d):\n", len(sortedMarkers)))
 	for _, marker := range sortedMarkers {
 		linkFlag := ""
-		if !linkedMarkers[marker.ID] {
+		if marker.Deleted {
+			linkFlag = " [deleted]"
+		} else if !linkedMarkers[marker.ID] {
 			linkFlag = " [unlinked]"
 		}
 		sb.WriteString(fmt.Sprintf("  %-30s %s:%d%s\n", marker.ID, marker.Filepath, marker.LineNumber, linkFlag))
