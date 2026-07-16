@@ -4,5 +4,8 @@ internal/testutil/fixtures.go
 # Exclude examples (use new <module> format not yet supported by scanner)
 examples/
 
+# Exclude eval run workspaces (contain subject-generated code with markers)
+eval/runs/
+
 # Exclude VCS
 .git/

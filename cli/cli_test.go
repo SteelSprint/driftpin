@@ -33,7 +33,6 @@ func TestCLIInit(t *testing.T) {
 
 	t.Run("init_then_todo_no_changes", func(t *testing.T) {
 		dir := t.TempDir()
-		writeMainPin(t, dir, `<main></main>`)
 
 		_, code := cli.Run([]string{"init"}, dir)
 		if code != 0 {
@@ -44,9 +43,8 @@ func TestCLIInit(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
-		expected := "No changes detected."
-		if output != expected {
-			t.Fatalf("output = %q, want %q", output, expected)
+		if !strings.HasPrefix(output, "No drift:") {
+			t.Fatalf("output = %q, want \"No drift:\" prefix", output)
 		}
 	})
 
@@ -91,12 +89,12 @@ func TestCLIResetWithoutInit(t *testing.T) {
 }
 
 func TestCLINoArgs(t *testing.T) {
-	t.Run("no_args_shows_usage", func(t *testing.T) {
+	t.Run("no_args_shows_help", func(t *testing.T) {
 		dir := t.TempDir()
 		writeMainPin(t, dir, `<main></main>`)
 		output, code := cli.Run([]string{}, dir)
-		if code == 0 {
-			t.Fatalf("expected non-zero exit code for no args")
+		if code != 0 {
+			t.Fatalf("expected exit code 0 for no args, got %d, output: %s", code, output)
 		}
 		if !strings.Contains(strings.ToLower(output), "usage") {
 			t.Fatalf("output should contain usage, got: %s", output)
@@ -158,8 +156,8 @@ func handleRequest() {
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
-		if output != "No changes detected." {
-			t.Fatalf("output = %q, want %q", output, "No changes detected.")
+		if !strings.HasPrefix(output, "No drift:") {
+			t.Fatalf("output = %q, want \"No drift:\" prefix", output)
 		}
 	})
 
@@ -187,8 +185,8 @@ func handleRequest() {
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
-		if output != "No changes detected." {
-			t.Fatalf("output = %q, want %q", output, "No changes detected.")
+		if !strings.HasPrefix(output, "No drift:") {
+			t.Fatalf("output = %q, want \"No drift:\" prefix", output)
 		}
 	})
 
@@ -267,8 +265,8 @@ func handleRequest() {
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
-		if output != "No changes detected." {
-			t.Fatalf("output = %q, want %q", output, "No changes detected.")
+		if !strings.HasPrefix(output, "No drift:") {
+			t.Fatalf("output = %q, want \"No drift:\" prefix", output)
 		}
 	})
 
@@ -297,8 +295,8 @@ func validate() { check() }
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
-		if output != "No changes detected." {
-			t.Fatalf("output = %q, want %q", output, "No changes detected.")
+		if !strings.HasPrefix(output, "No drift:") {
+			t.Fatalf("output = %q, want \"No drift:\" prefix", output)
 		}
 	})
 }
@@ -374,8 +372,8 @@ func a() {}
 func assertTodoCountInOutput(t *testing.T, output string, want int) {
 	t.Helper()
 	if want == 0 {
-		if output != "No changes detected." {
-			t.Fatalf("output = %q, want %q", output, "No changes detected.")
+		if !strings.HasPrefix(output, "No drift:") && !strings.HasPrefix(output, "Nothing to check:") {
+			t.Fatalf("output = %q, want \"No drift:\" or \"Nothing to check:\" prefix", output)
 		}
 		return
 	}

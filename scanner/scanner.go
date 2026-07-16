@@ -65,6 +65,7 @@ type pinFileXML struct {
 	Name    string       `xml:"name,attr"`
 	Imports []importElem `xml:"import"`
 	Specs   []specElem   `xml:"spec"`
+	Wrapped []specElem   `xml:"specs>spec"`
 }
 
 type importElem struct {
@@ -144,6 +145,11 @@ func (l *importLoader) load(absPath string) ([]core.Spec, error) {
 
 	if !isMain && !isModule {
 		return nil, fmt.Errorf("%s: expected <main> or <module> root element, got <%s>", absPath, file.XMLName.Local)
+	}
+
+	// D! id=swrap
+	if len(file.Wrapped) > 0 {
+		return nil, fmt.Errorf("%s: found <spec> elements nested inside a <specs> wrapper — specs must be direct children of <%s>, not inside <specs>", absPath, file.XMLName.Local)
 	}
 
 	var moduleName string

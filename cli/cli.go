@@ -1,7 +1,9 @@
 package cli
 
 import (
+	_ "embed"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -11,10 +13,21 @@ import (
 	"driftpin/scanner"
 )
 
+//go:embed skill.md
+var skillContent string
+
+//go:embed help.txt
+var helpContent string
+
+//go:embed init_main.pin.xml
+var initMainPinXML string
+
+var markerSyntax = "D" + "! id=<markerid>"
+
 // D! id=cdisp
 func Run(args []string, dir string) (string, int) {
-	if len(args) == 0 {
-		return "usage: drift <init|todo|reset <marker> <module.spec>|link <marker> <module.spec>>", 1
+	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+		return helpText(), 0
 	}
 
 	pin := pinstore.NewFilePinStore(dir)
@@ -26,7 +39,10 @@ func Run(args []string, dir string) (string, int) {
 		if err := orch.Init(); err != nil {
 			return err.Error(), 1
 		}
-		return "Initialized drift.pin", 0
+		if err := writeInitFiles(dir); err != nil {
+			return fmt.Sprintf("Initialized drift.pin but failed to write template: %s", err.Error()), 0
+		}
+		return "Initialized drift.pin and main.pin.xml\nEdit main.pin.xml to add your specs, then place " + markerSyntax + " markers in your code.\nRun `drift skill` for a comprehensive guide.", 0
 
 	case "todo":
 		state, err := orch.Todo()
@@ -38,7 +54,7 @@ func Run(args []string, dir string) (string, int) {
 	// D! id=crfmt
 	case "reset":
 		if len(args) < 3 {
-			return "usage: drift reset <marker> <module.spec>", 1
+			return "usage: drift reset <marker> <module.spec>\n\nExample: drift reset validate_input core.validate_input", 1
 		}
 		_, err := orch.Reset(args[1], args[2])
 		if err != nil {
@@ -49,7 +65,7 @@ func Run(args []string, dir string) (string, int) {
 	// D! id=clfmt
 	case "link":
 		if len(args) < 3 {
-			return "usage: drift link <marker> <module.spec>", 1
+			return "usage: drift link <marker> <module.spec>\n\nExample: drift link validate_input core.validate_input", 1
 		}
 		err := orch.Link(args[1], args[2])
 		if err != nil {
@@ -57,15 +73,50 @@ func Run(args []string, dir string) (string, int) {
 		}
 		return fmt.Sprintf("Linked marker %q to spec %q", args[1], args[2]), 0
 
+	// D! id=cskill
+	case "skill":
+		return skillContent, 0
+
 	default:
-		return fmt.Sprintf("unknown command: %s", args[0]), 1
+		return fmt.Sprintf("unknown command: %s\n\n%s", args[0], helpText()), 1
 	}
+}
+
+// D! id=chelp
+func helpText() string {
+	return helpContent
+}
+
+// D! id=cinit
+func writeInitFiles(dir string) error {
+	mainPath := dir + "/main.pin.xml"
+	if !fileExists(mainPath) {
+		if err := writeFile(mainPath, initMainPinXML); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func writeFile(path, content string) error {
+	return os.WriteFile(path, []byte(content), 0644)
 }
 
 // D! id=cfmt
 func formatTodo(state core.EvaluatedState) string {
 	if len(state.Todos) == 0 {
-		return "No changes detected."
+		nSpecs := len(state.Specs)
+		nMarkers := len(state.Markers)
+		nLinks := len(state.Links)
+		if nSpecs == 0 && nMarkers == 0 {
+			return "Nothing to check: no specs or markers registered.\nCreate spec files (*.pin.xml) and place " + markerSyntax + " markers in your code,\nthen run `drift link <marker> <module.spec>` to connect them."
+		}
+		return fmt.Sprintf("No drift: %d specs, %d markers, %d links in sync.", nSpecs, nMarkers, nLinks)
 	}
 
 	var sb strings.Builder

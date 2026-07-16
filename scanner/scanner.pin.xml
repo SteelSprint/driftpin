@@ -6,4 +6,5 @@
 <spec id="duplicate_marker">Duplicate marker shortcodes across files cause an error with the duplicate shortcode quoted.</spec>
 <spec id="missing_id">A spec element without an id attribute causes an error.</spec>
 <spec id="code_extensions">Only files with recognized code extensions are scanned for markers: .go, .py, .js, .ts, .jsx, .tsx, .java, .c, .cpp, .h, .hpp, .rs, .rb, .php, .swift, .kt, .cs, .scala, .sh, .bash, .lua, .dart, .vue, .svelte.</spec>
+<spec id="specs_wrapper_rejection">If spec elements are nested inside a specs wrapper element under main or module, the scanner returns an error explaining that specs must be direct children of the root element, not inside a specs wrapper.</spec>
 </module>

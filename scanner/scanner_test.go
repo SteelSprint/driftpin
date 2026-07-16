@@ -65,6 +65,24 @@ func a() {}
 			t.Fatalf("expected 1 marker, got %d", len(result.Markers))
 		}
 	})
+
+	t.Run("specs_wrapper_rejected", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <specs>
+    <spec id="validate">input must be validated</spec>
+  </specs>
+</main>`)
+
+		scanner := scanner.NewFileScanner(dir)
+		_, err := scanner.Scan()
+		if err == nil {
+			t.Fatalf("expected error for <specs> wrapper, got nil")
+		}
+		if !strings.Contains(err.Error(), "<specs>") {
+			t.Fatalf("error should mention <specs> wrapper, got: %s", err.Error())
+		}
+	})
 }
 
 func TestScannerSpecDiscovery(t *testing.T) {

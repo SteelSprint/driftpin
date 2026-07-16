@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"fmt"
+	"strings"
 
 	"driftpin/core"
 	"driftpin/pinstore"
@@ -14,6 +15,7 @@ var (
 	ErrLinkMarkerNotFound   = fmt.Errorf("link references unknown marker")
 	ErrLinkSpecNotFound     = fmt.Errorf("link references unknown spec")
 	ErrLinkAlreadyExists    = fmt.Errorf("link already exists")
+	markerSyntax            = "D" + "! id=<shortcode>"
 )
 
 type Orchestrator struct {
@@ -146,6 +148,7 @@ func (o *Orchestrator) Link(markerID, specID string) error {
 		return err
 	}
 
+	// D! id=cperr
 	markerExists := false
 	for _, m := range reconciledMarkers {
 		if m.ID == markerID {
@@ -154,7 +157,11 @@ func (o *Orchestrator) Link(markerID, specID string) error {
 		}
 	}
 	if !markerExists {
-		return fmt.Errorf("%w: %q", ErrLinkMarkerNotFound, markerID)
+		var available []string
+		for _, m := range reconciledMarkers {
+			available = append(available, m.ID)
+		}
+		return fmt.Errorf("link references unknown marker %q.\nMarkers must be %s comment lines in code files.\nAvailable markers: %s", markerID, markerSyntax, strings.Join(available, ", "))
 	}
 
 	specExists := false
@@ -165,7 +172,11 @@ func (o *Orchestrator) Link(markerID, specID string) error {
 		}
 	}
 	if !specExists {
-		return fmt.Errorf("%w: %q", ErrLinkSpecNotFound, specID)
+		var available []string
+		for _, s := range reconciledSpecs {
+			available = append(available, s.ID)
+		}
+		return fmt.Errorf("link references unknown spec %q.\nSpec IDs are module-qualified: <module>.<specId> (e.g. main.example or core.validate).\nAvailable specs: %s", specID, strings.Join(available, ", "))
 	}
 
 	for _, l := range state.Links {

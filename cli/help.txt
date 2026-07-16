@@ -1,0 +1,30 @@
+drift — spec-drift detection for LLM coding agents
+
+Usage:
+  drift <command> [args]
+
+Commands:
+  init                         Initialize: create drift.pin + starter main.pin.xml
+  todo                         Scan specs and markers, report drift
+  link <marker> <module.spec>  Connect a marker to a spec
+  reset <marker> <module.spec>  Mark a drifted edge as resolved
+  help                         Show this help
+  skill                        Print comprehensive guide (for LLM agents)
+
+Marker syntax:
+  // D! id=<markerid>          Place above the code that implements a spec
+
+Spec files:
+  *.pin.xml with <main> or <module name="..."> root
+  Specs are <spec id="...">description</spec> — direct children of root
+  Spec IDs are module-qualified: <module>.<specId>
+
+Quick start:
+  drift init
+  drift skill
+
+Examples:
+  drift init
+  drift link validate_input core.validate_input
+  drift todo
+  drift reset validate_input core.validate_input
