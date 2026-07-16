@@ -1016,6 +1016,61 @@ func b() { doOther() }
 			t.Fatalf("output should show unlinked items, got: %s", output)
 		}
 	})
+
+	t.Run("list_verbose_shows_spec_text", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="validate_input">input must be validated before processing</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("abc123")+`
+func handleRequest() {
+	doSomething()
+}
+`+testutil.MarkerEnd("abc123")+`
+`)
+
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "abc123", "main.validate_input"}, dir)
+
+		output, code := cli.Run([]string{"list", "--verbose"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if !strings.Contains(output, "input must be validated") {
+			t.Fatalf("verbose output should contain spec text, got: %s", output)
+		}
+		if !strings.Contains(output, "func handleRequest()") {
+			t.Fatalf("verbose output should contain marker content, got: %s", output)
+		}
+	})
+
+	t.Run("list_no_line_number_for_specs", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainPin(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerEnd("m1")+`
+`)
+
+		cli.Run([]string{"todo"}, dir)
+
+		output, code := cli.Run([]string{"list"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if strings.Contains(output, "main.pin.xml:0") {
+			t.Fatalf("output should not show :0 for specs, got: %s", output)
+		}
+		if !strings.Contains(output, "main.pin.xml") {
+			t.Fatalf("output should show spec filepath, got: %s", output)
+		}
+	})
 }
 
 func TestCLIPerSubcommandHelp(t *testing.T) {

@@ -111,13 +111,14 @@ func Run(args []string, dir string) (string, int) {
 	// D! id=clst range-start
 	case "list":
 		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
-			return "Usage: drift list\n\nShow all specs, markers, links, and sync state.", 0
+			return "Usage: drift list [--verbose]\n\nShow all specs, markers, links, and sync state.\n--verbose: include spec text and marker content preview.", 0
 		}
+		verbose := len(args) >= 2 && args[1] == "--verbose"
 		state, err := orch.Todo()
 		if err != nil {
 			return err.Error(), 1
 		}
-		return formatList(state), 0
+		return formatList(state, verbose), 0
 
 	// D! id=clst range-end
 	// D! id=cskill range-start
@@ -254,7 +255,7 @@ func formatTodo(state core.EvaluatedState) string {
 // D! id=cfmt range-end
 
 // D! id=ofmtl range-start
-func formatList(state core.EvaluatedState) string {
+func formatList(state core.EvaluatedState, verbose bool) string {
 	if len(state.Specs) == 0 && len(state.Markers) == 0 {
 		return "No specs or markers registered.\nRun `drift init` to get started, then create spec files (*.pin.xml) and place " + markerSyntax + " markers in your code."
 	}
@@ -285,7 +286,17 @@ func formatList(state core.EvaluatedState) string {
 		} else if !linkedSpecs[spec.ID] {
 			linkFlag = " [unlinked]"
 		}
-		sb.WriteString(fmt.Sprintf("  %-30s %s:%d%s\n", spec.ID, spec.Filepath, spec.LineNumber, linkFlag))
+		sb.WriteString(fmt.Sprintf("  %-30s %s%s\n", spec.ID, spec.Filepath, linkFlag))
+		if verbose && !spec.Deleted {
+			content, err := readSpecContent(spec.Filepath, spec.ID)
+			if err == nil && len(content) > 0 {
+				preview := content
+				if len(preview) > 80 {
+					preview = preview[:80] + "..."
+				}
+				sb.WriteString(fmt.Sprintf("    %s\n", preview))
+			}
+		}
 	}
 
 	sortedMarkers := make([]core.Marker, len(state.Markers))
@@ -300,7 +311,19 @@ func formatList(state core.EvaluatedState) string {
 		} else if !linkedMarkers[marker.ID] {
 			linkFlag = " [unlinked]"
 		}
-		sb.WriteString(fmt.Sprintf("  %-30s %s:%d%s\n", marker.ID, marker.Filepath, marker.LineNumber, linkFlag))
+		sb.WriteString(fmt.Sprintf("  %-30s %s:%d-%d%s\n", marker.ID, marker.Filepath, marker.LineNumber, marker.EndLineNumber, linkFlag))
+		if verbose && !marker.Deleted {
+			content, err := readMarkerContent(marker.Filepath, marker.LineNumber, marker.EndLineNumber)
+			if err == nil && len(content) > 0 {
+				firstLine := strings.Split(content, "\n")[0]
+				if len(firstLine) > 80 {
+					firstLine = firstLine[:80] + "..."
+				}
+				if firstLine != "" {
+					sb.WriteString(fmt.Sprintf("    %s\n", firstLine))
+				}
+			}
+		}
 	}
 
 	if len(state.Links) > 0 {
