@@ -6,10 +6,12 @@ Usage:
   drift <command> [args]
 
 Commands:
-  init                          Initialize: create drift.pin + starter main.pin.xml
+  init                          Initialize: create .driftpin/ + starter main.pin.xml
   todo                          Scan specs and markers, report drift
   list                          Show all specs, markers, links, and sync state
   show <marker|spec>            Show current content of a spec or marker
+  diff <marker|spec>            Show what changed (unified diff vs baseline)
+  diff <marker> <module.spec>   Show what changed for a specific edge
   link <marker> <module.spec>   Connect a marker to a spec
   unlink <marker> <module.spec>  Remove a link between a marker and a spec
   reset <marker> <module.spec>  Mark a drifted edge as resolved

@@ -110,7 +110,10 @@ func TestFilePinStoreLoadMissing(t *testing.T) {
 func TestFilePinStoreLoadMalformed(t *testing.T) {
 	t.Run("malformed_xml_returns_error", func(t *testing.T) {
 		dir := t.TempDir()
-		pinPath := filepath.Join(dir, "drift.pin")
+		if err := os.MkdirAll(filepath.Join(dir, ".driftpin"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		pinPath := filepath.Join(dir, ".driftpin", "state.xml")
 		os.WriteFile(pinPath, []byte("not valid xml <"), 0644)
 		store := pinstore.NewFilePinStore(dir)
 		_, err := store.Load()
@@ -150,9 +153,13 @@ func TestFilePinStoreSaveEmptyCreatesFile(t *testing.T) {
 		err := store.Save(pinstore.PinState{})
 		testutil.AssertNoError(t, err)
 
-		pinPath := filepath.Join(dir, "drift.pin")
+		pinPath := filepath.Join(dir, ".driftpin", "state.xml")
 		if _, err := os.Stat(pinPath); os.IsNotExist(err) {
-			t.Fatalf("drift.pin not created")
+			t.Fatalf(".driftpin/state.xml not created")
+		}
+		baselinesDir := filepath.Join(dir, ".driftpin", "baselines")
+		if info, err := os.Stat(baselinesDir); err != nil || !info.IsDir() {
+			t.Fatalf(".driftpin/baselines/ not created")
 		}
 	})
 }

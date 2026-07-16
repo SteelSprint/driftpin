@@ -10,8 +10,7 @@ import (
 )
 
 // D! id=pnope range-start
-var ErrPinNotFound = errors.New("drift.pin not found, run 'drift init' first")
-
+var ErrPinNotFound = errors.New(".driftpin/state.xml not found, run 'drift init' first")
 // D! id=pnope range-end
 
 type PinState struct {
@@ -27,11 +26,23 @@ type PinStore interface {
 }
 
 type FilePinStore struct {
-	path string
+	dir string
 }
 
 func NewFilePinStore(dir string) *FilePinStore {
-	return &FilePinStore{path: filepath.Join(dir, "drift.pin")}
+	return &FilePinStore{dir: dir}
+}
+
+func (s *FilePinStore) Dir() string {
+	return s.dir
+}
+
+func (s *FilePinStore) statePath() string {
+	return filepath.Join(s.dir, ".driftpin", "state.xml")
+}
+
+func (s *FilePinStore) baselinesDir() string {
+	return filepath.Join(s.dir, ".driftpin", "baselines")
 }
 
 type pinFileXML struct {
@@ -71,7 +82,7 @@ type resolutionXML struct {
 
 // D! id=pload range-start
 func (s *FilePinStore) Load() (PinState, error) {
-	data, err := os.ReadFile(s.path)
+	data, err := os.ReadFile(s.statePath())
 	if err != nil {
 		if os.IsNotExist(err) {
 			return PinState{}, ErrPinNotFound
@@ -135,6 +146,9 @@ func (s *FilePinStore) Load() (PinState, error) {
 
 // D! id=psave range-start
 func (s *FilePinStore) Save(state PinState) error {
+	if err := os.MkdirAll(s.baselinesDir(), 0755); err != nil {
+		return err
+	}
 	file := pinFileXML{
 		Specs:       make([]specXML, len(state.Specs)),
 		Markers:     make([]markerXML, len(state.Markers)),
@@ -183,7 +197,7 @@ func (s *FilePinStore) Save(state PinState) error {
 	}
 
 	data = append(data, '\n')
-	return os.WriteFile(s.path, data, 0644)
+	return os.WriteFile(s.statePath(), data, 0644)
 }
 
 // D! id=psave range-end

@@ -25,9 +25,9 @@ func TestCLIInit(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
 		}
-		pinPath := filepath.Join(dir, "drift.pin")
+		pinPath := filepath.Join(dir, ".driftpin", "state.xml")
 		if _, err := os.Stat(pinPath); os.IsNotExist(err) {
-			t.Fatalf("drift.pin not created")
+			t.Fatalf(".driftpin/state.xml not created")
 		}
 	})
 

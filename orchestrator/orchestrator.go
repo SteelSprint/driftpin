@@ -17,21 +17,67 @@ var (
 	ErrOrphanNotFound     = fmt.Errorf("no spec or marker found in drift.pin")
 	ErrOrphanStillOnDisk  = fmt.Errorf("spec or marker is still on disk")
 	ErrOrphanHasLinks     = fmt.Errorf("spec or marker still has links")
+	ErrDiffEntityNotFound = fmt.Errorf("no spec or marker found for diff")
 	markerSyntax          = "D" + "! id=<shortcode>"
 )
 
 type Orchestrator struct {
-	pin     pinstore.PinStore
-	scanner scanner.Scanner
-	core    *core.CoreAlgorithm
+	pin       pinstore.PinStore
+	scanner   scanner.Scanner
+	core      *core.CoreAlgorithm
+	baselines *pinstore.BaselineStore
 }
 
-func NewOrchestrator(pin pinstore.PinStore, scanner scanner.Scanner) *Orchestrator {
+func NewOrchestrator(pin pinstore.PinStore, scanner scanner.Scanner, baselines *pinstore.BaselineStore) *Orchestrator {
 	return &Orchestrator{
-		pin:     pin,
-		scanner: scanner,
-		core:    core.NewCoreAlgorithm(),
+		pin:       pin,
+		scanner:   scanner,
+		core:      core.NewCoreAlgorithm(),
+		baselines: baselines,
 	}
+}
+
+// DiffSide describes one side (spec or marker) of a drift edge for diffing.
+type DiffSide struct {
+	ID           string
+	Filepath     string
+	Lines        string // "start-end" for markers, "" for specs
+	BaselineHash string // hash stored in state.xml (the baseline)
+	CurrentHash  string // scanned hash of current on-disk content; "" if deleted
+	Baseline     string // baseline content; "" if no snapshot
+	Current      string // current on-disk content; "" if deleted
+	HasBaseline  bool   // false when no baseline snapshot exists
+	Deleted      bool   // true when the entity was removed from disk
+}
+
+// DiffResult holds both sides of a drift edge.
+type DiffResult struct {
+	Spec   DiffSide
+	Marker DiffSide
+}
+
+// writeBaseline writes a content-addressed baseline file for the given
+// spec or marker using its current scanned hash. Best-effort: if the
+// BaselineStore is nil (e.g. in tests that don't exercise diff), this
+// is a no-op. The scanned hash always equals sha1(current content), so
+// the integrity check in BaselineStore.Write is satisfied. For entities
+// whose pinned hash differs from the scanned hash (drifted), this creates
+// an orphan file at the scanned-hash address — harmless and dedup-safe.
+func (o *Orchestrator) writeBaseline(scannedHash, filepath, specID string, startLine, endLine int, isSpec bool) error {
+	if o.baselines == nil {
+		return nil
+	}
+	var content string
+	var err error
+	if isSpec {
+		content, err = scanner.ReadSpecContent(filepath, specID)
+	} else {
+		content, err = scanner.ReadMarkerContent(filepath, startLine, endLine)
+	}
+	if err != nil {
+		return nil // entity may be deleted mid-operation; skip silently
+	}
+	return o.baselines.Write(scannedHash, content)
 }
 
 // D! id=oinit range-start
@@ -127,6 +173,19 @@ func (o *Orchestrator) Reset(markerID, specID string) (core.EvaluatedState, erro
 	})
 	if err != nil {
 		return core.EvaluatedState{}, err
+	}
+
+	for _, s := range scanResult.Specs {
+		if s.ID == specID {
+			_ = o.writeBaseline(s.Hash, s.Filepath, specID, 0, 0, true)
+			break
+		}
+	}
+	for _, m := range scanResult.Markers {
+		if m.ID == markerID {
+			_ = o.writeBaseline(m.Hash, m.Filepath, "", m.LineNumber, m.EndLineNumber, false)
+			break
+		}
 	}
 
 	return evaluated, nil
@@ -304,12 +363,28 @@ func (o *Orchestrator) Link(markerID, specID string) error {
 		}
 	}
 
-	return o.pin.Save(pinstore.PinState{
+	if err := o.pin.Save(pinstore.PinState{
 		Specs:           reconciledSpecs,
 		Markers:         reconciledMarkers,
 		Links:           append(state.Links, core.Link{SpecID: specID, MarkerID: markerID}),
 		ResolutionState: state.ResolutionState,
-	})
+	}); err != nil {
+		return err
+	}
+
+	for _, s := range scanResult.Specs {
+		if s.ID == specID {
+			_ = o.writeBaseline(s.Hash, s.Filepath, specID, 0, 0, true)
+			break
+		}
+	}
+	for _, m := range scanResult.Markers {
+		if m.ID == markerID {
+			_ = o.writeBaseline(m.Hash, m.Filepath, "", m.LineNumber, m.EndLineNumber, false)
+			break
+		}
+	}
+	return nil
 }
 
 // D! id=olink range-end
@@ -439,6 +514,100 @@ func reconcileMarkers(pinned []core.Marker, scanned []core.Marker) ([]core.Marke
 }
 
 // D! id=ormrk range-end
+
+// D! id=odiff range-start
+func (o *Orchestrator) Diff(markerID, specID string) (DiffResult, error) {
+	state, err := o.pin.Load()
+	if err != nil {
+		return DiffResult{}, err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return DiffResult{}, err
+	}
+
+	reconciledSpecs, err := reconcileSpecs(state.Specs, scanResult.Specs)
+	if err != nil {
+		return DiffResult{}, err
+	}
+	reconciledMarkers, err := reconcileMarkers(state.Markers, scanResult.Markers)
+	if err != nil {
+		return DiffResult{}, err
+	}
+
+	scannedSpecHashes := make(map[string]string, len(scanResult.Specs))
+	for _, s := range scanResult.Specs {
+		scannedSpecHashes[s.ID] = s.Hash
+	}
+	scannedMarkerHashes := make(map[string]string, len(scanResult.Markers))
+	for _, m := range scanResult.Markers {
+		scannedMarkerHashes[m.ID] = m.Hash
+	}
+
+	var spec *core.Spec
+	for i := range reconciledSpecs {
+		if reconciledSpecs[i].ID == specID {
+			spec = &reconciledSpecs[i]
+			break
+		}
+	}
+	var marker *core.Marker
+	for i := range reconciledMarkers {
+		if reconciledMarkers[i].ID == markerID {
+			marker = &reconciledMarkers[i]
+			break
+		}
+	}
+	if spec == nil || marker == nil {
+		return DiffResult{}, fmt.Errorf("%w: marker=%q spec=%q", ErrDiffEntityNotFound, markerID, specID)
+	}
+
+	result := DiffResult{}
+
+	result.Spec = DiffSide{
+		ID:           spec.ID,
+		Filepath:     spec.Filepath,
+		BaselineHash: spec.Hash,
+		CurrentHash:  scannedSpecHashes[spec.ID],
+		Deleted:      spec.Deleted,
+	}
+	if !spec.Deleted {
+		if content, err := scanner.ReadSpecContent(spec.Filepath, spec.ID); err == nil {
+			result.Spec.Current = content
+		}
+	}
+	if o.baselines != nil {
+		if content, ok := o.baselines.Read(spec.Hash); ok {
+			result.Spec.Baseline = content
+			result.Spec.HasBaseline = true
+		}
+	}
+
+	result.Marker = DiffSide{
+		ID:           marker.ID,
+		Filepath:     marker.Filepath,
+		Lines:        fmt.Sprintf("%d-%d", marker.LineNumber, marker.EndLineNumber),
+		BaselineHash: marker.Hash,
+		CurrentHash:  scannedMarkerHashes[marker.ID],
+		Deleted:      marker.Deleted,
+	}
+	if !marker.Deleted {
+		if content, err := scanner.ReadMarkerContent(marker.Filepath, marker.LineNumber, marker.EndLineNumber); err == nil {
+			result.Marker.Current = content
+		}
+	}
+	if o.baselines != nil {
+		if content, ok := o.baselines.Read(marker.Hash); ok {
+			result.Marker.Baseline = content
+			result.Marker.HasBaseline = true
+		}
+	}
+
+	return result, nil
+}
+
+// D! id=odiff range-end
 
 func buildScan(scanResult scanner.ScanResult, reconciledSpecs []core.Spec, reconciledMarkers []core.Marker) core.Scan {
 	specHashes := make(map[string]string, len(scanResult.Specs))

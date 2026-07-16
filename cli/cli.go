@@ -2,14 +2,14 @@ package cli
 
 import (
 	_ "embed"
-	"encoding/xml"
 	"fmt"
 	"os"
-	"regexp"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"driftpin/core"
+	"driftpin/internal/diff"
 	"driftpin/orchestrator"
 	"driftpin/pinstore"
 	"driftpin/scanner"
@@ -34,7 +34,8 @@ func Run(args []string, dir string) (string, int) {
 
 	pin := pinstore.NewFilePinStore(dir)
 	scanner := scanner.NewFileScanner(dir)
-	orch := orchestrator.NewOrchestrator(pin, scanner)
+	baselines := pinstore.NewBaselineStore(filepath.Join(dir, ".driftpin", "baselines"))
+	orch := orchestrator.NewOrchestrator(pin, scanner, baselines)
 
 	switch args[0] {
 	case "init":
@@ -44,7 +45,7 @@ func Run(args []string, dir string) (string, int) {
 		if err := writeInitFiles(dir); err != nil {
 			return fmt.Sprintf("Initialized drift.pin but failed to write template: %s", err.Error()), 0
 		}
-		return "Initialized drift.pin and main.pin.xml\nEdit main.pin.xml to add your specs, then place " + markerSyntax + " markers in your code.\nRun `drift skill` for a comprehensive guide.", 0
+		return "Initialized .driftpin/ and main.pin.xml\nEdit main.pin.xml to add your specs, then place " + markerSyntax + " markers in your code.\nRun `drift skill` for a comprehensive guide.", 0
 
 	case "todo":
 		state, err := orch.Todo()
@@ -143,6 +144,28 @@ func Run(args []string, dir string) (string, int) {
 		return formatShow(state, args[1])
 
 	// D! id=cshow range-end
+	// D! id=cdiff range-start
+	case "diff":
+		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
+			return "Usage:\n  drift diff <marker|spec>          Show what changed for an entity and all linked counterparts\n  drift diff <marker> <module.spec>  Show what changed for a specific edge\n\nDisplays unified diffs of spec and marker content against their baselines.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\n\nExamples:\n  drift diff cval\n  drift diff core.validate\n  drift diff cval core.validate", 0
+		}
+		if len(args) < 2 {
+			return "usage:\n  drift diff <marker|spec>\n  drift diff <marker> <module.spec>\n\nExample: drift diff cval\n         drift diff cval core.validate", 1
+		}
+		if len(args) >= 3 {
+			result, err := orch.Diff(args[1], args[2])
+			if err != nil {
+				return err.Error(), 1
+			}
+			return formatDiffEdge(result)
+		}
+		state, err := orch.Todo()
+		if err != nil {
+			return err.Error(), 1
+		}
+		return formatDiffExpanded(orch, state, args[1])
+
+	// D! id=cdiff range-end
 	default:
 		return fmt.Sprintf("unknown command: %s\n\n%s", args[0], helpText()), 1
 	}
@@ -250,6 +273,7 @@ func formatTodo(state core.EvaluatedState) string {
 			todo.MarkerID,
 			todo.SpecID,
 		))
+		sb.WriteString(fmt.Sprintf("  → Run 'drift diff %s %s' to see what changed.\n", todo.MarkerID, todo.SpecID))
 	}
 
 	return strings.TrimRight(sb.String(), "\n")
@@ -361,8 +385,6 @@ func sortMarkersByID(markers []core.Marker) {
 	}
 }
 
-var showMarkerPattern = regexp.MustCompile(`D!\s+id=\S+`)
-
 func formatShow(state core.EvaluatedState, id string) (string, int) {
 	isSpec := strings.Contains(id, ".")
 
@@ -472,75 +494,98 @@ func formatShowMarker(state core.EvaluatedState, markerID string) (string, int) 
 }
 
 func readSpecContent(filepath, specID string) (string, error) {
-	parts := strings.SplitN(specID, ".", 2)
-	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid spec ID %q", specID)
-	}
-	localID := parts[1]
-
-	data, err := os.ReadFile(filepath)
-	if err != nil {
-		return "", err
-	}
-
-	type specElem struct {
-		ID      string `xml:"id,attr"`
-		Content string `xml:",innerxml"`
-	}
-	type pinFile struct {
-		XMLName xml.Name
-		Specs   []specElem `xml:"spec"`
-	}
-
-	var file pinFile
-	if err := xml.Unmarshal(data, &file); err != nil {
-		return "", err
-	}
-
-	for _, s := range file.Specs {
-		if s.ID == localID {
-			return strings.TrimSpace(s.Content), nil
-		}
-	}
-	return "", fmt.Errorf("spec %q not found in %s", specID, filepath)
+	return scanner.ReadSpecContent(filepath, specID)
 }
 
 func readMarkerContent(filepath string, startLine, endLine int) (string, error) {
-	data, err := os.ReadFile(filepath)
-	if err != nil {
-		return "", err
-	}
+	return scanner.ReadMarkerContent(filepath, startLine, endLine)
+}
 
-	lines := strings.Split(string(data), "\n")
-	if len(lines) > 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
+// D! id=cdifffmt range-start
+func formatDiffEdge(result orchestrator.DiffResult) (string, int) {
+	var sb strings.Builder
+	sb.WriteString(formatDiffSide("Spec", result.Spec))
+	sb.WriteString("\n---\n")
+	sb.WriteString(formatDiffSide("Marker", result.Marker))
+	return strings.TrimRight(sb.String(), "\n"), 0
+}
 
-	markerLines := make(map[int]bool)
-	for i, line := range lines {
-		if showMarkerPattern.MatchString(line) {
-			markerLines[i] = true
+func formatDiffSide(label string, side orchestrator.DiffSide) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%s: %s", label, side.ID))
+	if side.Filepath != "" {
+		sb.WriteString(fmt.Sprintf(" (%s", side.Filepath))
+		if side.Lines != "" {
+			sb.WriteString(":" + side.Lines)
 		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("\n")
+
+	if side.Deleted {
+		sb.WriteString("Status: deleted from disk\n")
+	} else if !side.HasBaseline {
+		sb.WriteString(fmt.Sprintf("Status: no baseline snapshot (hash %s)\n", side.BaselineHash))
+	} else if side.BaselineHash == side.CurrentHash && side.CurrentHash != "" {
+		sb.WriteString("Status: in sync\n")
+	} else {
+		sb.WriteString(fmt.Sprintf("Baseline: %s   Current: %s\n", side.BaselineHash, side.CurrentHash))
 	}
 
-	var contentLines []string
-	for i := startLine; i < endLine-1; i++ {
-		if i >= len(lines) {
-			break
-		}
-		line := lines[i]
-		if markerLines[i] {
-			idx := strings.Index(line, "D!")
-			if idx >= 0 {
-				line = line[:idx]
+	if !side.HasBaseline {
+		return strings.TrimRight(sb.String(), "\n")
+	}
+	if side.Baseline == side.Current {
+		return strings.TrimRight(sb.String(), "\n")
+	}
+
+	sb.WriteString("\n--- baseline\n+++ current\n")
+	patch := diff.UnifiedDiff(side.Baseline, side.Current)
+	if patch != "" {
+		sb.WriteString(patch)
+		sb.WriteString("\n")
+	}
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+func formatDiffExpanded(orch *orchestrator.Orchestrator, state core.EvaluatedState, id string) (string, int) {
+	isSpec := strings.Contains(id, ".")
+
+	var edges []struct{ marker, spec string }
+	if isSpec {
+		for _, link := range state.Links {
+			if link.SpecID == id {
+				edges = append(edges, struct{ marker, spec string }{link.MarkerID, link.SpecID})
 			}
 		}
-		contentLines = append(contentLines, line)
+	} else {
+		for _, link := range state.Links {
+			if link.MarkerID == id {
+				edges = append(edges, struct{ marker, spec string }{link.MarkerID, link.SpecID})
+			}
+		}
 	}
 
-	content := strings.Join(contentLines, "\n")
-	if len(contentLines) > 0 {
-		content += "\n"
+	if len(edges) == 0 {
+		return fmt.Sprintf("no linked edges found for %q", id), 1
 	}
-	return content, nil
+
+	var sb strings.Builder
+	for i, edge := range edges {
+		if i > 0 {
+			sb.WriteString("\n\n===\n\n")
+		}
+		result, err := orch.Diff(edge.marker, edge.spec)
+		if err != nil {
+			return err.Error(), 1
+		}
+		out, code := formatDiffEdge(result)
+		if code != 0 {
+			return out, code
+		}
+		sb.WriteString(out)
+	}
+	return strings.TrimRight(sb.String(), "\n"), 0
 }
+
+// D! id=cdifffmt range-end
