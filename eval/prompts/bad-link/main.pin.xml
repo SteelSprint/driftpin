@@ -1,0 +1,5 @@
+<main>
+<spec id="reverse">reverse takes a string and returns it with characters in reverse order</spec>
+<spec id="palindrome">isPalindrome checks whether a string reads the same forwards and backwards, case-insensitive</spec>
+<spec id="wordcount">wordCount returns the number of whitespace-delimited words in a string</spec>
+</main>

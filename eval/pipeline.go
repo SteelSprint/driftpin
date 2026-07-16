@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -15,54 +16,71 @@ const (
 	judgeTimeout   = 15 * time.Minute
 )
 
+var stdoutMu sync.Mutex
+
 type Pipeline struct {
 	repoRoot     string
 	runLabel     string
+	fixtureName  string
 	runDir       string
 	workspaceDir string
 	subjectModel string
 	judgeModel   string
 }
 
-func NewPipeline(repoRoot, label, subjectModel, judgeModel string) *Pipeline {
+func NewPipeline(repoRoot, label, fixtureName, subjectModel, judgeModel string) *Pipeline {
 	return &Pipeline{
 		repoRoot:     repoRoot,
 		runLabel:     label,
+		fixtureName:  fixtureName,
 		subjectModel: subjectModel,
 		judgeModel:   judgeModel,
 	}
 }
 
 func (p *Pipeline) Run(prompt string, dryRun bool) error {
-	fmt.Printf("=== eval run: %s ===\n", p.runLabel)
-	fmt.Printf("subject model: %s\n", p.subjectModel)
-	fmt.Printf("judge model:   %s\n", p.judgeModel)
+	p.printf("=== eval run ===\n")
+	p.printf("subject model: %s\n", p.subjectModel)
+	p.printf("judge model:   %s\n", p.judgeModel)
 
 	if err := p.stage(); err != nil {
 		return fmt.Errorf("stage: %w", err)
 	}
-	fmt.Printf("[stage] done → %s\n", p.runDir)
+	p.printf("[stage] done → %s\n", p.runDir)
 
 	if dryRun {
-		fmt.Println("[dry-run] skipping LLM calls")
+		p.println("[dry-run] skipping LLM calls")
 		return nil
 	}
 
 	if err := p.runSubject(prompt); err != nil {
 		return fmt.Errorf("subject: %w", err)
 	}
-	fmt.Println("[subject] done")
+	p.println("[subject] done")
 
 	if err := p.runJudge(prompt); err != nil {
 		return fmt.Errorf("judge: %w", err)
 	}
-	fmt.Println("[judge] done")
+	p.println("[judge] done")
 
 	if err := p.surface(); err != nil {
 		return fmt.Errorf("surface: %w", err)
 	}
 
 	return nil
+}
+
+func (p *Pipeline) printf(format string, args ...any) {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+	fmt.Printf("["+p.runLabel+"] "+format, args...)
+}
+
+func (p *Pipeline) println(args ...any) {
+	stdoutMu.Lock()
+	defer stdoutMu.Unlock()
+	fmt.Print("[" + p.runLabel + "] ")
+	fmt.Println(args...)
 }
 
 func (p *Pipeline) stage() error {
@@ -77,6 +95,10 @@ func (p *Pipeline) stage() error {
 
 	if err := p.buildBinary(); err != nil {
 		return err
+	}
+
+	if err := p.copyFixture(); err != nil {
+		return fmt.Errorf("copy fixture: %w", err)
 	}
 
 	subjectAgentsDir := filepath.Join(p.workspaceDir, ".opencode", "agents")
@@ -104,12 +126,60 @@ func (p *Pipeline) stage() error {
 	return nil
 }
 
+func (p *Pipeline) copyFixture() error {
+	fixtureDir := filepath.Join(p.repoRoot, "eval", "prompts", p.fixtureName)
+	info, err := os.Stat(fixtureDir)
+	if err != nil || !info.IsDir() {
+		return nil
+	}
+
+	if err := copyDir(fixtureDir, p.workspaceDir); err != nil {
+		return err
+	}
+
+	setupPath := filepath.Join(p.workspaceDir, "setup.sh")
+	if _, err := os.Stat(setupPath); err != nil {
+		return nil
+	}
+
+	if err := os.Chmod(setupPath, 0755); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("./setup.sh")
+	cmd.Dir = p.workspaceDir
+	cmd.Stdout = newMutexWriter(os.Stdout, p.runLabel)
+	cmd.Stderr = newMutexWriter(os.Stderr, p.runLabel)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("setup.sh: %w", err)
+	}
+
+	return nil
+}
+
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, 0755)
+		}
+		return copyFile(path, target)
+	})
+}
+
 func (p *Pipeline) buildBinary() error {
 	binaryPath := filepath.Join(p.workspaceDir, "drift")
 	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/drift")
 	cmd.Dir = p.repoRoot
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = newMutexWriter(os.Stdout, p.runLabel)
+	cmd.Stderr = newMutexWriter(os.Stderr, p.runLabel)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("go build: %w", err)
 	}
@@ -162,8 +232,10 @@ func (p *Pipeline) surface() error {
 	if err != nil {
 		return fmt.Errorf("read report.md: %w", err)
 	}
-	fmt.Println("\n=== REPORT ===")
+	stdoutMu.Lock()
+	fmt.Printf("\n[%s] === REPORT ===\n", p.runLabel)
 	fmt.Println(string(data))
+	stdoutMu.Unlock()
 
 	logPath := filepath.Join(p.repoRoot, "eval", "runs", "log.csv")
 	row := fmt.Sprintf("%s,%q,%s,%s,%s\n",
@@ -190,37 +262,26 @@ type opencodeArgs struct {
 	prompt  string
 	stdout  io.Writer
 	timeout time.Duration
+	label   string
 }
 
 func (p *Pipeline) runOpencode(a *opencodeArgs) error {
+	a.label = p.runLabel
 	return runOpencodeStandalone(a)
 }
 
 func buildSubjectPrompt(task string) string {
 	return fmt.Sprintf(`You are being evaluated on your ability to use a spec-drift tool called "driftpin".
 
-## Your environment
-
-- Your working directory is an EMPTY project directory.
-- A pre-built `+"`drift`"+` binary is in your working directory. It is executable.
-- You have NO documentation, NO source code, and NO outside help — only the binary.
-- Figure out how to use it by inspecting the binary (e.g. running it with no args, `+"`--help`"+`, or trying subcommands).
-
-## Your task
+A pre-built `+"`drift`"+` binary is in your working directory. It is executable. You have NO documentation, NO source code, and NO outside help — only the binary. Figure out how to use it by inspecting the binary (e.g. running it with no args, `+"`--help`"+`, `+"`drift skill`"+`, or trying subcommands).
 
 %s
 
 ## What you must do
 
 1. Figure out how the `+"`drift`"+` binary works by exploring it yourself.
-2. Complete the task above — build the project, write the code, make it work.
-3. Use driftpin properly and end-to-end throughout:
-   - Initialize driftpin in your project.
-   - Create spec files that describe what your code does.
-   - Place markers in your code at the locations that implement each spec.
-   - Link markers to specs.
-   - Run `+"`drift todo`"+` and make sure it reports "No changes detected." (meaning specs and code are in sync).
-4. Write a file called `+"`self-debrief.md`"+` in your project root with these EXACT sections:
+2. Complete the task described above.
+3. Write a file called `+"`self-debrief.md`"+` in your project root with these EXACT sections:
    - **What worked well**: What was easy or intuitive about using driftpin.
    - **What was confusing**: What was hard to understand or figure out.
    - **Errors encountered**: Any errors you hit and how you resolved them (or didn't).
@@ -230,7 +291,6 @@ func buildSubjectPrompt(task string) string {
 ## Important
 
 - Work autonomously. Do not ask questions. Make your best judgment.
-- Finish with a working project that has specs, markers, links, and a clean `+"`drift todo`"+`.
 - Your `+"`self-debrief.md`"+` is critical — it will be read by a judge LLM evaluating your work. Be thorough and honest.
 `, task)
 }
@@ -248,12 +308,12 @@ A subject LLM was given a task and asked to use driftpin (a spec-drift tool) end
    %s
 
 2. **The subject's workspace** (its completed project): `+"`%s`"+`
-   - Check `+"`main.pin.xml`"+` — is it present? Well-structured? Does it use the module/import system?
-   - Run `+"`drift todo`"+` from inside the workspace — does it report "No changes detected." (all specs, markers, and links in sync)? (Clean = good)
-   - Check `+"`*.pin.xml`"+` files — are specs meaningful or boilerplate?
+   - The task prompt includes a "## Success criteria" section with specific outcomes. You MUST verify each one.
+   - Run `+"`drift todo`"+` from inside the workspace to check sync state.
+   - Run `+"`drift list`"+` from inside the workspace to inspect specs, markers, and links.
+   - Check `+"`*.pin.xml`"+` files — are specs meaningful?
    - Check markers (`+"`D! id=...`"+`) in code — are they placed at meaningful locations?
-   - Check links — are markers linked to specs?
-   - Read `+"`self-debrief.md`"+` — the subject's own feedback (this is the user LLM speaking to you).
+   - Read `+"`self-debrief.md`"+` — the subject's own feedback.
 
 3. **The subject's transcript** (JSONL of its session): `+"`%s/subject.jsonl`"+`
    - Sample it for confusion, tool misuse, or errors. You don't need to read every line — focus on moments where the subject struggled.
@@ -264,14 +324,9 @@ Write a file called `+"`report.md`"+` in the run directory (your current working
 
 ### 1. Scorecard
 
-Rate each item PASS or FAIL with a one-line note:
-- Built the project (task completed)
-- Created `+"`main.pin.xml`"+` (entry point exists)
-- Used module/import system correctly
-- Created meaningful specs (not boilerplate)
-- Placed markers at meaningful code locations
-- Linked markers to specs (`+"`drift link`"+`)
-- `+"`drift todo`"+` reports clean (no drift)
+Rate EACH success criterion from the task prompt as PASS or FAIL with a one-line note. List them by number, matching the task prompt's "## Success criteria" section. Then rate these universal criteria:
+- Used driftpin commands correctly (no tool misuse, correct syntax)
+- Self-debrief.md quality (thorough, honest, actionable feedback)
 
 ### 2. Qualitative Assessment
 
@@ -292,7 +347,7 @@ These recommendations will be triaged into the tool's development plan, so be sp
 ## Constraints
 
 - You may read any file in the workspace or run directory.
-- You may run bash commands (e.g., `+"`drift todo`"+`) to verify the subject's work. The `+"`drift`"+` binary is in the workspace directory.
+- You may run bash commands (e.g., `+"`drift todo`"+`, `+"`drift list`"+`, `+"`go build`"+`) to verify the subject's work. The `+"`drift`"+` binary is in the workspace directory.
 - You may ONLY write to `+"`report.md`"+` — do not modify any other file.
 - Be rigorous and fair. Don't inflate scores.
 `, originalTask, workspaceDir, runDir)
@@ -311,12 +366,16 @@ func (p *Pipeline) RunDir() string {
 }
 
 func synthesize(repoRoot, batchLabel string, runDirs []string, judgeModel string, dryRun bool) error {
+	stdoutMu.Lock()
 	fmt.Printf("\n=== synthesis: %s ===\n", batchLabel)
 	fmt.Printf("runs: %d\n", len(runDirs))
 	fmt.Printf("judge model:   %s\n", judgeModel)
+	stdoutMu.Unlock()
 
 	if dryRun {
+		stdoutMu.Lock()
 		fmt.Println("[dry-run] skipping synthesis LLM call")
+		stdoutMu.Unlock()
 		return nil
 	}
 
@@ -352,10 +411,13 @@ func synthesize(repoRoot, batchLabel string, runDirs []string, judgeModel string
 		prompt:  prompt,
 		stdout:  synthesisOut,
 		timeout: judgeTimeout,
+		label:   batchLabel,
 	}); err != nil {
 		return fmt.Errorf("synthesis opencode run: %w", err)
 	}
+	stdoutMu.Lock()
 	fmt.Println("[synthesis] done")
+	stdoutMu.Unlock()
 
 	synthesisPath := filepath.Join(synthesisRunDir, "synthesis.md")
 	if _, err := os.Stat(synthesisPath); err != nil {
@@ -371,7 +433,9 @@ func synthesize(repoRoot, batchLabel string, runDirs []string, judgeModel string
 	if err := copyFile(synthesisPath, obsPath); err != nil {
 		return fmt.Errorf("file observation: %w", err)
 	}
+	stdoutMu.Lock()
 	fmt.Printf("[observation] filed → %s\n", obsPath)
+	stdoutMu.Unlock()
 
 	return nil
 }
@@ -417,14 +481,16 @@ func runOpencodeStandalone(a *opencodeArgs) error {
 
 	cmd := exec.CommandContext(ctx, "opencode", args...)
 	cmd.Stdout = a.stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = newMutexWriter(os.Stderr, a.label)
 
 	agentLabel := a.agent
 	if agentLabel == "" {
 		agentLabel = "build (default)"
 	}
-	fmt.Printf("[%s] running opencode (agent=%s model=%s dir=%s timeout=%v)\n",
-		a.title, agentLabel, a.model, a.dir, a.timeout)
+	stdoutMu.Lock()
+	fmt.Printf("[%s] [%s] running opencode (agent=%s model=%s dir=%s timeout=%v)\n",
+		a.label, a.title, agentLabel, a.model, a.dir, a.timeout)
+	stdoutMu.Unlock()
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return fmt.Errorf("opencode timed out after %v", a.timeout)
@@ -432,6 +498,23 @@ func runOpencodeStandalone(a *opencodeArgs) error {
 		return fmt.Errorf("opencode run: %w", err)
 	}
 	return nil
+}
+
+type mutexWriter struct {
+	mu    *sync.Mutex
+	w     io.Writer
+	label string
+}
+
+func newMutexWriter(w io.Writer, label string) *mutexWriter {
+	return &mutexWriter{mu: &stdoutMu, w: w, label: label}
+}
+
+func (mw *mutexWriter) Write(p []byte) (int, error) {
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+	fmt.Fprintf(mw.w, "[%s] ", mw.label)
+	return mw.w.Write(p)
 }
 
 func buildSynthesisPrompt(runDirs []string, batchLabel string) string {

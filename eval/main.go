@@ -6,14 +6,21 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
+
+type promptItem struct {
+	name    string
+	content string
+}
 
 func main() {
 	var (
 		subjectModel = flag.String("subject", "openrouter/xiaomi/mimo-v2.5-pro", "subject LLM model ID")
 		judgeModel   = flag.String("judge", "openrouter/z-ai/glm-5.2", "judge LLM model ID")
 		battery      = flag.Bool("battery", false, "run all prompts in eval/prompts/ instead of a single prompt")
+		runs         = flag.Int("runs", 2, "number of battery prompts to run (capped by available prompts)")
 		label        = flag.String("label", "", "label for this run (defaults to timestamp)")
 		dryRun       = flag.Bool("dry-run", false, "stage only, skip LLM calls")
 	)
@@ -23,7 +30,8 @@ func main() {
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
 		fmt.Fprintf(os.Stderr, "  go run ./eval \"create a working CLI version of poker\"\n")
-		fmt.Fprintf(os.Stderr, "  go run ./eval --battery\n")
+		fmt.Fprintf(os.Stderr, "  go run ./eval --battery              # run first 2 prompts in parallel\n")
+		fmt.Fprintf(os.Stderr, "  go run ./eval --battery --runs 3     # run first 3 prompts in parallel\n")
 		fmt.Fprintf(os.Stderr, "  go run ./eval --subject openrouter/anthropic/claude-haiku-4.5 \"build a TODO app\"\n")
 	}
 	flag.Parse()
@@ -33,8 +41,7 @@ func main() {
 		fatal("cannot determine working directory: %v", err)
 	}
 
-	// Determine prompt(s).
-	var prompts []string
+	var prompts []promptItem
 	if *battery {
 		prompts, err = loadBatteryPrompts(repoRoot)
 		if err != nil {
@@ -43,12 +50,15 @@ func main() {
 		if len(prompts) == 0 {
 			fatal("no prompts found in eval/prompts/")
 		}
+		if *runs > 0 && *runs < len(prompts) {
+			prompts = prompts[:*runs]
+		}
 	} else {
 		if flag.NArg() < 1 || strings.TrimSpace(flag.Arg(0)) == "" {
 			flag.Usage()
 			os.Exit(1)
 		}
-		prompts = []string{flag.Arg(0)}
+		prompts = []promptItem{{name: "custom", content: flag.Arg(0)}}
 	}
 
 	runLabel := *label
@@ -56,18 +66,35 @@ func main() {
 		runLabel = time.Now().Format("2006-01-02-150405")
 	}
 
-	var runDirs []string
+	type runResult struct {
+		dir string
+		err error
+	}
+
+	results := make([]runResult, len(prompts))
+	var wg sync.WaitGroup
+
 	for i, prompt := range prompts {
-		var p *Pipeline
-		if *battery && len(prompts) > 1 {
-			p = NewPipeline(repoRoot, fmt.Sprintf("%s-%d", runLabel, i), *subjectModel, *judgeModel)
-		} else {
-			p = NewPipeline(repoRoot, runLabel, *subjectModel, *judgeModel)
+		wg.Add(1)
+		go func(idx int, p promptItem) {
+			defer wg.Done()
+			rl := runLabel
+			if len(prompts) > 1 {
+				rl = fmt.Sprintf("%s-%d", runLabel, idx)
+			}
+			pipe := NewPipeline(repoRoot, rl, p.name, *subjectModel, *judgeModel)
+			err := pipe.Run(p.content, *dryRun)
+			results[idx] = runResult{dir: pipe.RunDir(), err: err}
+		}(i, prompt)
+	}
+	wg.Wait()
+
+	var runDirs []string
+	for i, r := range results {
+		if r.err != nil {
+			fatal("run %d failed: %v", i, r.err)
 		}
-		if err := p.Run(prompt, *dryRun); err != nil {
-			fatal("run failed: %v", err)
-		}
-		runDirs = append(runDirs, p.RunDir())
+		runDirs = append(runDirs, r.dir)
 	}
 
 	if err := synthesize(repoRoot, runLabel, runDirs, *judgeModel, *dryRun); err != nil {
@@ -75,13 +102,13 @@ func main() {
 	}
 }
 
-func loadBatteryPrompts(root string) ([]string, error) {
+func loadBatteryPrompts(root string) ([]promptItem, error) {
 	dir := filepath.Join(root, "eval", "prompts")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
-	var prompts []string
+	var prompts []promptItem
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
@@ -90,7 +117,8 @@ func loadBatteryPrompts(root string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		prompts = append(prompts, string(data))
+		name := strings.TrimSuffix(e.Name(), ".md")
+		prompts = append(prompts, promptItem{name: name, content: string(data)})
 	}
 	return prompts, nil
 }

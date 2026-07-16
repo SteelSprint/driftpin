@@ -1,0 +1,7 @@
+<main>
+<spec id="add">add returns the sum of two float64 values</spec>
+<spec id="sub">sub returns the difference of two float64 values</spec>
+<spec id="mul">mul returns the product of two float64 values</spec>
+<spec id="div">div divides a by b and returns an error for division by zero</spec>
+<spec id="cli">main parses command-line arguments, dispatches to the correct operation, and exits with error on invalid input</spec>
+</main>
