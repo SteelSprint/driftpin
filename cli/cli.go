@@ -108,6 +108,9 @@ func stripGlobalFlags(args []string) []string {
 		if strings.HasPrefix(a, "--color=") {
 			continue
 		}
+		if strings.HasPrefix(a, "--theme=") {
+			continue
+		}
 		out = append(out, a)
 	}
 	return out

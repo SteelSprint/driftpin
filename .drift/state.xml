@@ -80,15 +80,16 @@
     <spec id="output_intent.uniform_dispatch" hash="28fadd815480423538ee32fd67276447d6c85a22" filepath="cli/output/output_intent.drift.xml" line="0"></spec>
     <spec id="output_intent.zero_dependency_preserved" hash="5789c2650ba650248f1f6f3b06ea4d9f34453758" filepath="cli/output/output_intent.drift.xml" line="0"></spec>
     <spec id="output_intent.self_hosting_preserved" hash="709903711675fa948ef5a97ab773edb650662ac9" filepath="cli/output/output_intent.drift.xml" line="0"></spec>
+    <spec id="output_intent.themable_output" hash="018ae2aca598d49d1142b0d359c742ff6742592b" filepath="cli/output/output_intent.drift.xml" line="0"></spec>
     <spec id="output.modes" hash="8a89a5e3c0273150d50b3c4c910951dcf262bd04" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.color_default" hash="ad8526ddb853cc5c8c20888e093ccc53db1b443e" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.tty_detection" hash="7284637de8e18096273646db5a8678a76e4f1faf" filepath="cli/output/output.drift.xml" line="0"></spec>
-    <spec id="output.global_flags" hash="172b68c37f3c7ed6ee52129c2e847af052c1076b" filepath="cli/output/output.drift.xml" line="0"></spec>
+    <spec id="output.global_flags" hash="16b8121670654b63bcfb7ee994b9c5941285bd3e" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.global_flag_stripping" hash="32892ed08199d8274db4c87ee947d3fc1b997734" filepath="cli/output/output.drift.xml" line="0"></spec>
-    <spec id="output.flag_precedence" hash="7cf4bb23220c423aa1dbef2a8f71f8d5a6d5863e" filepath="cli/output/output.drift.xml" line="0"></spec>
+    <spec id="output.flag_precedence" hash="02fd212bdf2bb2aea1fdded016f556ee5dc1598b" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.plain_mode" hash="08169bfcc157c7e615b4b782d6b5bb06ef63fb78" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.color_mode" hash="2f0e3388a452a70f3a27984956d039028c14ff9f" filepath="cli/output/output.drift.xml" line="0"></spec>
-    <spec id="output.color_palette" hash="573ed2cbad796bf0ffea12d03df27bf6a97db051" filepath="cli/output/output.drift.xml" line="0"></spec>
+    <spec id="output.color_palette" hash="0d50999ad8d2f8ba86e4227346e6e2a0a6cdfb13" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.guardrail_property" hash="d701adbf431afa2e1452495fbff721fcceb1f850" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.json_mode" hash="0105d92c926a75f4db9577b1cd0ac479eb69766d" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.json_schema" hash="133c258632e7aec819f40ed2d02808162ee4dea1" filepath="cli/output/output.drift.xml" line="0"></spec>
@@ -98,20 +99,27 @@
     <spec id="output.command_interface" hash="f779b9b6ee8680b7400b5a187f2978e1e243c218" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.uniform_prechecks" hash="2ada51a314af9e91964961fe8cf3ae7a7a46ade3" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output.version_in_dispatch" hash="680afcb5702e316862576414baa4b576ec4d20d3" filepath="cli/output/output.drift.xml" line="0"></spec>
+    <spec id="output.theme_system" hash="2460b9bde940f6feef180541bee745f38ff975dc" filepath="cli/output/output.drift.xml" line="0"></spec>
+    <spec id="output.built_in_themes" hash="e92184031c0506f41524796dbc87167fa6206209" filepath="cli/output/output.drift.xml" line="0"></spec>
+    <spec id="output.custom_theme" hash="3c3e969b16595c5f25bf416d34f9e316065cc792" filepath="cli/output/output.drift.xml" line="0"></spec>
+    <spec id="output.json_always_plain" hash="13a683790e5a9963833940a93444dbfafde15780" filepath="cli/output/output.drift.xml" line="0"></spec>
     <spec id="output_impl.package_layout" hash="153e9505b2eb6bd36e1013ce8c6a65e9de043607" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
     <spec id="output_impl.presenter_interface" hash="679ed3444ac6d48f2a136e0a4aff49ad7eb361eb" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
     <spec id="output_impl.result_types" hash="e30d630dc752484cd01fdbc1f0332c591abe3f58" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
     <spec id="output_impl.plain_presenter" hash="1751e9597b6c4a8de2d6addc7f140732066ead4e" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
-    <spec id="output_impl.color_presenter" hash="860ade1719f435e5bb36b6be77398e5df3171398" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
+    <spec id="output_impl.color_presenter" hash="e915eefffad2b1638913489851119b67673ad8f5" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
     <spec id="output_impl.json_presenter" hash="eaf439980d8a1c34390d16395ff85dabaf2ef3e2" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
     <spec id="output_impl.command_interface_impl" hash="730d1ea36799a350ae0436f5a0386f3be88153d7" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
     <spec id="output_impl.registry" hash="92547662f73a7e54d54dc188a31bd3d5a7d34fbb" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
     <spec id="output_impl.help_generator" hash="8dc5fa31dd4f4420f491d6872891375eb848df7e" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
-    <spec id="output_impl.guardrail_test" hash="a6a199b2692953e4d8f94b15f78ae2a9446c7205" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
+    <spec id="output_impl.guardrail_test" hash="23fcc13f239e0291e7dce633dcfd80051fc202db" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
+    <spec id="output_impl.theme_types" hash="d05717c523a8aed578a24cc70bf1aeebdd5deacf" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
+    <spec id="output_impl.theme_definitions" hash="520a0250694add258f42cd01a459eabffccbdfa5" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
+    <spec id="output_impl.theme_loader" hash="ce1961c52dd7da1f3658a15f126ad7c98fa4e1ab" filepath="cli/output/output_impl.drift.xml" line="0"></spec>
   </specs>
   <markers>
-    <marker id="testfirst" hash="addf081a07a57e714f2797df9569f15c53f8ba04" filepath="README.md" line="137" endline="139"></marker>
     <marker id="selfhost" hash="6acb344668661f138b3e323e6736ea4b88a04dd5" filepath="README.md" line="133" endline="135"></marker>
+    <marker id="testfirst" hash="addf081a07a57e714f2797df9569f15c53f8ba04" filepath="README.md" line="137" endline="139"></marker>
     <marker id="cdisp" hash="79ded954ab8f98c929c52e09c9ce8629a6125409" filepath="cli/cli.go" line="57" endline="96"></marker>
     <marker id="ocmd" hash="e01a8c8e22d9c6e907ac932c3731eee980ff1f87" filepath="cli/commands/command.go" line="8" endline="43"></marker>
     <marker id="cdiff" hash="bcfe4203bc0e6868f8adfe744f14d3fd3c087c92" filepath="cli/commands/diff.go" line="18" endline="61"></marker>
@@ -123,8 +131,7 @@
     <marker id="cshow" hash="7688f124d8ab6040eebe2ef4b1d9d54df18936bb" filepath="cli/commands/show.go" line="8" endline="32"></marker>
     <marker id="cskill" hash="a34b51e2e98f148a9afee76ec71a3688ae5e9dc2" filepath="cli/commands/skill.go" line="11" endline="16"></marker>
     <marker id="cunlnk" hash="d0ee997def2d415e9a62ec41fd42eecaaabaae7f" filepath="cli/commands/unlink.go" line="12" endline="31"></marker>
-    <marker id="oansi" hash="d458d65aee50a5319bfb12fdf8daba8df457d518" filepath="cli/output/ansi.go" line="3" endline="22"></marker>
-    <marker id="ocol" hash="09a84a5e8cf0d136472048db9a8b016b7c5fb387" filepath="cli/output/color.go" line="13" endline="363"></marker>
+    <marker id="ocol" hash="7ad0bd83ed7bd9038d15febbe8f18d03ac47b07f" filepath="cli/output/color.go" line="13" endline="383"></marker>
     <marker id="ojson" hash="e01d65147e7f96bd13c52d78f859c93a3c7ee510" filepath="cli/output/json.go" line="13" endline="359"></marker>
     <marker id="cfmt" hash="45289b34db680f4d484edf74c2b3a5f9636daf4d" filepath="cli/output/plain.go" line="23" endline="128"></marker>
     <marker id="ofmtl" hash="eff927e15e32c1ee5901c45def04485041602e91" filepath="cli/output/plain.go" line="130" endline="231"></marker>
@@ -132,47 +139,50 @@
     <marker id="cdall" hash="afc09316170217c946f2926db64fe6ffc3874bd2" filepath="cli/output/plain.go" line="346" endline="368"></marker>
     <marker id="opres" hash="a3fbadba6c0aff3fcfcd844bccff7fd37363d588" filepath="cli/output/presenter.go" line="3" endline="51"></marker>
     <marker id="ores" hash="8d74680d6302e373cc2a958138e28ac08a6f907f" filepath="cli/output/result.go" line="8" endline="116"></marker>
-    <marker id="otty" hash="36b265d791aff54c5b5e5bc1214473d32c99aa7f" filepath="cli/output/tty.go" line="8" endline="83"></marker>
+    <marker id="otheme" hash="c91477e7585333b4a51974336c0b18bfd1c7d557" filepath="cli/output/theme.go" line="5" endline="73"></marker>
+    <marker id="otload" hash="d283f95be20b2da80b75c548b5de9c04143f8dde" filepath="cli/output/theme_load.go" line="3" endline="72"></marker>
+    <marker id="othms" hash="1a4f592a2a59cfd4401c7ea481fa5dc1651cc930" filepath="cli/output/themes.go" line="3" endline="259"></marker>
+    <marker id="otty" hash="ed476ddbef31c37dc54f011c3431f6bc45a7dba3" filepath="cli/output/tty.go" line="8" endline="124"></marker>
     <marker id="chelp" hash="6fda30eecb669c2f568349c589b400ce3e8458ce" filepath="cli/registry.go" line="32" endline="43"></marker>
     <marker id="cflag" hash="cdb1207fac82035ff46673d2062cea4909bda6c5" filepath="cli/registry.go" line="45" endline="88"></marker>
     <marker id="validate_input" hash="f809cccadb307ffece9ba92750c0481e4dd8f403" filepath="cli/skill.md" line="56" endline="60"></marker>
-    <marker id="ctodo" hash="f766807a61f45172506fb62c29087a8beea825d1" filepath="core/core.go" line="222" endline="243"></marker>
-    <marker id="ccol" hash="f3b57b56b416d973610d2b2713ba7ad99463b045" filepath="core/core.go" line="288" endline="342"></marker>
     <marker id="mchk" hash="40d136a0bc26e28caa01347917514ef2422dfc08" filepath="core/core.go" line="344" endline="364"></marker>
-    <marker id="cedg" hash="86f9e377660ee6cf3f6661ef47cd558e6f72b076" filepath="core/core.go" line="388" endline="419"></marker>
     <marker id="pmrk" hash="33f069eea18bf41b4a3de65f3337d57b8673c79b" filepath="core/core.go" line="421" endline="448"></marker>
-    <marker id="crst" hash="3ad64a76691aeee33e6e6bfdde62b3b7016c9d59" filepath="core/core.go" line="245" endline="286"></marker>
-    <marker id="schk" hash="7849f1af68bbb778f1c74ce4e2bceb1be043f29b" filepath="core/core.go" line="366" endline="386"></marker>
     <marker id="pspc" hash="adc8dfcc5927cf20d588ec2d9e606266a0c284e7" filepath="core/core.go" line="450" endline="477"></marker>
     <marker id="cdeld" hash="3ba14e5da87bbd5c41027a8e1906f26b7ee5ca0a" filepath="core/core.go" line="479" endline="519"></marker>
     <marker id="cval" hash="35dee4eecd400418012c5ac01ba8aa0051b737ad" filepath="core/core.go" line="114" endline="165"></marker>
+    <marker id="schk" hash="7849f1af68bbb778f1c74ce4e2bceb1be043f29b" filepath="core/core.go" line="366" endline="386"></marker>
+    <marker id="cedg" hash="86f9e377660ee6cf3f6661ef47cd558e6f72b076" filepath="core/core.go" line="388" endline="419"></marker>
     <marker id="cscn" hash="028acbeeae2b06a6508ecc3a008d023e538917f7" filepath="core/core.go" line="167" endline="206"></marker>
+    <marker id="ctodo" hash="f766807a61f45172506fb62c29087a8beea825d1" filepath="core/core.go" line="222" endline="243"></marker>
+    <marker id="crst" hash="3ad64a76691aeee33e6e6bfdde62b3b7016c9d59" filepath="core/core.go" line="245" endline="286"></marker>
+    <marker id="ccol" hash="f3b57b56b416d973610d2b2713ba7ad99463b045" filepath="core/core.go" line="288" endline="342"></marker>
+    <marker id="ormrk" hash="b53c69a22eb137acb12094e3a4907bcbf378c0d3" filepath="orchestrator/orchestrator.go" line="492" endline="533"></marker>
+    <marker id="oinit" hash="960ec36e8f5dce3cec90d0c92c10994bdd402cd6" filepath="orchestrator/orchestrator.go" line="93" endline="105"></marker>
     <marker id="crorph" hash="312b2b903bfef8cc843a8a33c2cb02ba135a7e62" filepath="orchestrator/orchestrator.go" line="213" endline="321"></marker>
-    <marker id="olink" hash="8e0a2ea1f9a28578c063a6527d1a95a18d026e1d" filepath="orchestrator/orchestrator.go" line="323" endline="407"></marker>
-    <marker id="cperr" hash="b3f1417f9a769fd9bbb68f3ac75cccdfc97c1a55" filepath="orchestrator/orchestrator.go" line="345" endline="353"></marker>
     <marker id="orspc" hash="6b8f10c02a81f58ed8d0e17c6cc4cb5d42d12754" filepath="orchestrator/orchestrator.go" line="449" endline="490"></marker>
+    <marker id="odiff" hash="d26e6ccce24014922c87660611087e8cb5595d04" filepath="orchestrator/orchestrator.go" line="535" endline="627"></marker>
     <marker id="otodo" hash="7872fa942cc2c9fad16b70285af4870d676ab0cc" filepath="orchestrator/orchestrator.go" line="107" endline="142"></marker>
     <marker id="orest" hash="701050d0d50bcee17572fd1dedc3e046638e17bf" filepath="orchestrator/orchestrator.go" line="144" endline="211"></marker>
+    <marker id="olink" hash="8e0a2ea1f9a28578c063a6527d1a95a18d026e1d" filepath="orchestrator/orchestrator.go" line="323" endline="407"></marker>
+    <marker id="cperr" hash="b3f1417f9a769fd9bbb68f3ac75cccdfc97c1a55" filepath="orchestrator/orchestrator.go" line="345" endline="353"></marker>
     <marker id="ounlnk" hash="ed52e85bf91aec787ad5aa2e515e5b97d77bcf0e" filepath="orchestrator/orchestrator.go" line="409" endline="447"></marker>
-    <marker id="ormrk" hash="b53c69a22eb137acb12094e3a4907bcbf378c0d3" filepath="orchestrator/orchestrator.go" line="492" endline="533"></marker>
-    <marker id="odiff" hash="d26e6ccce24014922c87660611087e8cb5595d04" filepath="orchestrator/orchestrator.go" line="535" endline="627"></marker>
-    <marker id="oinit" hash="960ec36e8f5dce3cec90d0c92c10994bdd402cd6" filepath="orchestrator/orchestrator.go" line="93" endline="105"></marker>
-    <marker id="sidfmt" hash="fc12587d0f2d92f9c1ca9e48c20329f489d7317d" filepath="scanner/scanner.go" line="272" endline="276"></marker>
-    <marker id="mregex" hash="2ea2cdd936850c4cec80bcb0771462230311a4c4" filepath="scanner/scanner.go" line="89" endline="97"></marker>
+    <marker id="sdupm" hash="7a9895e9e77f75f73ca1c01e6a8b85dbfb49fdb3" filepath="scanner/scanner.go" line="342" endline="347"></marker>
+    <marker id="sspec" hash="ea98dae00a5e7480e94896cb450f53cb4cb0e376" filepath="scanner/scanner.go" line="156" endline="177"></marker>
     <marker id="swrap" hash="8a78b8bf40d28d5169e9592fd2f7f41223dcd554" filepath="scanner/scanner.go" line="232" endline="236"></marker>
     <marker id="smname" hash="8a92ea45498bafdd3a66652332109267b4283542" filepath="scanner/scanner.go" line="243" endline="247"></marker>
     <marker id="smiss" hash="86629f2a696c3c55b38afed9ce18383a395b07d2" filepath="scanner/scanner.go" line="267" endline="271"></marker>
-    <marker id="sdups" hash="ec81185ecc270456caa202b988656c307fa9c8d3" filepath="scanner/scanner.go" line="278" endline="282"></marker>
-    <marker id="smark" hash="bc5c25ccbe63b11055ed6e75092d323297e3e2db" filepath="scanner/scanner.go" line="310" endline="358"></marker>
-    <marker id="sdupm" hash="7a9895e9e77f75f73ca1c01e6a8b85dbfb49fdb3" filepath="scanner/scanner.go" line="342" endline="347"></marker>
     <marker id="shash" hash="285a730b9f244edb3960e9eda3a2cfa25a2fca20" filepath="scanner/scanner.go" line="480" endline="486"></marker>
     <marker id="scode" hash="3d2d710c1a32943aae745436e4f953d2b56d71f8" filepath="scanner/scanner.go" line="18" endline="87"></marker>
-    <marker id="sspec" hash="ea98dae00a5e7480e94896cb450f53cb4cb0e376" filepath="scanner/scanner.go" line="156" endline="177"></marker>
+    <marker id="mregex" hash="2ea2cdd936850c4cec80bcb0771462230311a4c4" filepath="scanner/scanner.go" line="89" endline="97"></marker>
+    <marker id="sidfmt" hash="fc12587d0f2d92f9c1ca9e48c20329f489d7317d" filepath="scanner/scanner.go" line="272" endline="276"></marker>
+    <marker id="sdups" hash="ec81185ecc270456caa202b988656c307fa9c8d3" filepath="scanner/scanner.go" line="278" endline="282"></marker>
+    <marker id="smark" hash="bc5c25ccbe63b11055ed6e75092d323297e3e2db" filepath="scanner/scanner.go" line="310" endline="358"></marker>
     <marker id="zerodep" hash="d7d762c511419505dca201f47bec77003e29b95e" filepath="scripts/release.sh" line="41" endline="57"></marker>
     <marker id="pbase" hash="55307c929b4f1925a2f7c0e6b9bc0245e32bacbe" filepath="statestore/baselines.go" line="11" endline="63"></marker>
+    <marker id="pload" hash="9712af0af7ec496e1cc4ec13599945026803024a" filepath="statestore/pin_file.go" line="102" endline="164"></marker>
     <marker id="psave" hash="037b7283441900eb14955966a2f877f739ddc568" filepath="statestore/pin_file.go" line="166" endline="222"></marker>
     <marker id="pnope" hash="f70c197da227765920bf0133a87611f45f8b69f2" filepath="statestore/pin_file.go" line="12" endline="15"></marker>
-    <marker id="pload" hash="9712af0af7ec496e1cc4ec13599945026803024a" filepath="statestore/pin_file.go" line="102" endline="164"></marker>
   </markers>
   <links>
     <link specId="core.validate" markerId="cval"></link>
@@ -241,11 +251,16 @@
     <link specId="principles.zero_dependency_portable" markerId="zerodep"></link>
     <link specId="output_impl.presenter_interface" markerId="opres"></link>
     <link specId="output_impl.result_types" markerId="ores"></link>
-    <link specId="output.color_palette" markerId="oansi"></link>
     <link specId="output.tty_detection" markerId="otty"></link>
     <link specId="output_impl.command_interface_impl" markerId="ocmd"></link>
     <link specId="output_impl.json_presenter" markerId="ojson"></link>
     <link specId="output_impl.color_presenter" markerId="ocol"></link>
+    <link specId="output_impl.theme_types" markerId="otheme"></link>
+    <link specId="output_impl.theme_definitions" markerId="othms"></link>
+    <link specId="output_impl.theme_loader" markerId="otload"></link>
+    <link specId="output.theme_system" markerId="otheme"></link>
+    <link specId="output.built_in_themes" markerId="othms"></link>
+    <link specId="output.custom_theme" markerId="otload"></link>
   </links>
   <resolutions></resolutions>
 </drift>

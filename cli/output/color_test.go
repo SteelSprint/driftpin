@@ -19,7 +19,11 @@ func stripANSI(s string) string {
 // (not just ANSI codes), this test fails. See output.guardrail_property spec.
 func TestGuardrailProperty(t *testing.T) {
 	plain := PlainPresenter{}
-	color := ColorPresenter{}
+
+	// The guardrail is parameterized across all 12 built-in themes: every
+	// theme's output, when ANSI-stripped, must equal Plain byte-for-byte.
+	for themeName, theme := range AllThemes {
+		color := ColorPresenter{Theme: theme}
 
 	// Build representative Result values covering the key paths.
 	results := []struct {
@@ -180,14 +184,15 @@ func TestGuardrailProperty(t *testing.T) {
 	}
 
 	for _, tc := range results {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(themeName+"/"+tc.name, func(t *testing.T) {
 			plainOut := tc.render(plain)
 			colorOut := tc.render(color)
 			colorStripped := stripANSI(colorOut)
 			if plainOut != colorStripped {
-				t.Errorf("guardrail violated for %s\nplain:    %q\ncolor raw: %q\ncolor str: %q",
-					tc.name, plainOut, colorOut, colorStripped)
+				t.Errorf("guardrail violated for theme=%s case=%s\nplain:    %q\ncolor raw: %q\ncolor str: %q",
+					themeName, tc.name, plainOut, colorOut, colorStripped)
 			}
 		})
+	}
 	}
 }

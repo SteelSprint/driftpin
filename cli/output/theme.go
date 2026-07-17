@@ -1,0 +1,73 @@
+package output
+
+import "strings"
+
+// D! id=otheme range-start
+
+// Style describes how to render one theme element. It composes ANSI SGR
+// attributes: a Color parameter (SGR code like "92" for bright green or
+// "38;5;37" for 256-color), a Bold flag, and a Dim flag.
+//
+// A zero-value Style (all fields zero) produces no formatting — Apply returns
+// its input unchanged. This is the foundation of the guardrail property: a
+// zero-value Theme renders identically to PlainPresenter.
+type Style struct {
+	Color string // SGR color parameter: "31" basic, "91" bright, "38;5;N" 256-color, "38;2;R;G;B" true color, "" = none
+	Bold  bool
+	Dim   bool
+}
+
+// Apply wraps s in the ANSI escape sequence described by this Style.
+// Codes are collected in order (dim, bold, color), joined by semicolons,
+// emitted as a single SGR sequence. If no attributes are set, s is returned
+// unchanged — no escape codes are emitted.
+func (st Style) Apply(s string) string {
+	var codes []string
+	if st.Dim {
+		codes = append(codes, "2")
+	}
+	if st.Bold {
+		codes = append(codes, "1")
+	}
+	if st.Color != "" {
+		codes = append(codes, st.Color)
+	}
+	if len(codes) == 0 {
+		return s
+	}
+	return "\x1b[" + strings.Join(codes, ";") + "m" + s + "\x1b[0m"
+}
+
+// Theme maps each of the 14 named elements to a Style. ColorPresenter holds
+// a Theme and calls the appropriate element's Apply for each piece of output.
+// All 14 fields are required — a theme with missing elements is rejected
+// (for .drift/theme.xml) or has zero-value Styles (for programmatic misuse,
+// which renders as plain text via Apply's zero-value behavior).
+type Theme struct {
+	Name          string
+	MarkerID      Style // marker shortcodes (cdisp, cval)
+	SpecID        Style // module-qualified spec IDs (cli.dispatch)
+	Filepath      Style // file paths and locations (cli/cli.go:57)
+	LineNumber    Style // line numbers and ranges (5, 5-12)
+	Hash          Style // SHA1 hash values
+	StatusOK      Style // [synced], "Status: in sync", "No changes detected"
+	StatusWarn    Style // [TODO], [unlinked], drift status, "no baseline snapshot"
+	StatusError   Style // [DRIFTED], [deleted], "deleted from disk", error messages
+	SectionHeader Style // "Specs (N):", "=== Spec: ID ==="
+	Command       Style // call-to-action commands ("drift reset ...")
+	Hint          Style // "→ Run 'drift diff ...'" lines
+	DiffAdd       Style // "+" lines in unified diff
+	DiffRemove    Style // "-" lines in unified diff
+	DiffHunk      Style // "@@" hunk header lines
+}
+
+// AllElementIDs lists the 14 element IDs in Theme field order. Used by
+// LoadCustomTheme to validate that .drift/theme.xml specifies all elements.
+var AllElementIDs = []string{
+	"marker_id", "spec_id", "filepath", "line_number", "hash",
+	"status_ok", "status_warn", "status_error",
+	"section_header", "command", "hint",
+	"diff_add", "diff_remove", "diff_hunk",
+}
+
+// D! id=otheme range-end

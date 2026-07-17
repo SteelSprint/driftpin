@@ -19,7 +19,7 @@ func main() {
 		args[0] = "version"
 	}
 
-	presenter := output.SelectPresenter(args, os.Stdout, os.Environ())
+	presenter := output.SelectPresenter(args, os.Stdout, os.Environ(), ".")
 	out, code := cli.RunWithRender(args, ".", presenter)
 	if out != "" {
 		fmt.Println(out)
