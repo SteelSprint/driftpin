@@ -18,6 +18,7 @@ Commands:
   reset <marker> <module.spec>  Mark a drifted edge as resolved
   help                          Show this help
   skill                         Print comprehensive guide (for LLM agents)
+  version                       Show version
 
 Flags:
   --help, -h                    Show command-specific help (works for every command above)
