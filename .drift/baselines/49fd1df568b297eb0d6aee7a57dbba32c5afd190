@@ -1,0 +1,8 @@
+	case "list":
+		verbose := len(args) >= 2 && args[1] == "--verbose"
+		state, err := orch.Todo()
+		if err != nil {
+			return err.Error(), 1
+		}
+		return formatList(state, dir, verbose), 0
+

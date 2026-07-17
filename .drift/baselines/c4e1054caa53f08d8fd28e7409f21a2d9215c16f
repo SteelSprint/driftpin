@@ -1,0 +1,28 @@
+func helpText() string {
+	return helpContent
+}
+
+// subcommandHelp returns the usage text for a known subcommand and ok=true,
+// or ok=false if the name is not a recognized subcommand. Centralized so the
+// help_flag uniform check at the top of Run works for every subcommand
+// (including those that take no arguments: init, todo, skill).
+func subcommandHelp(name string) (string, bool) {
+	help, ok := subcommandHelpTexts[name]
+	if !ok {
+		return "", false
+	}
+	return help, true
+}
+
+var subcommandHelpTexts = map[string]string{
+	"init": "Usage: drift init\n\nInitialize the .drift/ directory (state.xml + baselines/) and write a starter\nmain.drift.xml template if one does not already exist.\n\nNo arguments.",
+	"todo": "Usage: drift todo\n\nScan specs and markers, report drift.\nExit codes: 0 = clean, 1 = drift exists, 2 = error.\n\nNo arguments.",
+	"list": "Usage: drift list [--verbose]\n\nShow all specs, markers, links, and sync state.\n--verbose: include spec text and marker content preview.",
+	"show": "Usage: drift show <marker|spec>\n\nShow current content of a spec or marker with filepath and line ranges.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\nLinked specs/markers are also displayed.\n\nExamples:\n  drift show cval\n  drift show core.validate",
+	"diff": "Usage:\n  drift diff <marker|spec>          Show what changed for an entity and all linked counterparts\n  drift diff <marker> <module.spec>  Show what changed for a specific edge\n\nDisplays unified diffs of spec and marker content against their baselines.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\n\nExamples:\n  drift diff cval\n  drift diff core.validate\n  drift diff cval core.validate",
+	"link": "Usage: drift link <marker> <module.spec>\n\nConnect a marker to a spec. Both must exist on disk.\n\nExample: drift link validate_input core.validate_input",
+	"unlink": "Usage: drift unlink <marker> <module.spec>\n\nRemove a link between a marker and a spec. Also clears any resolution state for that edge.\n\nExample: drift unlink validate_input core.validate_input",
+	"reset": "Usage:\n  drift reset <marker> <module.spec>  Resolve a drifted edge\n  drift reset <id>                Remove an orphaned (deleted, no links) spec/marker\n\nMark a drifted edge as resolved. Collapses baselines when all edges for a node are resolved.\nWhen a spec or marker has been deleted and has no links, use a single ID to remove it from state.xml.\n\nExamples:\n  drift reset validate_input core.validate_input\n  drift reset main.deleted_spec",
+	"skill": "Usage: drift skill\n\nPrint the comprehensive drift guide for LLM agents: workflow, spec file format,\nmarker syntax and range hashing model, CLI command table, drift detection model,\n.drift/ directory layout, and edge cases.\n\nNo arguments.",
+}
+

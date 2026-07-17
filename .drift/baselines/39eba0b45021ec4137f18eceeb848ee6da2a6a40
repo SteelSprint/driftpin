@@ -1,0 +1,45 @@
+// recognizedFlags lists the recognized long/short flags for each subcommand.
+// --help/-h are not listed here because they are intercepted earlier (in Run)
+// before this check runs. Any arg starting with -- or - that is not in this
+// allowlist for the current subcommand produces "unknown flag: <arg>".
+var recognizedFlags = map[string]map[string]bool{
+	"init":   {},
+	"todo":   {},
+	"skill":  {},
+	"list":   {"--verbose": true},
+	"show":   {},
+	"diff":   {},
+	"link":   {},
+	"unlink": {},
+	"reset":  {},
+}
+
+// rejectUnknownFlags scans args[1:] for any token starting with - or -- that
+// is not a recognized flag for the subcommand args[0]. Returns the error
+// message and true when an unknown flag is found, or "" and false otherwise.
+// Top-level args[0] is the subcommand name itself; help/--help/-h at args[0]
+// are handled earlier in Run and never reach this function.
+func rejectUnknownFlags(args []string) (string, bool) {
+	if len(args) == 0 {
+		return "", false
+	}
+	cmd := args[0]
+	allowed, ok := recognizedFlags[cmd]
+	if !ok {
+		return "", false
+	}
+	for _, a := range args[1:] {
+		if !strings.HasPrefix(a, "-") {
+			continue
+		}
+		if a == "--help" || a == "-h" {
+			continue
+		}
+		if allowed[a] {
+			continue
+		}
+		return fmt.Sprintf("unknown flag: %s", a), true
+	}
+	return "", false
+}
+

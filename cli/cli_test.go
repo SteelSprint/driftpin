@@ -1265,6 +1265,8 @@ func TestCLIPerSubcommandHelp(t *testing.T) {
 		{[]string{"list", "-h"}, "Usage: drift list"},
 		{[]string{"show", "--help"}, "Usage: drift show"},
 		{[]string{"show", "-h"}, "Usage: drift show"},
+		{[]string{"diff", "--help"}, "Usage:"},
+		{[]string{"diff", "-h"}, "Usage:"},
 	}
 
 	for _, tt := range tests {
@@ -1278,6 +1280,329 @@ func TestCLIPerSubcommandHelp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCLIUniformHelpForAllSubcommands(t *testing.T) {
+	dir := t.TempDir()
+	writeMainDrift(t, dir, `<main></main>`)
+	cli.Run([]string{"init"}, dir)
+
+	tests := []struct {
+		cmd   []string
+		usage string
+	}{
+		{[]string{"init", "--help"}, "Usage: drift init"},
+		{[]string{"init", "-h"}, "Usage: drift init"},
+		{[]string{"todo", "--help"}, "Usage: drift todo"},
+		{[]string{"todo", "-h"}, "Usage: drift todo"},
+		{[]string{"skill", "--help"}, "Usage: drift skill"},
+		{[]string{"skill", "-h"}, "Usage: drift skill"},
+		{[]string{"list", "--help"}, "Usage: drift list"},
+		{[]string{"show", "--help"}, "Usage: drift show"},
+		{[]string{"diff", "--help"}, "Usage:"},
+		{[]string{"link", "--help"}, "Usage: drift link"},
+		{[]string{"unlink", "--help"}, "Usage: drift unlink"},
+		{[]string{"reset", "--help"}, "drift reset"},
+	}
+
+	for _, tt := range tests {
+		t.Run(strings.Join(tt.cmd, " "), func(t *testing.T) {
+			output, code := cli.Run(tt.cmd, dir)
+			if code != 0 {
+				t.Fatalf("expected exit code 0 for %s, got %d, output: %s", strings.Join(tt.cmd, " "), code, output)
+			}
+			if !strings.Contains(output, tt.usage) {
+				t.Fatalf("output should contain %q, got: %s", tt.usage, output)
+			}
+		})
+	}
+}
+
+func TestCLIUniformHelpShortCircuitsBeforeDispatch(t *testing.T) {
+	dir := t.TempDir()
+	writeMainDrift(t, dir, `<main></main>`)
+	cli.Run([]string{"init"}, dir)
+
+	t.Run("todo_help_does_not_run_todo", func(t *testing.T) {
+		output, code := cli.Run([]string{"todo", "--help"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if strings.Contains(output, "No changes detected") || strings.Contains(output, "Nothing to check") {
+			t.Fatalf("--help should short-circuit before running todo, but got todo output: %s", output)
+		}
+		if !strings.Contains(output, "drift todo") {
+			t.Fatalf("output should contain 'drift todo' usage, got: %s", output)
+		}
+	})
+
+	t.Run("init_help_does_not_reinit", func(t *testing.T) {
+		output, code := cli.Run([]string{"init", "--help"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if strings.Contains(output, "Initialized .drift") {
+			t.Fatalf("--help should short-circuit before running init, but got init output: %s", output)
+		}
+		if !strings.Contains(output, "drift init") {
+			t.Fatalf("output should contain 'drift init' usage, got: %s", output)
+		}
+	})
+
+	t.Run("skill_help_does_not_print_skill_content", func(t *testing.T) {
+		output, code := cli.Run([]string{"skill", "--help"}, dir)
+		if code != 0 {
+			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		}
+		if strings.Contains(output, "Quick Start") || strings.Contains(output, "Workflow") {
+			t.Fatalf("--help should short-circuit before running skill, but got skill content: %s", output)
+		}
+		if !strings.Contains(output, "drift skill") {
+			t.Fatalf("output should contain 'drift skill' usage, got: %s", output)
+		}
+	})
+}
+
+func TestCLIUnknownFlagRejection(t *testing.T) {
+	dir := t.TempDir()
+	writeMainDrift(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+	cli.Run([]string{"init"}, dir)
+	testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerEnd("m1")+`
+`)
+	cli.Run([]string{"todo"}, dir)
+	cli.Run([]string{"link", "m1", "main.s1"}, dir)
+
+	tests := []struct {
+		name string
+		cmd  []string
+	}{
+		{"todo_unknown_long", []string{"todo", "--json"}},
+		{"todo_unknown_short", []string{"todo", "-x"}},
+		{"diff_unknown_all", []string{"diff", "--all"}},
+		{"diff_unknown_long", []string{"diff", "--foo"}},
+		{"list_unknown_long", []string{"list", "--json"}},
+		{"list_unknown_short", []string{"list", "-v"}},
+		{"show_unknown_long", []string{"show", "--all"}},
+		{"link_unknown_long", []string{"link", "--foo", "m1", "main.s1"}},
+		{"unlink_unknown_long", []string{"unlink", "--foo", "m1", "main.s1"}},
+		{"reset_unknown_long", []string{"reset", "--foo", "m1", "main.s1"}},
+		{"init_unknown_long", []string{"init", "--foo"}},
+		{"skill_unknown_long", []string{"skill", "--foo"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, code := cli.Run(tt.cmd, dir)
+			if code != 1 {
+				t.Fatalf("expected exit code 1 for %s, got %d, output: %s", strings.Join(tt.cmd, " "), code, output)
+			}
+			if !strings.Contains(output, "unknown flag") {
+				t.Fatalf("output should mention 'unknown flag' for %s, got: %s", strings.Join(tt.cmd, " "), output)
+			}
+		})
+	}
+
+	t.Run("list_verbose_still_works", func(t *testing.T) {
+		output, code := cli.Run([]string{"list", "--verbose"}, dir)
+		if code != 0 {
+			t.Fatalf("--verbose should be accepted for list, got code %d, output: %s", code, output)
+		}
+		if strings.Contains(output, "unknown flag") {
+			t.Fatalf("--verbose should not be rejected as unknown, got: %s", output)
+		}
+	})
+
+	t.Run("help_flag_still_works_alongside_rejection", func(t *testing.T) {
+		output, code := cli.Run([]string{"todo", "--help"}, dir)
+		if code != 0 {
+			t.Fatalf("--help should still be accepted, got code %d, output: %s", code, output)
+		}
+		if strings.Contains(output, "unknown flag") {
+			t.Fatalf("--help should not be rejected as unknown, got: %s", output)
+		}
+	})
+}
+
+func TestCLIUnlinkedMarkerWarning(t *testing.T) {
+	t.Run("clean_with_one_unlinked_marker_warns_singular", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainDrift(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerEnd("m1")+`
+`+testutil.MarkerStart("m2")+`
+func b() { doOther() }
+`+testutil.MarkerEnd("m2")+`
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+
+		output, code := cli.Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("clean todo should exit 0, got %d, output: %s", code, output)
+		}
+		if !strings.Contains(output, "1 unlinked marker found") {
+			t.Fatalf("output should warn about 1 unlinked marker, got: %s", output)
+		}
+		if !strings.Contains(output, "drift list") {
+			t.Fatalf("output should suggest 'drift list', got: %s", output)
+		}
+	})
+
+	t.Run("clean_with_two_unlinked_markers_warns_plural", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainDrift(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerEnd("m1")+`
+`+testutil.MarkerStart("m2")+`
+func b() { doOther() }
+`+testutil.MarkerEnd("m2")+`
+`+testutil.MarkerStart("m3")+`
+func c() { doThird() }
+`+testutil.MarkerEnd("m3")+`
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+
+		output, code := cli.Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("clean todo should exit 0, got %d, output: %s", code, output)
+		}
+		if !strings.Contains(output, "2 unlinked markers found") {
+			t.Fatalf("output should warn about 2 unlinked markers, got: %s", output)
+		}
+	})
+
+	t.Run("all_markers_linked_no_warning", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainDrift(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerEnd("m1")+`
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+
+		output, code := cli.Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("clean todo should exit 0, got %d, output: %s", code, output)
+		}
+		if strings.Contains(output, "unlinked marker") {
+			t.Fatalf("output should not warn when all markers linked, got: %s", output)
+		}
+		if !strings.HasPrefix(output, "No changes detected.") {
+			t.Fatalf("output should start with 'No changes detected.', got: %s", output)
+		}
+	})
+
+	t.Run("drift_with_unlinked_marker_still_warns_exit_1", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainDrift(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerEnd("m1")+`
+`+testutil.MarkerStart("m2")+`
+func b() { doOther() }
+`+testutil.MarkerEnd("m2")+`
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+		cli.Run([]string{"todo"}, dir)
+
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("m1")+`
+func a() { doSomethingElse() }
+`+testutil.MarkerEnd("m1")+`
+`+testutil.MarkerStart("m2")+`
+func b() { doOther() }
+`+testutil.MarkerEnd("m2")+`
+`)
+
+		output, code := cli.Run([]string{"todo"}, dir)
+		if code != 1 {
+			t.Fatalf("drift todo should exit 1, got %d, output: %s", code, output)
+		}
+		if !strings.Contains(output, "1 unlinked marker found") {
+			t.Fatalf("output should warn about 1 unlinked marker (m2), got: %s", output)
+		}
+		if !strings.Contains(output, "1 marker has unchecked changes") {
+			t.Fatalf("output should still report drift, got: %s", output)
+		}
+	})
+
+	t.Run("nothing_to_check_no_warning", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainDrift(t, dir, `<main></main>`)
+		cli.Run([]string{"init"}, dir)
+
+		output, code := cli.Run([]string{"todo"}, dir)
+		if code != 0 {
+			t.Fatalf("empty todo should exit 0, got %d, output: %s", code, output)
+		}
+		if strings.Contains(output, "unlinked marker") {
+			t.Fatalf("output should not warn in 'Nothing to check' case, got: %s", output)
+		}
+		if !strings.HasPrefix(output, "Nothing to check") {
+			t.Fatalf("output should start with 'Nothing to check', got: %s", output)
+		}
+	})
+
+	t.Run("deleted_marker_not_counted_as_unlinked", func(t *testing.T) {
+		dir := t.TempDir()
+		writeMainDrift(t, dir, `<main>
+  <spec id="s1">spec one</spec>
+</main>`)
+		cli.Run([]string{"init"}, dir)
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerEnd("m1")+`
+`+testutil.MarkerStart("m2")+`
+func b() { doOther() }
+`+testutil.MarkerEnd("m2")+`
+`+testutil.MarkerStart("m3")+`
+func c() { doThird() }
+`+testutil.MarkerEnd("m3")+`
+`)
+		cli.Run([]string{"todo"}, dir)
+		cli.Run([]string{"link", "m1", "main.s1"}, dir)
+		cli.Run([]string{"link", "m2", "main.s1"}, dir)
+		cli.Run([]string{"todo"}, dir)
+
+		testutil.WriteCodeFile(t, dir, "main.go", testutil.MarkerStart("m1")+`
+func a() { doSomething() }
+`+testutil.MarkerEnd("m1")+`
+`+testutil.MarkerStart("m3")+`
+func c() { doThird() }
+`+testutil.MarkerEnd("m3")+`
+`)
+
+		output, code := cli.Run([]string{"todo"}, dir)
+		if code != 1 {
+			t.Fatalf("deletion of linked m2 should cause drift (exit 1), got %d, output: %s", code, output)
+		}
+		if !strings.Contains(output, "1 unlinked marker found") {
+			t.Fatalf("output should warn about exactly 1 unlinked marker (m3, not deleted m2), got: %s", output)
+		}
+		if strings.Contains(output, "2 unlinked markers") {
+			t.Fatalf("deleted marker m2 should not be counted as unlinked, got: %s", output)
+		}
+	})
 }
 
 func TestCLISkill(t *testing.T) {

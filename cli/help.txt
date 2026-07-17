@@ -18,6 +18,11 @@ Commands:
   help                          Show this help
   skill                         Print comprehensive guide (for LLM agents)
 
+Flags:
+  --help, -h                    Show command-specific help (works for every command above)
+  --verbose                     Show spec text and marker content preview (list only)
+  Unknown long flags (--foo) and unknown short flags (-x) are rejected with an error.
+
 Marker syntax:
   // D! id=<markerid> range-start    Place above the code that implements a spec
   // D! id=<markerid> range-end      Place below the code that implements a spec

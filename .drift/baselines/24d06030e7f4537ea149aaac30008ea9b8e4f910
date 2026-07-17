@@ -1,0 +1,106 @@
+func formatTodo(state core.EvaluatedState) string {
+	if len(state.Specs) == 0 && len(state.Markers) == 0 {
+		return "Nothing to check: no specs or markers registered.\nCreate spec files (*.drift.xml) and place " + markerSyntax + " markers in your code,\nthen run `drift link <marker> <module.spec>` to connect them."
+	}
+
+	var sb strings.Builder
+
+	if len(state.Todos) == 0 {
+		sb.WriteString(fmt.Sprintf("No changes detected. %d specs, %d markers, %d links in sync.", len(state.Specs), len(state.Markers), len(state.Links)))
+	} else {
+		changedMarkers := make(map[string]bool)
+		changedSpecs := make(map[string]bool)
+		for _, todo := range state.Todos {
+			if todo.MarkerChanged {
+				changedMarkers[todo.MarkerID] = true
+			}
+			if todo.SpecChanged {
+				changedSpecs[todo.SpecID] = true
+			}
+		}
+
+		if n := len(changedMarkers); n > 0 {
+			if n == 1 {
+				sb.WriteString("1 marker has unchecked changes.\n")
+			} else {
+				sb.WriteString(fmt.Sprintf("%d markers have unchecked changes.\n", n))
+			}
+		}
+		if n := len(changedSpecs); n > 0 {
+			if n == 1 {
+				sb.WriteString("1 spec item has unchecked changes.\n")
+			} else {
+				sb.WriteString(fmt.Sprintf("%d spec items have unchecked changes.\n", n))
+			}
+		}
+
+		sb.WriteString("\n")
+
+		for i, todo := range state.Todos {
+			var driftDescription string
+			switch {
+			case todo.SpecDeleted:
+				driftDescription = "The spec term has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
+			case todo.MarkerDeleted:
+				driftDescription = "The marker has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
+			case todo.MarkerChanged && todo.SpecChanged:
+				driftDescription = "Both the marker and the spec term have changed. Please check whether the changed code still complies with the new version of the spec term and make any modifications necessary on either side."
+			case todo.MarkerChanged:
+				driftDescription = "The marker has changed but not the spec term. Please check whether the changed code still complies with the spec term and make any modifications necessary."
+			default:
+				driftDescription = "The spec term has changed but not the marker. Please check whether the new version of the spec term is still reflected in the code and make any modifications necessary."
+			}
+
+			markerLocation := todo.MarkerFilepath + ":" + strconv.Itoa(todo.MarkerLineNumber)
+			specLocation := todo.SpecFilepath + ":" + strconv.Itoa(todo.SpecLineNumber)
+
+			sb.WriteString(fmt.Sprintf("%d. [TODO] Edge between marker %q in %q and spec term %q in %q. %s Once you are satisfied, run `drift reset %s %s` to mark this todo item as complete.\n",
+				i+1,
+				todo.MarkerID,
+				markerLocation,
+				todo.SpecID,
+				specLocation,
+				driftDescription,
+				todo.MarkerID,
+				todo.SpecID,
+			))
+			sb.WriteString(fmt.Sprintf("  → Run 'drift diff %s %s' to see what changed.\n", todo.MarkerID, todo.SpecID))
+		}
+	}
+
+	if warning := unlinkedMarkerWarning(state); warning != "" {
+		sb.WriteString("\n")
+		sb.WriteString(warning)
+	}
+
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+// unlinkedMarkerWarning returns the one-line warning summary for non-deleted
+// markers that have no links, or "" when there are none. Deleted markers
+// (no longer on disk) are not counted — they are reported as drift todos, not
+// as unlinked markers. Suppressed entirely when there are no specs and no
+// markers (the "Nothing to check" case is handled by the caller).
+func unlinkedMarkerWarning(state core.EvaluatedState) string {
+	linkedMarkers := make(map[string]bool, len(state.Links))
+	for _, link := range state.Links {
+		linkedMarkers[link.MarkerID] = true
+	}
+	unlinked := 0
+	for _, m := range state.Markers {
+		if m.Deleted {
+			continue
+		}
+		if !linkedMarkers[m.ID] {
+			unlinked++
+		}
+	}
+	if unlinked == 0 {
+		return ""
+	}
+	if unlinked == 1 {
+		return "1 unlinked marker found — run `drift list` to review."
+	}
+	return fmt.Sprintf("%d unlinked markers found — run `drift list` to review.", unlinked)
+}
+

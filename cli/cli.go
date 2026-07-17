@@ -32,6 +32,14 @@ func Run(args []string, dir string) (string, int) {
 		return helpText(), 0
 	}
 
+	if help, ok := subcommandHelp(args[0]); ok && len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
+		return help, 0
+	}
+
+	if msg, bad := rejectUnknownFlags(args); bad {
+		return msg, 1
+	}
+
 	stateStore := statestore.NewFileStateStore(dir)
 	scanner := scanner.NewFileScanner(dir)
 	baselines := statestore.NewBaselineStore(filepath.Join(dir, ".drift", "baselines"))
@@ -59,9 +67,6 @@ func Run(args []string, dir string) (string, int) {
 
 	// D! id=crfmt range-start
 	case "reset":
-		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
-			return "Usage:\n  drift reset <marker> <module.spec>  Resolve a drifted edge\n  drift reset <id>                Remove an orphaned (deleted, no links) spec/marker\n\nMark a drifted edge as resolved. Collapses baselines when all edges for a node are resolved.\nWhen a spec or marker has been deleted and has no links, use a single ID to remove it from state.xml.\n\nExamples:\n  drift reset validate_input core.validate_input\n  drift reset main.deleted_spec", 0
-		}
 		if len(args) < 2 {
 			return "usage:\n  drift reset <marker> <module.spec>\n  drift reset <id>\n\nExample: drift reset validate_input core.validate_input", 1
 		}
@@ -84,9 +89,6 @@ func Run(args []string, dir string) (string, int) {
 	// D! id=crfmt range-end
 	// D! id=clfmt range-start
 	case "link":
-		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
-			return "Usage: drift link <marker> <module.spec>\n\nConnect a marker to a spec. Both must exist on disk.\n\nExample: drift link validate_input core.validate_input", 0
-		}
 		if len(args) < 3 {
 			return "usage: drift link <marker> <module.spec>\n\nExample: drift link validate_input core.validate_input", 1
 		}
@@ -99,9 +101,6 @@ func Run(args []string, dir string) (string, int) {
 	// D! id=clfmt range-end
 	// D! id=cunlnk range-start
 	case "unlink":
-		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
-			return "Usage: drift unlink <marker> <module.spec>\n\nRemove a link between a marker and a spec. Also clears any resolution state for that edge.\n\nExample: drift unlink validate_input core.validate_input", 0
-		}
 		if len(args) < 3 {
 			return "usage: drift unlink <marker> <module.spec>\n\nExample: drift unlink validate_input core.validate_input", 1
 		}
@@ -114,9 +113,6 @@ func Run(args []string, dir string) (string, int) {
 	// D! id=cunlnk range-end
 	// D! id=clst range-start
 	case "list":
-		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
-			return "Usage: drift list [--verbose]\n\nShow all specs, markers, links, and sync state.\n--verbose: include spec text and marker content preview.", 0
-		}
 		verbose := len(args) >= 2 && args[1] == "--verbose"
 		state, err := orch.Todo()
 		if err != nil {
@@ -128,12 +124,10 @@ func Run(args []string, dir string) (string, int) {
 	// D! id=cskill range-start
 	case "skill":
 		return skillContent, 0
+	// D! id=cskill range-end
 
 	// D! id=cshow range-start
 	case "show":
-		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
-			return "Usage: drift show <marker|spec>\n\nShow current content of a spec or marker with filepath and line ranges.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\nLinked specs/markers are also displayed.\n\nExamples:\n  drift show cval\n  drift show core.validate", 0
-		}
 		if len(args) < 2 {
 			return "usage: drift show <marker|spec>\n\nExample: drift show cval\n         drift show core.validate", 1
 		}
@@ -146,9 +140,6 @@ func Run(args []string, dir string) (string, int) {
 	// D! id=cshow range-end
 	// D! id=cdiff range-start
 	case "diff":
-		if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
-			return "Usage:\n  drift diff <marker|spec>          Show what changed for an entity and all linked counterparts\n  drift diff <marker> <module.spec>  Show what changed for a specific edge\n\nDisplays unified diffs of spec and marker content against their baselines.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\n\nExamples:\n  drift diff cval\n  drift diff core.validate\n  drift diff cval core.validate", 0
-		}
 		if len(args) < 2 {
 			return "usage:\n  drift diff <marker|spec>\n  drift diff <marker> <module.spec>\n\nExample: drift diff cval\n         drift diff cval core.validate", 1
 		}
@@ -178,13 +169,84 @@ func helpText() string {
 	return helpContent
 }
 
+// subcommandHelp returns the usage text for a known subcommand and ok=true,
+// or ok=false if the name is not a recognized subcommand. Centralized so the
+// help_flag uniform check at the top of Run works for every subcommand
+// (including those that take no arguments: init, todo, skill).
+func subcommandHelp(name string) (string, bool) {
+	help, ok := subcommandHelpTexts[name]
+	if !ok {
+		return "", false
+	}
+	return help, true
+}
+
+var subcommandHelpTexts = map[string]string{
+	"init": "Usage: drift init\n\nInitialize the .drift/ directory (state.xml + baselines/) and write a starter\nmain.drift.xml template if one does not already exist.\n\nNo arguments.",
+	"todo": "Usage: drift todo\n\nScan specs and markers, report drift.\nExit codes: 0 = clean, 1 = drift exists, 2 = error.\n\nNo arguments.",
+	"list": "Usage: drift list [--verbose]\n\nShow all specs, markers, links, and sync state.\n--verbose: include spec text and marker content preview.",
+	"show": "Usage: drift show <marker|spec>\n\nShow current content of a spec or marker with filepath and line ranges.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\nLinked specs/markers are also displayed.\n\nExamples:\n  drift show cval\n  drift show core.validate",
+	"diff": "Usage:\n  drift diff <marker|spec>          Show what changed for an entity and all linked counterparts\n  drift diff <marker> <module.spec>  Show what changed for a specific edge\n\nDisplays unified diffs of spec and marker content against their baselines.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\n\nExamples:\n  drift diff cval\n  drift diff core.validate\n  drift diff cval core.validate",
+	"link": "Usage: drift link <marker> <module.spec>\n\nConnect a marker to a spec. Both must exist on disk.\n\nExample: drift link validate_input core.validate_input",
+	"unlink": "Usage: drift unlink <marker> <module.spec>\n\nRemove a link between a marker and a spec. Also clears any resolution state for that edge.\n\nExample: drift unlink validate_input core.validate_input",
+	"reset": "Usage:\n  drift reset <marker> <module.spec>  Resolve a drifted edge\n  drift reset <id>                Remove an orphaned (deleted, no links) spec/marker\n\nMark a drifted edge as resolved. Collapses baselines when all edges for a node are resolved.\nWhen a spec or marker has been deleted and has no links, use a single ID to remove it from state.xml.\n\nExamples:\n  drift reset validate_input core.validate_input\n  drift reset main.deleted_spec",
+	"skill": "Usage: drift skill\n\nPrint the comprehensive drift guide for LLM agents: workflow, spec file format,\nmarker syntax and range hashing model, CLI command table, drift detection model,\n.drift/ directory layout, and edge cases.\n\nNo arguments.",
+}
+
 // D! id=chelp range-end
+
+// D! id=cflag range-start
+// recognizedFlags lists the recognized long/short flags for each subcommand.
+// --help/-h are not listed here because they are intercepted earlier (in Run)
+// before this check runs. Any arg starting with -- or - that is not in this
+// allowlist for the current subcommand produces "unknown flag: <arg>".
+var recognizedFlags = map[string]map[string]bool{
+	"init":   {},
+	"todo":   {},
+	"skill":  {},
+	"list":   {"--verbose": true},
+	"show":   {},
+	"diff":   {},
+	"link":   {},
+	"unlink": {},
+	"reset":  {},
+}
+
+// rejectUnknownFlags scans args[1:] for any token starting with - or -- that
+// is not a recognized flag for the subcommand args[0]. Returns the error
+// message and true when an unknown flag is found, or "" and false otherwise.
+// Top-level args[0] is the subcommand name itself; help/--help/-h at args[0]
+// are handled earlier in Run and never reach this function.
+func rejectUnknownFlags(args []string) (string, bool) {
+	if len(args) == 0 {
+		return "", false
+	}
+	cmd := args[0]
+	allowed, ok := recognizedFlags[cmd]
+	if !ok {
+		return "", false
+	}
+	for _, a := range args[1:] {
+		if !strings.HasPrefix(a, "-") {
+			continue
+		}
+		if a == "--help" || a == "-h" {
+			continue
+		}
+		if allowed[a] {
+			continue
+		}
+		return fmt.Sprintf("unknown flag: %s", a), true
+	}
+	return "", false
+}
+
+// D! id=cflag range-end
 
 // D! id=cinit range-start
 func writeInitFiles(dir string) error {
 	mainPath := dir + "/main.drift.xml"
 	if !fileExists(mainPath) {
-		// D! id=cskill range-end
 		if err := writeFile(mainPath, initMainDriftXML); err != nil {
 			return err
 		}
@@ -205,78 +267,109 @@ func writeFile(path, content string) error {
 
 // D! id=cfmt range-start
 func formatTodo(state core.EvaluatedState) string {
-	if len(state.Todos) == 0 {
-		nSpecs := len(state.Specs)
-		nMarkers := len(state.Markers)
-		nLinks := len(state.Links)
-		if nSpecs == 0 && nMarkers == 0 {
-			return "Nothing to check: no specs or markers registered.\nCreate spec files (*.drift.xml) and place " + markerSyntax + " markers in your code,\nthen run `drift link <marker> <module.spec>` to connect them."
-		}
-		return fmt.Sprintf("No changes detected. %d specs, %d markers, %d links in sync.", nSpecs, nMarkers, nLinks)
+	if len(state.Specs) == 0 && len(state.Markers) == 0 {
+		return "Nothing to check: no specs or markers registered.\nCreate spec files (*.drift.xml) and place " + markerSyntax + " markers in your code,\nthen run `drift link <marker> <module.spec>` to connect them."
 	}
 
 	var sb strings.Builder
 
-	changedMarkers := make(map[string]bool)
-	changedSpecs := make(map[string]bool)
-	for _, todo := range state.Todos {
-		if todo.MarkerChanged {
-			changedMarkers[todo.MarkerID] = true
+	if len(state.Todos) == 0 {
+		sb.WriteString(fmt.Sprintf("No changes detected. %d specs, %d markers, %d links in sync.", len(state.Specs), len(state.Markers), len(state.Links)))
+	} else {
+		changedMarkers := make(map[string]bool)
+		changedSpecs := make(map[string]bool)
+		for _, todo := range state.Todos {
+			if todo.MarkerChanged {
+				changedMarkers[todo.MarkerID] = true
+			}
+			if todo.SpecChanged {
+				changedSpecs[todo.SpecID] = true
+			}
 		}
-		if todo.SpecChanged {
-			changedSpecs[todo.SpecID] = true
+
+		if n := len(changedMarkers); n > 0 {
+			if n == 1 {
+				sb.WriteString("1 marker has unchecked changes.\n")
+			} else {
+				sb.WriteString(fmt.Sprintf("%d markers have unchecked changes.\n", n))
+			}
+		}
+		if n := len(changedSpecs); n > 0 {
+			if n == 1 {
+				sb.WriteString("1 spec item has unchecked changes.\n")
+			} else {
+				sb.WriteString(fmt.Sprintf("%d spec items have unchecked changes.\n", n))
+			}
+		}
+
+		sb.WriteString("\n")
+
+		for i, todo := range state.Todos {
+			var driftDescription string
+			switch {
+			case todo.SpecDeleted:
+				driftDescription = "The spec term has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
+			case todo.MarkerDeleted:
+				driftDescription = "The marker has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
+			case todo.MarkerChanged && todo.SpecChanged:
+				driftDescription = "Both the marker and the spec term have changed. Please check whether the changed code still complies with the new version of the spec term and make any modifications necessary on either side."
+			case todo.MarkerChanged:
+				driftDescription = "The marker has changed but not the spec term. Please check whether the changed code still complies with the spec term and make any modifications necessary."
+			default:
+				driftDescription = "The spec term has changed but not the marker. Please check whether the new version of the spec term is still reflected in the code and make any modifications necessary."
+			}
+
+			markerLocation := todo.MarkerFilepath + ":" + strconv.Itoa(todo.MarkerLineNumber)
+			specLocation := todo.SpecFilepath + ":" + strconv.Itoa(todo.SpecLineNumber)
+
+			sb.WriteString(fmt.Sprintf("%d. [TODO] Edge between marker %q in %q and spec term %q in %q. %s Once you are satisfied, run `drift reset %s %s` to mark this todo item as complete.\n",
+				i+1,
+				todo.MarkerID,
+				markerLocation,
+				todo.SpecID,
+				specLocation,
+				driftDescription,
+				todo.MarkerID,
+				todo.SpecID,
+			))
+			sb.WriteString(fmt.Sprintf("  → Run 'drift diff %s %s' to see what changed.\n", todo.MarkerID, todo.SpecID))
 		}
 	}
 
-	if n := len(changedMarkers); n > 0 {
-		if n == 1 {
-			sb.WriteString("1 marker has unchecked changes.\n")
-		} else {
-			sb.WriteString(fmt.Sprintf("%d markers have unchecked changes.\n", n))
-		}
-	}
-	if n := len(changedSpecs); n > 0 {
-		if n == 1 {
-			sb.WriteString("1 spec item has unchecked changes.\n")
-		} else {
-			sb.WriteString(fmt.Sprintf("%d spec items have unchecked changes.\n", n))
-		}
-	}
-
-	sb.WriteString("\n")
-
-	for i, todo := range state.Todos {
-		var driftDescription string
-		switch {
-		case todo.SpecDeleted:
-			driftDescription = "The spec term has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
-		case todo.MarkerDeleted:
-			driftDescription = "The marker has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
-		case todo.MarkerChanged && todo.SpecChanged:
-			driftDescription = "Both the marker and the spec term have changed. Please check whether the changed code still complies with the new version of the spec term and make any modifications necessary on either side."
-		case todo.MarkerChanged:
-			driftDescription = "The marker has changed but not the spec term. Please check whether the changed code still complies with the spec term and make any modifications necessary."
-		default:
-			driftDescription = "The spec term has changed but not the marker. Please check whether the new version of the spec term is still reflected in the code and make any modifications necessary."
-		}
-
-		markerLocation := todo.MarkerFilepath + ":" + strconv.Itoa(todo.MarkerLineNumber)
-		specLocation := todo.SpecFilepath + ":" + strconv.Itoa(todo.SpecLineNumber)
-
-		sb.WriteString(fmt.Sprintf("%d. [TODO] Edge between marker %q in %q and spec term %q in %q. %s Once you are satisfied, run `drift reset %s %s` to mark this todo item as complete.\n",
-			i+1,
-			todo.MarkerID,
-			markerLocation,
-			todo.SpecID,
-			specLocation,
-			driftDescription,
-			todo.MarkerID,
-			todo.SpecID,
-		))
-		sb.WriteString(fmt.Sprintf("  → Run 'drift diff %s %s' to see what changed.\n", todo.MarkerID, todo.SpecID))
+	if warning := unlinkedMarkerWarning(state); warning != "" {
+		sb.WriteString("\n")
+		sb.WriteString(warning)
 	}
 
 	return strings.TrimRight(sb.String(), "\n")
+}
+
+// unlinkedMarkerWarning returns the one-line warning summary for non-deleted
+// markers that have no links, or "" when there are none. Deleted markers
+// (no longer on disk) are not counted — they are reported as drift todos, not
+// as unlinked markers. Suppressed entirely when there are no specs and no
+// markers (the "Nothing to check" case is handled by the caller).
+func unlinkedMarkerWarning(state core.EvaluatedState) string {
+	linkedMarkers := make(map[string]bool, len(state.Links))
+	for _, link := range state.Links {
+		linkedMarkers[link.MarkerID] = true
+	}
+	unlinked := 0
+	for _, m := range state.Markers {
+		if m.Deleted {
+			continue
+		}
+		if !linkedMarkers[m.ID] {
+			unlinked++
+		}
+	}
+	if unlinked == 0 {
+		return ""
+	}
+	if unlinked == 1 {
+		return "1 unlinked marker found — run `drift list` to review."
+	}
+	return fmt.Sprintf("%d unlinked markers found — run `drift list` to review.", unlinked)
 }
 
 // D! id=cfmt range-end

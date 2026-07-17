@@ -1,0 +1,10 @@
+	case "link":
+		if len(args) < 3 {
+			return "usage: drift link <marker> <module.spec>\n\nExample: drift link validate_input core.validate_input", 1
+		}
+		err := orch.Link(args[1], args[2])
+		if err != nil {
+			return err.Error(), 1
+		}
+		return fmt.Sprintf("Linked marker %q to spec %q", args[1], args[2]), 0
+

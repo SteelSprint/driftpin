@@ -1,0 +1,10 @@
+func writeInitFiles(dir string) error {
+	mainPath := dir + "/main.drift.xml"
+	if !fileExists(mainPath) {
+		if err := writeFile(mainPath, initMainDriftXML); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+

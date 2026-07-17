@@ -1,0 +1,10 @@
+	case "show":
+		if len(args) < 2 {
+			return "usage: drift show <marker|spec>\n\nExample: drift show cval\n         drift show core.validate", 1
+		}
+		state, err := orch.Todo()
+		if err != nil {
+			return err.Error(), 1
+		}
+		return formatShow(state, dir, args[1])
+

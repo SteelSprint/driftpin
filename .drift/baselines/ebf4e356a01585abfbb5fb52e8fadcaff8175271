@@ -1,0 +1,10 @@
+	case "unlink":
+		if len(args) < 3 {
+			return "usage: drift unlink <marker> <module.spec>\n\nExample: drift unlink validate_input core.validate_input", 1
+		}
+		err := orch.Unlink(args[1], args[2])
+		if err != nil {
+			return err.Error(), 1
+		}
+		return fmt.Sprintf("Unlinked marker %q from spec %q", args[1], args[2]), 0
+

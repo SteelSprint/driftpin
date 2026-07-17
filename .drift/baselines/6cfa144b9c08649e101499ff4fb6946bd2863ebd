@@ -1,0 +1,135 @@
+func Run(args []string, dir string) (string, int) {
+	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+		return helpText(), 0
+	}
+
+	if help, ok := subcommandHelp(args[0]); ok && len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
+		return help, 0
+	}
+
+	if msg, bad := rejectUnknownFlags(args); bad {
+		return msg, 1
+	}
+
+	stateStore := statestore.NewFileStateStore(dir)
+	scanner := scanner.NewFileScanner(dir)
+	baselines := statestore.NewBaselineStore(filepath.Join(dir, ".drift", "baselines"))
+	orch := orchestrator.NewOrchestrator(stateStore, scanner, baselines)
+
+	switch args[0] {
+	case "init":
+		if err := orch.Init(); err != nil {
+			return err.Error(), 1
+		}
+		if err := writeInitFiles(dir); err != nil {
+			return fmt.Sprintf("Initialized .drift/ but failed to write template: %s", err.Error()), 0
+		}
+		return "Initialized .drift/ and main.drift.xml\nEdit main.drift.xml to add your specs, then place " + markerSyntax + " markers in your code.\nRun `drift skill` for a comprehensive guide.", 0
+
+	case "todo":
+		state, err := orch.Todo()
+		if err != nil {
+			return err.Error(), 2
+		}
+		if len(state.Todos) > 0 {
+			return formatTodo(state), 1
+		}
+		return formatTodo(state), 0
+
+	// 
+	case "reset":
+		if len(args) < 2 {
+			return "usage:\n  drift reset <marker> <module.spec>\n  drift reset <id>\n\nExample: drift reset validate_input core.validate_input", 1
+		}
+		if len(args) == 2 {
+			err := orch.ResetOrphan(args[1])
+			if err != nil {
+				return err.Error(), 1
+			}
+			if strings.Contains(args[1], ".") {
+				return fmt.Sprintf("Removed deleted spec %q from state.xml", args[1]), 0
+			}
+			return fmt.Sprintf("Removed deleted marker %q from state.xml", args[1]), 0
+		}
+		_, err := orch.Reset(args[1], args[2])
+		if err != nil {
+			return err.Error(), 1
+		}
+		return fmt.Sprintf("Resolved: %s → %s. Baseline updated.", args[1], args[2]), 0
+
+	// 
+	// 
+	case "link":
+		if len(args) < 3 {
+			return "usage: drift link <marker> <module.spec>\n\nExample: drift link validate_input core.validate_input", 1
+		}
+		err := orch.Link(args[1], args[2])
+		if err != nil {
+			return err.Error(), 1
+		}
+		return fmt.Sprintf("Linked marker %q to spec %q", args[1], args[2]), 0
+
+	// 
+	// 
+	case "unlink":
+		if len(args) < 3 {
+			return "usage: drift unlink <marker> <module.spec>\n\nExample: drift unlink validate_input core.validate_input", 1
+		}
+		err := orch.Unlink(args[1], args[2])
+		if err != nil {
+			return err.Error(), 1
+		}
+		return fmt.Sprintf("Unlinked marker %q from spec %q", args[1], args[2]), 0
+
+	// 
+	// 
+	case "list":
+		verbose := len(args) >= 2 && args[1] == "--verbose"
+		state, err := orch.Todo()
+		if err != nil {
+			return err.Error(), 1
+		}
+		return formatList(state, dir, verbose), 0
+
+	// 
+	// 
+	case "skill":
+		return skillContent, 0
+	// 
+
+	// 
+	case "show":
+		if len(args) < 2 {
+			return "usage: drift show <marker|spec>\n\nExample: drift show cval\n         drift show core.validate", 1
+		}
+		state, err := orch.Todo()
+		if err != nil {
+			return err.Error(), 1
+		}
+		return formatShow(state, dir, args[1])
+
+	// 
+	// 
+	case "diff":
+		if len(args) < 2 {
+			return "usage:\n  drift diff <marker|spec>\n  drift diff <marker> <module.spec>\n\nExample: drift diff cval\n         drift diff cval core.validate", 1
+		}
+		if len(args) >= 3 {
+			result, err := orch.Diff(args[1], args[2])
+			if err != nil {
+				return err.Error(), 1
+			}
+			return formatDiffEdge(result)
+		}
+		state, err := orch.Todo()
+		if err != nil {
+			return err.Error(), 1
+		}
+		return formatDiffExpanded(orch, state, args[1])
+
+	// 
+	default:
+		return fmt.Sprintf("unknown command: %s\n\n%s", args[0], helpText()), 1
+	}
+}
+
