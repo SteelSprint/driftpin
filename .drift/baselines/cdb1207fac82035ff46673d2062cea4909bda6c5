@@ -1,0 +1,42 @@
+// recognizedFlagsFor returns the set of recognized long flags for a subcommand
+// (beyond the universal --help/-h). Derived from Registry — no separate map
+// to maintain.
+func recognizedFlagsFor(cmd string) map[string]bool {
+	c, ok := Registry[cmd]
+	if !ok {
+		return nil
+	}
+	flags := map[string]bool{}
+	for _, f := range c.Meta().Flags {
+		flags[f] = true
+	}
+	return flags
+}
+
+// rejectUnknownFlags scans args[1:] for any token starting with - or -- that
+// is not a recognized flag for the subcommand args[0]. Returns the error
+// message and true when an unknown flag is found, or "" and false otherwise.
+func rejectUnknownFlags(args []string) (string, bool) {
+	if len(args) == 0 {
+		return "", false
+	}
+	cmd := args[0]
+	allowed := recognizedFlagsFor(cmd)
+	if allowed == nil {
+		return "", false
+	}
+	for _, a := range args[1:] {
+		if !strings.HasPrefix(a, "-") {
+			continue
+		}
+		if a == "--help" || a == "-h" {
+			continue
+		}
+		if allowed[a] {
+			continue
+		}
+		return fmt.Sprintf("unknown flag: %s", a), true
+	}
+	return "", false
+}
+

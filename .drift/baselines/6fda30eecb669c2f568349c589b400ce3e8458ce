@@ -1,0 +1,10 @@
+// subcommandHelp returns the usage text for a known subcommand. Derived from
+// Registry — no separate map to maintain.
+func subcommandHelp(name string) (string, bool) {
+	cmd, ok := Registry[name]
+	if !ok {
+		return "", false
+	}
+	return cmd.Meta().Usage, true
+}
+

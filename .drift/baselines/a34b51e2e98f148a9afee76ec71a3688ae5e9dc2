@@ -1,0 +1,4 @@
+func (c SkillCommand) Run(ctx Context) (output.Result, int) {
+	return output.TextResult{Text: c.Text}, 0
+}
+

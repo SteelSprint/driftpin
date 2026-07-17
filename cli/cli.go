@@ -2,14 +2,11 @@ package cli
 
 import (
 	_ "embed"
-	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 
+	"drift/cli/commands"
 	"drift/cli/output"
-	"drift/core"
 	"drift/orchestrator"
 	"drift/scanner"
 	"drift/statestore"
@@ -24,28 +21,29 @@ var helpContent string
 //go:embed init_main.drift.xml
 var initMainDriftXML string
 
-var markerSyntax = "D" + "! id=<markerid>"
-
 // Run is the legacy entry point that preserves the original
 // (args, dir) -> (string, int) signature. It delegates to RunWithRender
-// with default options and PlainPresenter. ~50 existing test sites call
-// Run directly; keeping this signature unchanged means those tests stay
-// green untouched through Landing 1 of the output-layer refactor.
+// with PlainPresenter. ~50 existing test sites call Run directly; keeping
+// this signature unchanged means those tests stay green untouched through
+// the output-layer refactor.
 func Run(args []string, dir string) (string, int) {
 	return RunWithRender(args, dir, output.PlainPresenter{})
 }
 
-// RunWithRender dispatches a command, builds a typed Result from the
-// orchestrator state plus any required file I/O, and renders the Result
-// via the supplied Presenter. The Presenter is selected by the caller
-// (main.go) based on global flags (--json, --no-color, --color=) and
-// TTY detection. Landing 1 routes every command through this function;
-// Landing 2 will replace the switch with a Registry-based dispatcher.
+// RunWithRender dispatches a command via the Registry, builds a typed Result,
+// and renders it via the supplied Presenter. The flow is:
+//  1. Top-level help check (no args / help / --help / -h)
+//  2. Per-subcommand help check (cmd --help)
+//  3. Unknown-flag rejection
+//  4. Registry lookup
+//  5. Construct orchestrator + CommandContext
+//  6. Call command.Run(ctx) → (Result, exitCode)
+//  7. presenter.Render(result) → output string
 //
 // D! id=cdisp range-start
 func RunWithRender(args []string, dir string, presenter output.Presenter) (string, int) {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		return presenter.Text(output.TextResult{Text: helpText()}), 0
+		return presenter.Text(output.TextResult{Text: helpContent}), 0
 	}
 
 	if help, ok := subcommandHelp(args[0]); ok && len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
@@ -56,330 +54,27 @@ func RunWithRender(args []string, dir string, presenter output.Presenter) (strin
 		return presenter.Error(output.ErrorResult{Message: msg, Exit: 1}), 1
 	}
 
+	cmd, ok := Registry[args[0]]
+	if !ok {
+		return presenter.Error(output.ErrorResult{
+			Message: fmt.Sprintf("unknown command: %s\n\n%s", args[0], helpContent),
+			Exit:    1,
+		}), 1
+	}
+
 	stateStore := statestore.NewFileStateStore(dir)
 	scn := scanner.NewFileScanner(dir)
 	baselines := statestore.NewBaselineStore(filepath.Join(dir, ".drift", "baselines"))
 	orch := orchestrator.NewOrchestrator(stateStore, scn, baselines)
 
-	switch args[0] {
-	case "init":
-		if err := orch.Init(); err != nil {
-			if errors.Is(err, orchestrator.ErrAlreadyInitialized) {
-				return presenter.Error(output.ErrorResult{
-					Command: "init",
-					Message: fmt.Sprintf("Project already initialized: %s/.drift/state.xml exists.\nTo reinitialize, delete .drift/ by hand (drift provides no command for this, by design).", dir),
-					Exit:    1,
-				}), 1
-			}
-			return presenter.Error(output.ErrorResult{Command: "init", Message: err.Error(), Exit: 1}), 1
-		}
-		if err := writeInitFiles(dir); err != nil {
-			return presenter.Ok(output.OkResult{
-				Command: "init",
-				Message: fmt.Sprintf("Initialized .drift/ but failed to write template: %s", err.Error()),
-			}), 0
-		}
-		return presenter.Ok(output.OkResult{
-			Command: "init",
-			Message: "Initialized .drift/ and main.drift.xml\nEdit main.drift.xml to add your specs, then place " + markerSyntax + " markers in your code.\nRun `drift skill` for a comprehensive guide.",
-		}), 0
-
-	case "todo":
-		state, err := orch.Todo()
-		if err != nil {
-			return presenter.Error(output.ErrorResult{Command: "todo", Message: err.Error(), Exit: 2}), 2
-		}
-		code := 0
-		if len(state.Todos) > 0 {
-			code = 1
-		}
-		return presenter.Todo(output.TodoResult{State: state}), code
-
-	// D! id=crfmt range-start
-	case "reset":
-		if len(args) < 2 {
-			return presenter.Error(output.ErrorResult{
-				Command: "reset",
-				Message: "usage:\n  drift reset <marker> <module.spec>\n  drift reset <id>\n\nExample: drift reset validate_input core.validate_input",
-				Exit:    1,
-			}), 1
-		}
-		if len(args) == 2 {
-			err := orch.ResetOrphan(args[1])
-			if err != nil {
-				return presenter.Error(output.ErrorResult{Command: "reset", Message: err.Error(), Exit: 1}), 1
-			}
-			if strings.Contains(args[1], ".") {
-				return presenter.Ok(output.OkResult{
-					Command: "reset",
-					Message: fmt.Sprintf("Removed deleted spec %q from state.xml", args[1]),
-				}), 0
-			}
-			return presenter.Ok(output.OkResult{
-				Command: "reset",
-				Message: fmt.Sprintf("Removed deleted marker %q from state.xml", args[1]),
-			}), 0
-		}
-		// D! id=cnobulk range-start
-		_, err := orch.Reset(args[1], args[2])
-		if err != nil {
-			return presenter.Error(output.ErrorResult{Command: "reset", Message: err.Error(), Exit: 1}), 1
-		}
-		return presenter.Ok(output.OkResult{
-			Command: "reset",
-			Message: fmt.Sprintf("Resolved: %s → %s. Baseline updated.", args[1], args[2]),
-		}), 0
-		// D! id=cnobulk range-end
-
-	// D! id=crfmt range-end
-	// D! id=clfmt range-start
-	case "link":
-		if len(args) < 3 {
-			return presenter.Error(output.ErrorResult{
-				Command: "link",
-				Message: "usage: drift link <marker> <module.spec>\n\nExample: drift link validate_input core.validate_input",
-				Exit:    1,
-			}), 1
-		}
-		err := orch.Link(args[1], args[2])
-		if err != nil {
-			return presenter.Error(output.ErrorResult{Command: "link", Message: err.Error(), Exit: 1}), 1
-		}
-		return presenter.Ok(output.OkResult{
-			Command: "link",
-			Message: fmt.Sprintf("Linked marker %q to spec %q", args[1], args[2]),
-		}), 0
-
-	// D! id=clfmt range-end
-	// D! id=cunlnk range-start
-	case "unlink":
-		if len(args) < 3 {
-			return presenter.Error(output.ErrorResult{
-				Command: "unlink",
-				Message: "usage: drift unlink <marker> <module.spec>\n\nExample: drift unlink validate_input core.validate_input",
-				Exit:    1,
-			}), 1
-		}
-		err := orch.Unlink(args[1], args[2])
-		if err != nil {
-			return presenter.Error(output.ErrorResult{Command: "unlink", Message: err.Error(), Exit: 1}), 1
-		}
-		return presenter.Ok(output.OkResult{
-			Command: "unlink",
-			Message: fmt.Sprintf("Unlinked marker %q from spec %q", args[1], args[2]),
-		}), 0
-
-	// D! id=cunlnk range-end
-	// D! id=clst range-start
-	case "list":
-		verbose := len(args) >= 2 && args[1] == "--verbose"
-		state, err := orch.Todo()
-		if err != nil {
-			return presenter.Error(output.ErrorResult{Command: "list", Message: err.Error(), Exit: 1}), 1
-		}
-		result := output.BuildListResult(state, dir, verbose)
-		return presenter.List(result), 0
-
-	// D! id=clst range-end
-	// D! id=cskill range-start
-	case "skill":
-		return presenter.Text(output.TextResult{Text: skillContent}), 0
-	// D! id=cskill range-end
-
-	// D! id=cshow range-start
-	case "show":
-		if len(args) < 2 {
-			return presenter.Error(output.ErrorResult{
-				Command: "show",
-				Message: "usage: drift show <marker|spec>\n\nExample: drift show cval\n         drift show core.validate",
-				Exit:    1,
-			}), 1
-		}
-		state, err := orch.Todo()
-		if err != nil {
-			return presenter.Error(output.ErrorResult{Command: "show", Message: err.Error(), Exit: 1}), 1
-		}
-		result, err := output.BuildShowResult(state, dir, args[1])
-		if err != nil {
-			return presenter.Error(output.ErrorResult{Command: "show", Message: err.Error(), Exit: 1}), 1
-		}
-		code := 0
-		if !output.EntityExists(state, args[1]) {
-			code = 1
-		}
-		return presenter.Show(result), code
-
-	// D! id=cshow range-end
-	// D! id=cdiff range-start
-	case "diff":
-		if len(args) < 2 {
-			return presenter.Error(output.ErrorResult{
-				Command: "diff",
-				Message: "usage:\n  drift diff <marker|spec>\n  drift diff <marker> <module.spec>\n  drift diff --all\n\nExample: drift diff cval\n         drift diff cval core.validate",
-				Exit:    1,
-			}), 1
-		}
-		if len(args) >= 2 && args[1] == "--all" {
-			state, err := orch.Todo()
-			if err != nil {
-				return presenter.Error(output.ErrorResult{Command: "diff", Message: err.Error(), Exit: 1}), 1
-			}
-			edges := make([]orchestrator.DiffResult, 0, len(state.Todos))
-			for _, todo := range state.Todos {
-				result, err := orch.Diff(todo.MarkerID, todo.SpecID)
-				if err != nil {
-					return presenter.Error(output.ErrorResult{Command: "diff", Message: err.Error(), Exit: 1}), 1
-				}
-				edges = append(edges, result)
-			}
-			return presenter.DiffAll(output.DiffAllResult{State: state, Edges: edges}), 0
-		}
-		if len(args) >= 3 {
-			result, err := orch.Diff(args[1], args[2])
-			if err != nil {
-				return presenter.Error(output.ErrorResult{Command: "diff", Message: err.Error(), Exit: 1}), 1
-			}
-			return presenter.DiffEdge(output.DiffEdgeResult{Result: result}), 0
-		}
-		state, err := orch.Todo()
-		if err != nil {
-			return presenter.Error(output.ErrorResult{Command: "diff", Message: err.Error(), Exit: 1}), 1
-		}
-		edges, err := expandDiffEdges(orch, state, args[1])
-		if err != nil {
-			return presenter.Error(output.ErrorResult{Command: "diff", Message: err.Error(), Exit: 1}), 1
-		}
-		return presenter.DiffExpanded(output.DiffExpandedResult{ID: args[1], Edges: edges}), 0
-
-	// D! id=cdiff range-end
-	default:
-		return presenter.Error(output.ErrorResult{
-			Message: fmt.Sprintf("unknown command: %s\n\n%s", args[0], helpText()),
-			Exit:    1,
-		}), 1
+	ctx := commands.Context{
+		Args: args,
+		Dir:  dir,
+		Orch: orch,
 	}
-}
 
-// expandDiffEdges resolves all linked edges for a single ID (marker or spec)
-// by iterating state.Links and calling orch.Diff for each matching edge.
-func expandDiffEdges(orch *orchestrator.Orchestrator, state core.EvaluatedState, id string) ([]orchestrator.DiffResult, error) {
-	isSpec := strings.Contains(id, ".")
-	var pairs []struct{ marker, spec string }
-	if isSpec {
-		for _, link := range state.Links {
-			if link.SpecID == id {
-				pairs = append(pairs, struct{ marker, spec string }{link.MarkerID, link.SpecID})
-			}
-		}
-	} else {
-		for _, link := range state.Links {
-			if link.MarkerID == id {
-				pairs = append(pairs, struct{ marker, spec string }{link.MarkerID, link.SpecID})
-			}
-		}
-	}
-	if len(pairs) == 0 {
-		return nil, fmt.Errorf("no linked edges found for %q", id)
-	}
-	edges := make([]orchestrator.DiffResult, 0, len(pairs))
-	for _, p := range pairs {
-		result, err := orch.Diff(p.marker, p.spec)
-		if err != nil {
-			return nil, err
-		}
-		edges = append(edges, result)
-	}
-	return edges, nil
+	result, code := cmd.Run(ctx)
+	return output.Render(presenter, result), code
 }
 
 // D! id=cdisp range-end
-
-// D! id=chelp range-start
-func helpText() string {
-	return helpContent
-}
-
-// subcommandHelp returns the usage text for a known subcommand and ok=true,
-// or ok=false if the name is not a recognized subcommand.
-func subcommandHelp(name string) (string, bool) {
-	help, ok := subcommandHelpTexts[name]
-	if !ok {
-		return "", false
-	}
-	return help, true
-}
-
-var subcommandHelpTexts = map[string]string{
-	"init":   "Usage: drift init\n\nInitialize the .drift/ directory (state.xml + baselines/) and write a starter\nmain.drift.xml template if one does not already exist.\n\nNot idempotent: fails with exit code 1 if .drift/state.xml already exists.\nTo reinitialize, delete .drift/ by hand (drift provides no command for this).\n\nNo arguments.",
-	"todo":   "Usage: drift todo\n\nScan specs and markers, report drift.\nExit codes: 0 = clean, 1 = drift exists, 2 = error.\n\nNo arguments.",
-	"list":   "Usage: drift list [--verbose]\n\nShow all specs, markers, links, and sync state.\n--verbose: include spec text and marker content preview.",
-	"show":   "Usage: drift show <marker|spec>\n\nShow current content of a spec or marker with filepath and line ranges.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\nLinked specs/markers are also displayed.\n\nExamples:\n  drift show cval\n  drift show core.validate",
-	"diff":   "Usage:\n  drift diff <marker|spec>          Show what changed for an entity and all linked counterparts\n  drift diff <marker> <module.spec>  Show what changed for a specific edge\n  drift diff --all                   Show diffs for ALL drifted edges at once\n\nDisplays unified diffs of spec and marker content against their baselines.\nIf the ID has a dot, it is treated as a spec ID; otherwise as a marker ID.\n\nExamples:\n  drift diff cval\n  drift diff core.validate\n  drift diff cval core.validate\n  drift diff --all",
-	"link":   "Usage: drift link <marker> <module.spec>\n\nConnect a marker to a spec. Both must exist on disk.\n\nExample: drift link validate_input core.validate_input",
-	"unlink": "Usage: drift unlink <marker> <module.spec>\n\nRemove a link between a marker and a spec. Also clears any resolution state for that edge.\n\nExample: drift unlink validate_input core.validate_input",
-	"reset":  "Usage:\n  drift reset <marker> <module.spec>  Resolve a drifted edge\n  drift reset <id>                Remove an orphaned (deleted, no links) spec/marker\n\nMark a drifted edge as resolved. Collapses baselines when all edges for a node are resolved.\nWhen a spec or marker has been deleted and has no links, use a single ID to remove it from state.xml.\n\nExamples:\n  drift reset validate_input core.validate_input\n  drift reset main.deleted_spec",
-	"skill":  "Usage: drift skill\n\nPrint the comprehensive drift guide for LLM agents: workflow, spec file format,\nmarker syntax and range hashing model, CLI command table, drift detection model,\n.drift/ directory layout, and edge cases.\n\nNo arguments.",
-}
-
-// D! id=chelp range-end
-
-// D! id=cflag range-start
-var recognizedFlags = map[string]map[string]bool{
-	"init":   {},
-	"todo":   {},
-	"skill":  {},
-	"list":   {"--verbose": true},
-	"show":   {},
-	"diff":   {"--all": true},
-	"link":   {},
-	"unlink": {},
-	"reset":  {},
-}
-
-func rejectUnknownFlags(args []string) (string, bool) {
-	if len(args) == 0 {
-		return "", false
-	}
-	cmd := args[0]
-	allowed, ok := recognizedFlags[cmd]
-	if !ok {
-		return "", false
-	}
-	for _, a := range args[1:] {
-		if !strings.HasPrefix(a, "-") {
-			continue
-		}
-		if a == "--help" || a == "-h" {
-			continue
-		}
-		if allowed[a] {
-			continue
-		}
-		return fmt.Sprintf("unknown flag: %s", a), true
-	}
-	return "", false
-}
-
-// D! id=cflag range-end
-
-// D! id=cinit range-start
-func writeInitFiles(dir string) error {
-	mainPath := dir + "/main.drift.xml"
-	if !fileExists(mainPath) {
-		if err := writeFile(mainPath, initMainDriftXML); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// D! id=cinit range-end
-
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-func writeFile(path, content string) error {
-	return os.WriteFile(path, []byte(content), 0644)
-}

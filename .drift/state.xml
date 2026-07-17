@@ -1,132 +1,132 @@
 <drift>
   <specs>
-    <spec id="open_source_tools_drift.ci_persona" hash="934a8e77c0ad69bba9c6a44a63b097e78f2ed4a4" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
-    <spec id="orch.init" hash="8894b0557b12f98224d1507da6fc63f33d7e55b9" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
-    <spec id="scanner.spec_discovery" hash="29cfd266344a62dce28f30ee8021f09a2c7144b2" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="cli.init_idempotent" hash="74f4e46f42352bd6984881045a8f8d44e0c40e08" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="open_source_tools_drift.purpose" hash="db44ade821cf2d0fbb07ef10846af75db0539cc9" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
-    <spec id="principles.specs_are_truth" hash="b446e6ddc058349ac2f35b090e96fb3580f1cec1" filepath="principles.drift.xml" line="0"></spec>
-    <spec id="scanner.hash_sha1" hash="b8621666e0108002b4c6df66a5aa22acca078e28" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="cli.unlink_format" hash="6d2b4cb5f6b7081de6243978ef12a10a6dbc4b5a" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="business_goals.premise" hash="4ab3f27a43f155d0560b15405e0ea570a62c3b51" filepath="business/goals/goals.drift.xml" line="0"></spec>
-    <spec id="core.deleted_drift" hash="982641c2198d7b6d431a4862fa80df98e8635ada" filepath="core/core.drift.xml" line="0"></spec>
-    <spec id="cli.diff_all" hash="46a69039106cfaed771a609be1f6442417365d8c" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="open_source_tools_drift.spec_code_sync_model" hash="e9b7f75c71eb2550959c75597af7a99e680734d7" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
-    <spec id="scanner.range_markers" hash="649206d7f9fd233aac29911770f13853ac2ccf7e" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="pinstore.save" hash="3996445b9402964d0c662428ebe4e52e02aa76c8" filepath="statestore/statestore.drift.xml" line="0"></spec>
-    <spec id="cli.skill" hash="4c0f6579968dbbe2f3c514d1ac1a251fe24807d0" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="principles.friction" hash="4ab4f5d86b4e139236306124a924ea404bbd2b68" filepath="principles.drift.xml" line="0"></spec>
+    <spec id="core.reset_action" hash="d88c8c8108ff05b515b33631c874e1a03e2cd01f" filepath="core/core.drift.xml" line="0"></spec>
+    <spec id="core.scan_coverage" hash="cb3ebe0ccbe2066e1654c16a987dc741125e89f4" filepath="core/core.drift.xml" line="0"></spec>
     <spec id="scanner.duplicate_spec" hash="975dac06993895731e96e0f92669ddb2f1fcb6ba" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="pinstore.not_found" hash="eebffb0fa1ccf334f6905c03c35ae1d5a68aef77" filepath="statestore/statestore.drift.xml" line="0"></spec>
+    <spec id="scanner.duplicate_marker" hash="0cad411d64a61cfec4a3ca575a268e6265a48e92" filepath="scanner/scanner.drift.xml" line="0"></spec>
+    <spec id="scanner.text_file_detection" hash="deeca43e8fcaa7170fd279dd60fe9da188af5941" filepath="scanner/scanner.drift.xml" line="0"></spec>
+    <spec id="cli.reset_format" hash="a66b7d897e68974306a59d68c733c99ec0364626" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="cli.prescriptive_link_errors" hash="f0e6f8fbe193f3a82af8160f8b193857ca7b34d7" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="business_goals.build_open_source_tools" hash="a9131c04ed732414cf696621bff1b54e693a3321" filepath="business/goals/goals.drift.xml" line="0"></spec>
+    <spec id="open_source_tools_drift.purpose" hash="db44ade821cf2d0fbb07ef10846af75db0539cc9" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
+    <spec id="open_source_tools_drift.developer_persona" hash="00259b65d156326bf21fd5669c6bd3a860420281" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
+    <spec id="open_source_tools_drift.dual_audience_constraint" hash="f7822ee1e74aeeecf3735a881679e25bb99e4834" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
+    <spec id="principles.self_hosting" hash="4c5c9db9ce22b9976f47c2ab14b66ef0ded1a3e3" filepath="principles.drift.xml" line="0"></spec>
+    <spec id="core.collapse" hash="9773cb3a436076e78d2fdc348dfcd58470df55ec" filepath="core/core.drift.xml" line="0"></spec>
+    <spec id="scanner.spec_id_format" hash="468ec547876bc619d74fa96e444cf995c5f70229" filepath="scanner/scanner.drift.xml" line="0"></spec>
+    <spec id="orch.todo" hash="d557b8d6818289f1b523086759f54b89a457f696" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
+    <spec id="business_goals.explore_and_discover" hash="871752e488d8dddeff726d9e41fcf8f53fc19700" filepath="business/goals/goals.drift.xml" line="0"></spec>
+    <spec id="principles.red_before_green" hash="8747684bcd3d2055220740fb8df9511c8b02cc70" filepath="principles.drift.xml" line="0"></spec>
+    <spec id="cli.unknown_flag_rejection" hash="abefed4ba3338b863e85a8fd981597028b3e2737" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="cli.no_bulk_reset" hash="26ea93d88c3e00ec1ba3d51a15b1a4cfe5ac87ac" filepath="cli/cli.drift.xml" line="0"></spec>
     <spec id="cli.init_template" hash="253f43097a70df1f0ccb13489b5622f45c4771cc" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="open_source_tools_drift.spec_code_sync_model" hash="e9b7f75c71eb2550959c75597af7a99e680734d7" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
+    <spec id="core.validate" hash="7e5147aa388b278db4701540a28baf077ddb1a73" filepath="core/core.drift.xml" line="0"></spec>
+    <spec id="scanner.range_markers" hash="649206d7f9fd233aac29911770f13853ac2ccf7e" filepath="scanner/scanner.drift.xml" line="0"></spec>
+    <spec id="pinstore.not_found" hash="eebffb0fa1ccf334f6905c03c35ae1d5a68aef77" filepath="statestore/statestore.drift.xml" line="0"></spec>
+    <spec id="cli.help_flag" hash="18b887696c1ea17b672b37a93625d11df4ce120f" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="core.todo_action" hash="c7724819eda05df25a73c06768ff3f6cfb9ede72" filepath="core/core.drift.xml" line="0"></spec>
+    <spec id="scanner.spec_discovery" hash="29cfd266344a62dce28f30ee8021f09a2c7144b2" filepath="scanner/scanner.drift.xml" line="0"></spec>
+    <spec id="scanner.hash_sha1" hash="b8621666e0108002b4c6df66a5aa22acca078e28" filepath="scanner/scanner.drift.xml" line="0"></spec>
+    <spec id="pinstore.baselines" hash="ed01c9685cc2e19a6e2cd496b58ae63046a21f80" filepath="statestore/statestore.drift.xml" line="0"></spec>
+    <spec id="cli.unlink_format" hash="6d2b4cb5f6b7081de6243978ef12a10a6dbc4b5a" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="principles.specs_are_truth" hash="b446e6ddc058349ac2f35b090e96fb3580f1cec1" filepath="principles.drift.xml" line="0"></spec>
+    <spec id="pinstore.save" hash="3996445b9402964d0c662428ebe4e52e02aa76c8" filepath="statestore/statestore.drift.xml" line="0"></spec>
+    <spec id="business_goals.create_best_practices" hash="f898b0cd49f633a0b5fc82ab8a765ecfcf5d9afd" filepath="business/goals/goals.drift.xml" line="0"></spec>
+    <spec id="orch.unlink" hash="589fccf05226a09b8b32374091250c2179a34a9f" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
+    <spec id="orch.reconcile_markers" hash="e89f569eabf7428c054ba5336996403b305acd7a" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
     <spec id="cli.format_todo" hash="2ace3447b8557f8350a6fe90edec00700fd29a28" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="cli.diff_command" hash="b8e65b45ca598f970048521ca0edbb48889fe597" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="principles.friction" hash="4ab4f5d86b4e139236306124a924ea404bbd2b68" filepath="principles.drift.xml" line="0"></spec>
+    <spec id="principles.language_agnostic" hash="8779e68558595530029c367fc2f0ab930fa74b20" filepath="principles.drift.xml" line="0"></spec>
+    <spec id="core.deleted_drift" hash="982641c2198d7b6d431a4862fa80df98e8635ada" filepath="core/core.drift.xml" line="0"></spec>
+    <spec id="orch.init" hash="8894b0557b12f98224d1507da6fc63f33d7e55b9" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
+    <spec id="cli.help" hash="70fa0ce2844d82146cdd91ba11d573472021d178" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="cli.show_command" hash="9170148d19d06e59e1766e5d62a0fb522f691aa0" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="open_source_tools_drift.ci_persona" hash="934a8e77c0ad69bba9c6a44a63b097e78f2ed4a4" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
+    <spec id="scanner.marker_discovery" hash="03eb568aa241af59163c05efa7dfbc2447a3d273" filepath="scanner/scanner.drift.xml" line="0"></spec>
+    <spec id="cli.link_format" hash="5b4a235a92effa8ef347f35f642e1c73744eb45f" filepath="cli/cli.drift.xml" line="0"></spec>
     <spec id="cli.list_format" hash="97dc548e2719468b2f6f424f521b6aff65f0d821" filepath="cli/cli.drift.xml" line="0"></spec>
     <spec id="cli.reset_orphan" hash="370647508cca133b9a49ca91a33a8ed3c6f186d0" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="principles.language_agnostic" hash="8779e68558595530029c367fc2f0ab930fa74b20" filepath="principles.drift.xml" line="0"></spec>
-    <spec id="principles.red_before_green" hash="8747684bcd3d2055220740fb8df9511c8b02cc70" filepath="principles.drift.xml" line="0"></spec>
-    <spec id="orch.reset" hash="95f36e91e216b8baa30d4e026e57010ffee5e7f8" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
-    <spec id="cli.reset_format" hash="a66b7d897e68974306a59d68c733c99ec0364626" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="principles.self_hosting" hash="4c5c9db9ce22b9976f47c2ab14b66ef0ded1a3e3" filepath="principles.drift.xml" line="0"></spec>
-    <spec id="core.scan_coverage" hash="cb3ebe0ccbe2066e1654c16a987dc741125e89f4" filepath="core/core.drift.xml" line="0"></spec>
-    <spec id="orch.todo" hash="d557b8d6818289f1b523086759f54b89a457f696" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
-    <spec id="orch.link" hash="55b271cf7e1d244b33f067d48591b86a9e2e3968" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
-    <spec id="orch.unlink" hash="589fccf05226a09b8b32374091250c2179a34a9f" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
-    <spec id="cli.show_command" hash="9170148d19d06e59e1766e5d62a0fb522f691aa0" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="business_goals.communicate" hash="6f0cdc334f419712488da3170354df4e1620f648" filepath="business/goals/goals.drift.xml" line="0"></spec>
-    <spec id="cli.link_format" hash="5b4a235a92effa8ef347f35f642e1c73744eb45f" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="cli.diff_command" hash="b8e65b45ca598f970048521ca0edbb48889fe597" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="cli.marker_example" hash="0bdc425f55be31be6e6617831a53d036863a2418" filepath="cli/cli.drift.xml" line="0"></spec>
     <spec id="open_source_tools_drift.llm_agent_persona" hash="e9b31136fa8564f31f46da84a46ae52c18264849" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
-    <spec id="open_source_tools_drift.dual_audience_constraint" hash="f7822ee1e74aeeecf3735a881679e25bb99e4834" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
-    <spec id="principles.zero_dependency_portable" hash="85523bab32f5cd5b90b124f1e34619ac85901ad5" filepath="principles.drift.xml" line="0"></spec>
-    <spec id="core.reset_action" hash="d88c8c8108ff05b515b33631c874e1a03e2cd01f" filepath="core/core.drift.xml" line="0"></spec>
-    <spec id="scanner.marker_discovery" hash="03eb568aa241af59163c05efa7dfbc2447a3d273" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="pinstore.load" hash="035aa9f4b05ef640325cb64474c39d67d502c356" filepath="statestore/statestore.drift.xml" line="0"></spec>
-    <spec id="orch.reconcile_specs" hash="99cebbbedd729691adf3e91ed8c9fa8220c4e04e" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
-    <spec id="business_goals.build_open_source_tools" hash="a9131c04ed732414cf696621bff1b54e693a3321" filepath="business/goals/goals.drift.xml" line="0"></spec>
-    <spec id="open_source_tools_drift.developer_persona" hash="00259b65d156326bf21fd5669c6bd3a860420281" filepath="business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" line="0"></spec>
-    <spec id="orch.diff" hash="708f2c5ec754788925a7dd489e578c82f9ca57f4" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
-    <spec id="cli.dispatch" hash="07920a5b8bfd76efdd8cb77b9b8ffab6078c732b" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="cli.unknown_flag_rejection" hash="abefed4ba3338b863e85a8fd981597028b3e2737" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="cli.prescriptive_link_errors" hash="f0e6f8fbe193f3a82af8160f8b193857ca7b34d7" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="business_goals.create_best_practices" hash="f898b0cd49f633a0b5fc82ab8a765ecfcf5d9afd" filepath="business/goals/goals.drift.xml" line="0"></spec>
-    <spec id="scanner.missing_id" hash="d8ca2869b16a4fc245b98db778ee175fca63f2ed" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="orch.reconcile_markers" hash="e89f569eabf7428c054ba5336996403b305acd7a" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
-    <spec id="cli.no_bulk_reset" hash="26ea93d88c3e00ec1ba3d51a15b1a4cfe5ac87ac" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="scanner.duplicate_marker" hash="0cad411d64a61cfec4a3ca575a268e6265a48e92" filepath="scanner/scanner.drift.xml" line="0"></spec>
     <spec id="scanner.specs_wrapper_rejection" hash="7c16e621fe03786f2bce8632a1220745c9c2c964" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="scanner.marker_id_format" hash="f787489ed84e5eb6ead850a2007548dd917c2ac5" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="pinstore.baselines" hash="ed01c9685cc2e19a6e2cd496b58ae63046a21f80" filepath="statestore/statestore.drift.xml" line="0"></spec>
-    <spec id="cli.help" hash="70fa0ce2844d82146cdd91ba11d573472021d178" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="business_goals.explore_and_discover" hash="871752e488d8dddeff726d9e41fcf8f53fc19700" filepath="business/goals/goals.drift.xml" line="0"></spec>
-    <spec id="core.edge_unchecked" hash="b7c72cd90529edd3651adc3b2c845ec39a2d966c" filepath="core/core.drift.xml" line="0"></spec>
-    <spec id="scanner.spec_id_format" hash="468ec547876bc619d74fa96e444cf995c5f70229" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="cli.help_flag" hash="18b887696c1ea17b672b37a93625d11df4ce120f" filepath="cli/cli.drift.xml" line="0"></spec>
-    <spec id="core.collapse" hash="9773cb3a436076e78d2fdc348dfcd58470df55ec" filepath="core/core.drift.xml" line="0"></spec>
-    <spec id="scanner.text_file_detection" hash="deeca43e8fcaa7170fd279dd60fe9da188af5941" filepath="scanner/scanner.drift.xml" line="0"></spec>
-    <spec id="scanner.marker_blanking" hash="6dbeca515c5c7ae0bc9b0840c88d0981267bdf2c" filepath="scanner/scanner.drift.xml" line="0"></spec>
     <spec id="orch.orphan_reset" hash="2a0b263d72182ab8c86c17cbc001bdaebd3ca7a2" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
-    <spec id="core.validate" hash="7e5147aa388b278db4701540a28baf077ddb1a73" filepath="core/core.drift.xml" line="0"></spec>
-    <spec id="core.todo_action" hash="c7724819eda05df25a73c06768ff3f6cfb9ede72" filepath="core/core.drift.xml" line="0"></spec>
+    <spec id="scanner.marker_id_format" hash="f787489ed84e5eb6ead850a2007548dd917c2ac5" filepath="scanner/scanner.drift.xml" line="0"></spec>
     <spec id="cli.unlinked_warning" hash="c739a85bf67bbf91e4f785361a8010d3a73106a7" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="cli.skill" hash="4c0f6579968dbbe2f3c514d1ac1a251fe24807d0" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="business_goals.communicate" hash="6f0cdc334f419712488da3170354df4e1620f648" filepath="business/goals/goals.drift.xml" line="0"></spec>
+    <spec id="principles.zero_dependency_portable" hash="85523bab32f5cd5b90b124f1e34619ac85901ad5" filepath="principles.drift.xml" line="0"></spec>
+    <spec id="scanner.missing_id" hash="d8ca2869b16a4fc245b98db778ee175fca63f2ed" filepath="scanner/scanner.drift.xml" line="0"></spec>
+    <spec id="pinstore.load" hash="035aa9f4b05ef640325cb64474c39d67d502c356" filepath="statestore/statestore.drift.xml" line="0"></spec>
+    <spec id="core.edge_unchecked" hash="b7c72cd90529edd3651adc3b2c845ec39a2d966c" filepath="core/core.drift.xml" line="0"></spec>
+    <spec id="cli.init_idempotent" hash="74f4e46f42352bd6984881045a8f8d44e0c40e08" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="scanner.marker_blanking" hash="6dbeca515c5c7ae0bc9b0840c88d0981267bdf2c" filepath="scanner/scanner.drift.xml" line="0"></spec>
+    <spec id="orch.reset" hash="95f36e91e216b8baa30d4e026e57010ffee5e7f8" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
+    <spec id="orch.link" hash="55b271cf7e1d244b33f067d48591b86a9e2e3968" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
+    <spec id="orch.reconcile_specs" hash="99cebbbedd729691adf3e91ed8c9fa8220c4e04e" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
+    <spec id="cli.dispatch" hash="07920a5b8bfd76efdd8cb77b9b8ffab6078c732b" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="cli.diff_all" hash="46a69039106cfaed771a609be1f6442417365d8c" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="business_goals.premise" hash="4ab3f27a43f155d0560b15405e0ea570a62c3b51" filepath="business/goals/goals.drift.xml" line="0"></spec>
+    <spec id="orch.diff" hash="708f2c5ec754788925a7dd489e578c82f9ca57f4" filepath="orchestrator/orchestrator.drift.xml" line="0"></spec>
+    <spec id="cli.marker_example" hash="0bdc425f55be31be6e6617831a53d036863a2418" filepath="cli/cli.drift.xml" line="0"></spec>
   </specs>
   <markers>
-    <marker id="clst" hash="856b269844069e0d7fb04eb9f7d4ec24a9784416" filepath="cli/cli.go" line="173" endline="183"></marker>
-    <marker id="cdall" hash="afc09316170217c946f2926db64fe6ffc3874bd2" filepath="cli/output/plain.go" line="346" endline="368"></marker>
-    <marker id="crst" hash="3ad64a76691aeee33e6e6bfdde62b3b7016c9d59" filepath="core/core.go" line="245" endline="286"></marker>
-    <marker id="oinit" hash="960ec36e8f5dce3cec90d0c92c10994bdd402cd6" filepath="orchestrator/orchestrator.go" line="93" endline="105"></marker>
-    <marker id="otodo" hash="7872fa942cc2c9fad16b70285af4870d676ab0cc" filepath="orchestrator/orchestrator.go" line="107" endline="142"></marker>
-    <marker id="ounlnk" hash="ed52e85bf91aec787ad5aa2e515e5b97d77bcf0e" filepath="orchestrator/orchestrator.go" line="409" endline="447"></marker>
-    <marker id="sdups" hash="ec81185ecc270456caa202b988656c307fa9c8d3" filepath="scanner/scanner.go" line="278" endline="282"></marker>
-    <marker id="swrap" hash="8a78b8bf40d28d5169e9592fd2f7f41223dcd554" filepath="scanner/scanner.go" line="232" endline="236"></marker>
-    <marker id="ofmtl" hash="eff927e15e32c1ee5901c45def04485041602e91" filepath="cli/output/plain.go" line="130" endline="231"></marker>
-    <marker id="validate_input" hash="f809cccadb307ffece9ba92750c0481e4dd8f403" filepath="cli/skill.md" line="56" endline="60"></marker>
-    <marker id="cedg" hash="86f9e377660ee6cf3f6661ef47cd558e6f72b076" filepath="core/core.go" line="388" endline="419"></marker>
-    <marker id="cdeld" hash="3ba14e5da87bbd5c41027a8e1906f26b7ee5ca0a" filepath="core/core.go" line="479" endline="519"></marker>
-    <marker id="cval" hash="35dee4eecd400418012c5ac01ba8aa0051b737ad" filepath="core/core.go" line="114" endline="165"></marker>
-    <marker id="schk" hash="7849f1af68bbb778f1c74ce4e2bceb1be043f29b" filepath="core/core.go" line="366" endline="386"></marker>
-    <marker id="olink" hash="8e0a2ea1f9a28578c063a6527d1a95a18d026e1d" filepath="orchestrator/orchestrator.go" line="323" endline="407"></marker>
-    <marker id="zerodep" hash="d7d762c511419505dca201f47bec77003e29b95e" filepath="scripts/release.sh" line="41" endline="57"></marker>
-    <marker id="clfmt" hash="4351982240b2d260a43936fff0acc4fef7bc3fe7" filepath="cli/cli.go" line="135" endline="153"></marker>
-    <marker id="chelp" hash="27481c57c364a5d2578d7502b31dc6d9413536f9" filepath="cli/cli.go" line="297" endline="324"></marker>
-    <marker id="cscn" hash="028acbeeae2b06a6508ecc3a008d023e538917f7" filepath="core/core.go" line="167" endline="206"></marker>
-    <marker id="pmrk" hash="33f069eea18bf41b4a3de65f3337d57b8673c79b" filepath="core/core.go" line="421" endline="448"></marker>
+    <marker id="orest" hash="701050d0d50bcee17572fd1dedc3e046638e17bf" filepath="orchestrator/orchestrator.go" line="144" endline="211"></marker>
     <marker id="crorph" hash="312b2b903bfef8cc843a8a33c2cb02ba135a7e62" filepath="orchestrator/orchestrator.go" line="213" endline="321"></marker>
-    <marker id="scode" hash="3d2d710c1a32943aae745436e4f953d2b56d71f8" filepath="scanner/scanner.go" line="18" endline="87"></marker>
-    <marker id="smark" hash="bc5c25ccbe63b11055ed6e75092d323297e3e2db" filepath="scanner/scanner.go" line="310" endline="358"></marker>
-    <marker id="psave" hash="037b7283441900eb14955966a2f877f739ddc568" filepath="statestore/pin_file.go" line="166" endline="222"></marker>
-    <marker id="crfmt" hash="7318d3056c4afae9ccef0f64a45e65b1c626f991" filepath="cli/cli.go" line="98" endline="134"></marker>
-    <marker id="cunlnk" hash="8bccb0ff840ade7bb4e1f1fdaeee61ecdac98edd" filepath="cli/cli.go" line="154" endline="172"></marker>
-    <marker id="cshow" hash="3944447496a611ab245a46a136750d4e47438b38" filepath="cli/cli.go" line="189" endline="212"></marker>
-    <marker id="orspc" hash="6b8f10c02a81f58ed8d0e17c6cc4cb5d42d12754" filepath="orchestrator/orchestrator.go" line="449" endline="490"></marker>
-    <marker id="smname" hash="8a92ea45498bafdd3a66652332109267b4283542" filepath="scanner/scanner.go" line="243" endline="247"></marker>
-    <marker id="sidfmt" hash="fc12587d0f2d92f9c1ca9e48c20329f489d7317d" filepath="scanner/scanner.go" line="272" endline="276"></marker>
-    <marker id="pload" hash="9712af0af7ec496e1cc4ec13599945026803024a" filepath="statestore/pin_file.go" line="102" endline="164"></marker>
-    <marker id="cinit" hash="33a8aa8f91345daeacc915eceb5a4d6496c54329" filepath="cli/cli.go" line="365" endline="376"></marker>
-    <marker id="cfmt" hash="45289b34db680f4d484edf74c2b3a5f9636daf4d" filepath="cli/output/plain.go" line="23" endline="128"></marker>
-    <marker id="ctodo" hash="f766807a61f45172506fb62c29087a8beea825d1" filepath="core/core.go" line="222" endline="243"></marker>
-    <marker id="cperr" hash="b3f1417f9a769fd9bbb68f3ac75cccdfc97c1a55" filepath="orchestrator/orchestrator.go" line="345" endline="353"></marker>
-    <marker id="odiff" hash="d26e6ccce24014922c87660611087e8cb5595d04" filepath="orchestrator/orchestrator.go" line="535" endline="627"></marker>
     <marker id="ormrk" hash="b53c69a22eb137acb12094e3a4907bcbf378c0d3" filepath="orchestrator/orchestrator.go" line="492" endline="533"></marker>
+    <marker id="sspec" hash="ea98dae00a5e7480e94896cb450f53cb4cb0e376" filepath="scanner/scanner.go" line="156" endline="177"></marker>
+    <marker id="smiss" hash="86629f2a696c3c55b38afed9ce18383a395b07d2" filepath="scanner/scanner.go" line="267" endline="271"></marker>
+    <marker id="cinit" hash="b5f7046869ebcf61765bef247d4743943a9f8636" filepath="cli/commands/helpers.go" line="10" endline="19"></marker>
+    <marker id="clfmt" hash="4b2645e7f6e9649e10e056f2af2b93fbe37e19e3" filepath="cli/commands/link.go" line="12" endline="31"></marker>
+    <marker id="cshow" hash="7688f124d8ab6040eebe2ef4b1d9d54df18936bb" filepath="cli/commands/show.go" line="8" endline="32"></marker>
+    <marker id="cunlnk" hash="d0ee997def2d415e9a62ec41fd42eecaaabaae7f" filepath="cli/commands/unlink.go" line="12" endline="31"></marker>
+    <marker id="chelp" hash="6fda30eecb669c2f568349c589b400ce3e8458ce" filepath="cli/registry.go" line="32" endline="43"></marker>
+    <marker id="cdeld" hash="3ba14e5da87bbd5c41027a8e1906f26b7ee5ca0a" filepath="core/core.go" line="479" endline="519"></marker>
+    <marker id="ounlnk" hash="ed52e85bf91aec787ad5aa2e515e5b97d77bcf0e" filepath="orchestrator/orchestrator.go" line="409" endline="447"></marker>
+    <marker id="pbase" hash="55307c929b4f1925a2f7c0e6b9bc0245e32bacbe" filepath="statestore/baselines.go" line="11" endline="63"></marker>
+    <marker id="cval" hash="35dee4eecd400418012c5ac01ba8aa0051b737ad" filepath="core/core.go" line="114" endline="165"></marker>
+    <marker id="pspc" hash="adc8dfcc5927cf20d588ec2d9e606266a0c284e7" filepath="core/core.go" line="450" endline="477"></marker>
+    <marker id="swrap" hash="8a78b8bf40d28d5169e9592fd2f7f41223dcd554" filepath="scanner/scanner.go" line="232" endline="236"></marker>
+    <marker id="mregex" hash="2ea2cdd936850c4cec80bcb0771462230311a4c4" filepath="scanner/scanner.go" line="89" endline="97"></marker>
     <marker id="shash" hash="285a730b9f244edb3960e9eda3a2cfa25a2fca20" filepath="scanner/scanner.go" line="480" endline="486"></marker>
     <marker id="selfhost" hash="6acb344668661f138b3e323e6736ea4b88a04dd5" filepath="README.md" line="133" endline="135"></marker>
-    <marker id="cnobulk" hash="bb587d823fe3671f4faf7fc4cc5f098c3ed27b90" filepath="cli/cli.go" line="123" endline="132"></marker>
-    <marker id="cdiff" hash="495d96a52102d5db65bef6628ef5e67b198049ae" filepath="cli/cli.go" line="213" endline="254"></marker>
-    <marker id="cflag" hash="8c5b71b4455432441d0f8fbcf85522dfae12c95b" filepath="cli/cli.go" line="326" endline="363"></marker>
-    <marker id="mregex" hash="2ea2cdd936850c4cec80bcb0771462230311a4c4" filepath="scanner/scanner.go" line="89" endline="97"></marker>
-    <marker id="sspec" hash="ea98dae00a5e7480e94896cb450f53cb4cb0e376" filepath="scanner/scanner.go" line="156" endline="177"></marker>
     <marker id="testfirst" hash="addf081a07a57e714f2797df9569f15c53f8ba04" filepath="README.md" line="137" endline="139"></marker>
-    <marker id="cdisp" hash="8f9883d972c8d921752140f2023118a0edf9948c" filepath="cli/cli.go" line="45" endline="295"></marker>
-    <marker id="ccol" hash="f3b57b56b416d973610d2b2713ba7ad99463b045" filepath="core/core.go" line="288" endline="342"></marker>
+    <marker id="crfmt" hash="992ed7996d1a2158091e640e209cc45cd5f4ac4a" filepath="cli/commands/reset.go" line="15" endline="53"></marker>
+    <marker id="cskill" hash="a34b51e2e98f148a9afee76ec71a3688ae5e9dc2" filepath="cli/commands/skill.go" line="11" endline="16"></marker>
+    <marker id="cfmt" hash="45289b34db680f4d484edf74c2b3a5f9636daf4d" filepath="cli/output/plain.go" line="23" endline="128"></marker>
+    <marker id="ctodo" hash="f766807a61f45172506fb62c29087a8beea825d1" filepath="core/core.go" line="222" endline="243"></marker>
     <marker id="mchk" hash="40d136a0bc26e28caa01347917514ef2422dfc08" filepath="core/core.go" line="344" endline="364"></marker>
-    <marker id="orest" hash="701050d0d50bcee17572fd1dedc3e046638e17bf" filepath="orchestrator/orchestrator.go" line="144" endline="211"></marker>
-    <marker id="sdupm" hash="7a9895e9e77f75f73ca1c01e6a8b85dbfb49fdb3" filepath="scanner/scanner.go" line="342" endline="347"></marker>
+    <marker id="cedg" hash="86f9e377660ee6cf3f6661ef47cd558e6f72b076" filepath="core/core.go" line="388" endline="419"></marker>
+    <marker id="cflag" hash="cdb1207fac82035ff46673d2062cea4909bda6c5" filepath="cli/registry.go" line="45" endline="88"></marker>
+    <marker id="validate_input" hash="f809cccadb307ffece9ba92750c0481e4dd8f403" filepath="cli/skill.md" line="56" endline="60"></marker>
+    <marker id="olink" hash="8e0a2ea1f9a28578c063a6527d1a95a18d026e1d" filepath="orchestrator/orchestrator.go" line="323" endline="407"></marker>
+    <marker id="sidfmt" hash="fc12587d0f2d92f9c1ca9e48c20329f489d7317d" filepath="scanner/scanner.go" line="272" endline="276"></marker>
+    <marker id="sdups" hash="ec81185ecc270456caa202b988656c307fa9c8d3" filepath="scanner/scanner.go" line="278" endline="282"></marker>
     <marker id="pnope" hash="f70c197da227765920bf0133a87611f45f8b69f2" filepath="statestore/pin_file.go" line="12" endline="15"></marker>
-    <marker id="cskill" hash="fd0cc8f6696ac8f8d444072e4efeeb3f5ef6482b" filepath="cli/cli.go" line="184" endline="187"></marker>
+    <marker id="pload" hash="9712af0af7ec496e1cc4ec13599945026803024a" filepath="statestore/pin_file.go" line="102" endline="164"></marker>
+    <marker id="cscn" hash="028acbeeae2b06a6508ecc3a008d023e538917f7" filepath="core/core.go" line="167" endline="206"></marker>
+    <marker id="sdupm" hash="7a9895e9e77f75f73ca1c01e6a8b85dbfb49fdb3" filepath="scanner/scanner.go" line="342" endline="347"></marker>
+    <marker id="smname" hash="8a92ea45498bafdd3a66652332109267b4283542" filepath="scanner/scanner.go" line="243" endline="247"></marker>
+    <marker id="smark" hash="bc5c25ccbe63b11055ed6e75092d323297e3e2db" filepath="scanner/scanner.go" line="310" endline="358"></marker>
+    <marker id="scode" hash="3d2d710c1a32943aae745436e4f953d2b56d71f8" filepath="scanner/scanner.go" line="18" endline="87"></marker>
+    <marker id="zerodep" hash="d7d762c511419505dca201f47bec77003e29b95e" filepath="scripts/release.sh" line="41" endline="57"></marker>
+    <marker id="cdisp" hash="f9dadebace2080001bb2bbf2498dbdb36eff45e0" filepath="cli/cli.go" line="43" endline="80"></marker>
+    <marker id="cdiff" hash="bcfe4203bc0e6868f8adfe744f14d3fd3c087c92" filepath="cli/commands/diff.go" line="18" endline="61"></marker>
     <marker id="cdifffmt" hash="b7ebc0cb5191b35921b7f7521285cb440805d19f" filepath="cli/output/plain.go" line="287" endline="369"></marker>
-    <marker id="pspc" hash="adc8dfcc5927cf20d588ec2d9e606266a0c284e7" filepath="core/core.go" line="450" endline="477"></marker>
-    <marker id="smiss" hash="86629f2a696c3c55b38afed9ce18383a395b07d2" filepath="scanner/scanner.go" line="267" endline="271"></marker>
-    <marker id="pbase" hash="55307c929b4f1925a2f7c0e6b9bc0245e32bacbe" filepath="statestore/baselines.go" line="11" endline="63"></marker>
+    <marker id="pmrk" hash="33f069eea18bf41b4a3de65f3337d57b8673c79b" filepath="core/core.go" line="421" endline="448"></marker>
+    <marker id="oinit" hash="960ec36e8f5dce3cec90d0c92c10994bdd402cd6" filepath="orchestrator/orchestrator.go" line="93" endline="105"></marker>
+    <marker id="orspc" hash="6b8f10c02a81f58ed8d0e17c6cc4cb5d42d12754" filepath="orchestrator/orchestrator.go" line="449" endline="490"></marker>
+    <marker id="psave" hash="037b7283441900eb14955966a2f877f739ddc568" filepath="statestore/pin_file.go" line="166" endline="222"></marker>
+    <marker id="clst" hash="80c3d0bfce9e1b10c763487efe2094f35835c606" filepath="cli/commands/list.go" line="8" endline="19"></marker>
+    <marker id="cnobulk" hash="c85faca522d89366e109d4bb3e5e2d81e9bf42cc" filepath="cli/commands/reset.go" line="41" endline="50"></marker>
+    <marker id="ofmtl" hash="eff927e15e32c1ee5901c45def04485041602e91" filepath="cli/output/plain.go" line="130" endline="231"></marker>
+    <marker id="cdall" hash="afc09316170217c946f2926db64fe6ffc3874bd2" filepath="cli/output/plain.go" line="346" endline="368"></marker>
+    <marker id="crst" hash="3ad64a76691aeee33e6e6bfdde62b3b7016c9d59" filepath="core/core.go" line="245" endline="286"></marker>
+    <marker id="schk" hash="7849f1af68bbb778f1c74ce4e2bceb1be043f29b" filepath="core/core.go" line="366" endline="386"></marker>
+    <marker id="odiff" hash="d26e6ccce24014922c87660611087e8cb5595d04" filepath="orchestrator/orchestrator.go" line="535" endline="627"></marker>
+    <marker id="otodo" hash="7872fa942cc2c9fad16b70285af4870d676ab0cc" filepath="orchestrator/orchestrator.go" line="107" endline="142"></marker>
+    <marker id="ccol" hash="f3b57b56b416d973610d2b2713ba7ad99463b045" filepath="core/core.go" line="288" endline="342"></marker>
+    <marker id="cperr" hash="b3f1417f9a769fd9bbb68f3ac75cccdfc97c1a55" filepath="orchestrator/orchestrator.go" line="345" endline="353"></marker>
   </markers>
   <links>
     <link specId="core.validate" markerId="cval"></link>

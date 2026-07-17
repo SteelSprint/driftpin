@@ -1,0 +1,38 @@
+package commands
+
+import (
+	"fmt"
+
+	"drift/cli/output"
+)
+
+// LinkCommand implements `drift link <marker> <module.spec>`.
+type LinkCommand struct{}
+
+// D! id=clfmt range-start
+func (c LinkCommand) Run(ctx Context) (output.Result, int) {
+	if len(ctx.Args) < 3 {
+		return output.ErrorResult{
+			Command: "link",
+			Message: "usage: drift link <marker> <module.spec>\n\nExample: drift link validate_input core.validate_input",
+			Exit:    1,
+		}, 1
+	}
+	err := ctx.Orch.Link(ctx.Args[1], ctx.Args[2])
+	if err != nil {
+		return output.ErrorResult{Command: "link", Message: err.Error(), Exit: 1}, 1
+	}
+	return output.OkResult{
+		Command: "link",
+		Message: fmt.Sprintf("Linked marker %q to spec %q", ctx.Args[1], ctx.Args[2]),
+	}, 0
+}
+
+// D! id=clfmt range-end
+func (c LinkCommand) Meta() Meta {
+	return Meta{
+		Name:  "link",
+		Short: "Connect a marker to a spec",
+		Usage: "Usage: drift link <marker> <module.spec>\n\nConnect a marker to a spec. Both must exist on disk.\n\nExample: drift link validate_input core.validate_input",
+	}
+}

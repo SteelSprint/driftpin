@@ -1,0 +1,8 @@
+	_, err := ctx.Orch.Reset(args[1], args[2])
+	if err != nil {
+		return output.ErrorResult{Command: "reset", Message: err.Error(), Exit: 1}, 1
+	}
+	return output.OkResult{
+		Command: "reset",
+		Message: fmt.Sprintf("Resolved: %s → %s. Baseline updated.", args[1], args[2]),
+	}, 0

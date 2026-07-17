@@ -1,0 +1,8 @@
+func writeInitFile(dir, template string) error {
+	mainPath := filepath.Join(dir, "main.drift.xml")
+	if _, err := os.Stat(mainPath); err == nil {
+		return nil
+	}
+	return os.WriteFile(mainPath, []byte(template), 0644)
+}
+
