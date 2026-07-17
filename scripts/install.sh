@@ -17,9 +17,13 @@ REPO="SteelSprint/Drift"
 
 # --- guards: never rm -rf an unset/empty/inherited path ---
 WORKDIR=""
+STAGE=""
 cleanup() {
 	if [ -n "$WORKDIR" ] && [ -d "$WORKDIR" ]; then
 		rm -rf "$WORKDIR"
+	fi
+	if [ -n "$STAGE" ] && [ -f "$STAGE" ]; then
+		rm -f "$STAGE"
 	fi
 }
 trap cleanup EXIT INT TERM HUP
@@ -153,25 +157,44 @@ if [ ! -f "${WORKDIR}/drift" ]; then
 	err "extraction succeeded but drift binary is missing"
 fi
 
-# --- install ---
+# --- install (atomic) ---
+# Stage the new binary in the same directory as the target so the final
+# `mv` is a single atomic rename(2) syscall. Either INSTALL_PATH becomes
+# the new binary or it's unchanged — there is no intermediate state.
+# This is crash-safe: if any step fails (disk full, signal, permission),
+# the previous binary at INSTALL_PATH is preserved.
 mkdir -p "$DESTDIR"
 INSTALL_PATH="${DESTDIR}/drift"
+STAGE="${DESTDIR}/.drift.new.$$"
 
 # if INSTALL_PATH is a directory, refuse (don't silently install inside it)
 if [ -d "$INSTALL_PATH" ]; then
 	err "${INSTALL_PATH} is a directory, not a file; refusing to overwrite. Remove it first."
 fi
 
-# move aside an existing file so we don't overwrite a running binary
-if [ -e "$INSTALL_PATH" ]; then
-	mv "$INSTALL_PATH" "${INSTALL_PATH}.old" 2>/dev/null || err "could not move existing ${INSTALL_PATH} aside (is it in use?)"
+# stage the new binary in the target directory (same filesystem → atomic rename)
+cp "${WORKDIR}/drift" "$STAGE" || err "could not stage new binary to ${STAGE} (disk full?)"
+chmod +x "$STAGE" || { rm -f "$STAGE"; err "could not chmod staged binary"; }
+
+# keep a backup COPY of the existing binary for manual rollback.
+# this is a copy (not a move) — the original stays in place until the
+# atomic rename below, so INSTALL_PATH is never missing.
+if [ -e "$INSTALL_PATH" ] && [ ! -d "$INSTALL_PATH" ]; then
+	cp "$INSTALL_PATH" "${INSTALL_PATH}.old" 2>/dev/null || true
 fi
 
-mv "${WORKDIR}/drift" "$INSTALL_PATH"
-chmod +x "$INSTALL_PATH"
+# atomic install: rename(2) either replaces INSTALL_PATH entirely or does nothing.
+# if this fails, INSTALL_PATH still holds the previous (working) binary.
+if ! mv -f "$STAGE" "$INSTALL_PATH"; then
+	rm -f "$STAGE"
+	err "could not install to ${INSTALL_PATH} (permission denied?). The previous binary is unchanged."
+fi
 
 echo
 echo "Installed drift ${TAG} → ${INSTALL_PATH}"
+if [ -f "${INSTALL_PATH}.old" ]; then
+	echo "Previous version backed up to ${INSTALL_PATH}.old"
+fi
 
 # --- PATH hint ---
 case ":${PATH}:" in
