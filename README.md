@@ -10,6 +10,10 @@
 
 Single static binary. No runtime, no libraries, no config files — just one executable you can drop anywhere.
 
+## Language agnostic
+
+Drift works with any programming language. Specs are plain XML; markers are comment lines (`// D! id=... range-start` / `// D! id=... range-end`) that work in any comment style — `//`, `#`, `--`, `/* */`. The scanner recognizes 24 file extensions out of the box: Go, Python, JavaScript/TypeScript, Java, C/C++, Rust, Ruby, PHP, Swift, Kotlin, C#, Scala, Shell, Lua, Dart, Vue, and Svelte. Mixing languages in one project is fine — a Python spec can link to a Go marker and vice versa.
+
 ## Install
 
 **macOS / Linux:**
