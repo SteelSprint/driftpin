@@ -1,0 +1,1 @@
+The scan must provide a hash for every spec and marker in the context, including empty string for deleted entries. Missing hashes for known specs or markers cause an error. Unknown spec or marker hashes in the scan that are not in the context also cause an error. See principles.specs_are_truth.

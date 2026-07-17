@@ -1,0 +1,1 @@
+Duplicate spec IDs within the same module cause an error with the duplicate ID quoted. See principles.specs_are_truth.

@@ -1,0 +1,1 @@
+The skill guide contains a working example marker (validate_input) in a Go code block demonstrating the range-start/range-end syntax. This marker is drift-tracked — editing the example in skill.md will flag drift, proving that drift can control documentation alongside code. See principles.self_hosting.

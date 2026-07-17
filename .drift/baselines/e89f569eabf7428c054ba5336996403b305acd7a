@@ -1,0 +1,1 @@
+ReconcileMarkers compares baselined markers against scanned markers. Baselined markers not found on disk are kept in the result with Deleted=true and their baseline hash preserved (no error). New markers in the scan get baseline equal to current hash. Existing markers keep their baselined baseline hash but update filepath and line number. See principles.specs_are_truth.

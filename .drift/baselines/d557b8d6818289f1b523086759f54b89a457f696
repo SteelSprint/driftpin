@@ -1,0 +1,1 @@
+Todo loads State, scans the filesystem, reconciles specs and markers, builds a CoreAlgorithmContext with TodoAction, runs the core algorithm, and returns the EvaluatedState without saving. See principles.friction — review without side effects.

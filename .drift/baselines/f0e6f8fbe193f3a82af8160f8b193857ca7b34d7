@@ -1,0 +1,1 @@
+When link fails because the marker is unknown, the error message explains that markers must be D! id=shortcode comment lines and lists all available markers. When link fails because the spec is unknown, the error message explains that spec IDs are module-qualified and lists all available specs. See principles.specs_are_truth.

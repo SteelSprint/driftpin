@@ -1,0 +1,1 @@
+When reset is called with a single ID argument, the CLI dispatches to ResetOrphan. If the ID contains a dot, it is treated as a spec ID; otherwise as a marker ID. On success, prints "Removed deleted spec/marker X from state.xml" with exit code 0. See principles.friction.

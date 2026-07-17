@@ -1,0 +1,1 @@
+Validate must reject duplicate spec IDs, duplicate marker IDs, duplicate links, links referencing unknown specs or markers, resolution entries referencing unknown specs, unknown markers, unlinked edges, or duplicate resolution entries. Validation must pass when all references are consistent. See principles.specs_are_truth.

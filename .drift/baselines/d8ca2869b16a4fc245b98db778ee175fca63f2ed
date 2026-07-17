@@ -1,0 +1,1 @@
+A spec element without an id attribute causes an error. See principles.specs_are_truth.

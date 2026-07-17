@@ -1,0 +1,1 @@
+If spec elements are nested inside a specs wrapper element under main or module, the scanner returns an error explaining that specs must be direct children of the root element, not inside a specs wrapper. See principles.specs_are_truth.

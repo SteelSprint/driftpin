@@ -1,0 +1,1 @@
+ReconcileSpecs compares baselined specs against scanned specs. Baselined specs not found on disk are kept in the result with Deleted=true and their baseline hash preserved (no error). New specs in the scan get baseline equal to current hash. Existing specs keep their baselined baseline hash but update filepath and line number. See principles.specs_are_truth.

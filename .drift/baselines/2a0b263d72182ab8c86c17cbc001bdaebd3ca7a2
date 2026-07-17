@@ -1,0 +1,1 @@
+ResetOrphan takes a single ID. If the ID contains a dot, it is treated as a spec ID; otherwise as a marker ID. If the entry is stale (not on disk, no links), it is removed from state.xml along with any resolutions. If still on disk, errors. If it has links, errors with guidance to resolve them first. See principles.friction.
