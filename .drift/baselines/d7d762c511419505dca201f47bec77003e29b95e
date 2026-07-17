@@ -1,0 +1,15 @@
+for t in "${TARGETS[@]}"; do
+	GOOS="${t%/*}"
+	GOARCH="${t#*/}"
+	BIN="drift"
+	if [ "$GOOS" = "windows" ]; then
+		BIN="drift.exe"
+	fi
+	STAGE="${OUT}/drift_${GOOS}_${GOARCH}"
+	ARCHIVE="${OUT}/drift_${VER}_${GOOS}_${GOARCH}"
+
+	echo "  → ${GOOS}/${GOARCH}"
+
+	CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
+		go build -trimpath -ldflags="$LDFLAGS" \
+		-o "${STAGE}/${BIN}" ./cmd/drift

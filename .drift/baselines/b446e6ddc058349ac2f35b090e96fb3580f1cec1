@@ -1,0 +1,1 @@
+Specs define behavior; code implements specs. When code doesn't match a spec, the code is wrong, not the spec. Validation catches divergence — it is a safety net, not an annoyance. Never weaken a spec or relax validation to accommodate a bug; fix the code. See core.validate for the validation contract.

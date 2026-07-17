@@ -38,6 +38,7 @@ mkdir -p "$OUT"
 
 LDFLAGS="-s -w -X main.version=${TAG}"
 
+# D! id=zerodep range-start
 for t in "${TARGETS[@]}"; do
 	GOOS="${t%/*}"
 	GOARCH="${t#*/}"
@@ -53,6 +54,7 @@ for t in "${TARGETS[@]}"; do
 	CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
 		go build -trimpath -ldflags="$LDFLAGS" \
 		-o "${STAGE}/${BIN}" ./cmd/drift
+# D! id=zerodep range-end
 
 	if [ "$GOOS" = "windows" ]; then
 		zip -rq "${ARCHIVE}.zip" "${STAGE}/${BIN}" -j

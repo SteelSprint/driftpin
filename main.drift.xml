@@ -1,4 +1,5 @@
 <main>
+  <import path="./principles.drift.xml" />
   <import path="./core/core.drift.xml" />
   <import path="./scanner/scanner.drift.xml" />
   <import path="./statestore/statestore.drift.xml" />

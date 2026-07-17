@@ -1,0 +1,1 @@
+Drift is self-hosting: it tracks its own specs and markers. `drift todo` must be clean before any commit — this is a hard gate, not a suggestion. The project is its own primary test case. If drift can't track itself correctly, it can't track anything. A bug that breaks `drift todo` on drift's own codebase blocks all other work until fixed.

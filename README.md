@@ -128,6 +128,16 @@ That's the whole loop: **detect → see what changed → review → resolve.** T
 - `./drift help` — command reference with examples
 - `./drift skill` — comprehensive guide for LLM agents (pipe to context)
 
+## Development principles
+
+<!-- D! id=selfhost range-start -->
+Drift is self-hosting: it tracks its own specs and markers. `drift todo` must be clean before any commit — this is a hard gate, not a suggestion. The project is its own primary test case. If drift can't track itself correctly, it can't track anything. A bug that breaks `drift todo` on drift's own codebase blocks all other work until fixed.
+<!-- D! id=selfhost range-end -->
+
+<!-- D! id=testfirst range-start -->
+Bugs are fixed test-first. Write the test that reproduces the bug, confirm it fails for the right reason, then fix the code and confirm the test passes. The failing test is proof you understand the bug before you touch the fix. Never fix a bug without first writing the test that reproduces it.
+<!-- D! id=testfirst range-end -->
+
 ## Anatomy
 
 - **Specs** — `*.drift.xml` files containing `<spec id="...">` elements under `<main>` or `<module name="...">` roots

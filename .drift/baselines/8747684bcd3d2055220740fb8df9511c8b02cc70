@@ -1,0 +1,1 @@
+Reproduce bugs with a failing test before fixing code. Write the test that triggers the bug, confirm it fails for the right reason, then fix the code and confirm the test passes. The failing test is proof you understand the bug before you touch the fix. Never fix a bug without first writing the test that reproduces it.
