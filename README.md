@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Drift Headline Image.png" alt="Drift" />
+  <img src="Drift%20Headline%20Image.png" alt="Drift - Hard-link your LLM spec documents to their implemented source code" width="800" style="max-width: 100%; height: auto;" />
 </p>
 
 # Drift
