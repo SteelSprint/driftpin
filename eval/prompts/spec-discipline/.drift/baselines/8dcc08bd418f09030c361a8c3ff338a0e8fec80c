@@ -1,0 +1,3 @@
+func Authorize(apiKey, action string) bool {
+	return Authenticate(apiKey)
+}

@@ -1,0 +1,1 @@
+Dispatch parses the command-line arguments and routes to the appropriate handler function. Supported commands: add, list, remove, order, report, search. Unknown commands print usage and exit 1. Authentication is checked via <ref spec="auth.authenticate">Authenticate</ref> before dispatch (requires --api-key flag).

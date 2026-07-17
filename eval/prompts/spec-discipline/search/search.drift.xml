@@ -1,0 +1,4 @@
+<module name="search">
+<spec id="search_items">SearchItems performs a case-insensitive substring match against item names. Returns all items whose Name contains the query string. Results are sorted alphabetically by Name. An empty query returns all items (same as <ref spec="inventory.list_items">ListItems</ref>).</spec>
+<spec id="filter_results">FilterByPrice filters a list of items to those within a price range [min, max] inclusive. Items with price exactly equal to min or max are included. Returns a new slice; the input is not modified.</spec>
+</module>

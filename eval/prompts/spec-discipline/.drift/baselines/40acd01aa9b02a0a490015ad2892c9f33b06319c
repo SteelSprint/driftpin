@@ -1,0 +1,1 @@
+A Supplier has three fields: Name (string), Contact (string), and ItemsSupplied (a slice of item names that this supplier provides). Suppliers are identified by Name for lookups and deduplication. See <ref spec="storage.save_load">storage</ref> for persistence.

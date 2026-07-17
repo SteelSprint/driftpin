@@ -1,0 +1,13 @@
+func AuditQuery(action string) []string {
+	var out []string
+	for _, entry := range auditEntries {
+		if action == "" || containsAction(entry, action) {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+func containsAction(entry, action string) bool {
+	return len(entry) > len(action) && entry[len(action)+21:len(action)+21+len(action)] == action
+}

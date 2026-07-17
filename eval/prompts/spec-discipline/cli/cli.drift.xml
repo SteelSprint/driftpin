@@ -1,0 +1,6 @@
+<module name="cli">
+<spec id="dispatch">Dispatch parses the command-line arguments and routes to the appropriate handler function. Supported commands: add, list, remove, order, report, search. Unknown commands print usage and exit 1. Authentication is checked via <ref spec="auth.authenticate">Authenticate</ref> before dispatch (requires --api-key flag).</spec>
+<spec id="parser">ParseArgs handles two flag formats: --flag=value and --flag value. Boolean flags use the --flag form (no value). Unknown flags are silently ignored (not treated as errors). Positional arguments are collected in order of appearance.</spec>
+<spec id="add_command">The add command accepts three flags: --name (string, required), --quantity (int, default 1), --price (float64, default 0.0). The item is validated via <ref spec="validation.validate_item">ValidateItem</ref> before being added to inventory via <ref spec="inventory.add_item">AddItem</ref>. There are no category or priority flags.</spec>
+<spec id="list_command">The list command prints all items in a table format with columns: Name, Quantity, Price. Items are sorted alphabetically by Name (no grouping). No --category or --priority filter flags exist. See <ref spec="inventory.list_items">ListItems</ref>.</spec>
+</module>

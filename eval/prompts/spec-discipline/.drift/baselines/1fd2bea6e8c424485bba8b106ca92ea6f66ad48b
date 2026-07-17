@@ -1,0 +1,1 @@
+main loads configuration via <ref spec="config.load_config">LoadConfig</ref>, initializes the store, authenticates via --api-key, and dispatches to <ref spec="cli.dispatch">cli.Dispatch</ref>. If configuration loading fails, the program exits with code 1 and an error message.

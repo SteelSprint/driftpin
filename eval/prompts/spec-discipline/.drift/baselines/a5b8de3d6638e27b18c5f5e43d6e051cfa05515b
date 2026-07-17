@@ -1,0 +1,1 @@
+Store maintains inventory items in a slice preserving insertion order. The slice is the sole data structure — no maps, no grouping, no indexing by any field. The Store struct holds the slice and a mutex for concurrent access. See <ref spec="inventory.item_model">item_model</ref> for what an Item contains.

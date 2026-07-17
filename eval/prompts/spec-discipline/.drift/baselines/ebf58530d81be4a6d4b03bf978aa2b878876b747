@@ -1,0 +1,1 @@
+CancelOrder transitions an order from "pending" to "cancelled" with a reason string. If the order is already fulfilled, cancellation is rejected. An <ref spec="audit.audit_log">audit entry</ref> is recorded with the cancellation reason.

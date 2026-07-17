@@ -1,0 +1,9 @@
+func FilterByPrice(items []Item, min, max float64) []Item {
+	var out []Item
+	for _, item := range items {
+		if item.Price >= min && item.Price <= max {
+			out = append(out, item)
+		}
+	}
+	return out
+}

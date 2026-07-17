@@ -1,0 +1,1 @@
+Authenticate checks an API key against a list of valid keys loaded from config. Returns true if the key matches any entry; false otherwise. Authentication is case-sensitive. No rate limiting or lockout is applied.

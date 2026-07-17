@@ -1,0 +1,12 @@
+func SupplierReport() string {
+	sups := ListSuppliers()
+	var sb strings.Builder
+	sb.WriteString("Supplier Report\n")
+	for _, sup := range sups {
+		sb.WriteString(fmt.Sprintf("\n%s (Contact: %s)\n", sup.Name, sup.Contact))
+		for _, item := range sup.ItemsSupplied {
+			sb.WriteString(fmt.Sprintf("  - %s\n", item))
+		}
+	}
+	return sb.String()
+}

@@ -1,0 +1,16 @@
+func CreateOrder(store *Store, itemName string, qty int) (*Order, error) {
+	items := store.ListItems()
+	for _, item := range items {
+		if item.Name == itemName {
+			if item.Quantity < qty {
+				return nil, ValidationError("quantity", fmt.Sprintf("insufficient stock: have %d, need %d", item.Quantity, qty))
+			}
+			id := fmt.Sprintf("ORD-%d", time.Now().UnixNano())
+			order := &Order{ID: id, ItemName: itemName, Quantity: qty, Status: "pending"}
+			orders[id] = order
+			AuditLog("create", itemName, fmt.Sprintf("order %s for %d units", id, qty))
+			return order, nil
+		}
+	}
+	return nil, NotFound("item", itemName)
+}

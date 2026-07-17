@@ -1,0 +1,18 @@
+func (s *Store) SearchItems(query string) []Item {
+	if query == "" {
+		return s.ListItems()
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	query = strings.ToLower(query)
+	var out []Item
+	for _, item := range s.items {
+		if strings.Contains(strings.ToLower(item.Name), query) {
+			out = append(out, item)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+	return out
+}

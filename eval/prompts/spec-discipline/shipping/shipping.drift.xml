@@ -1,0 +1,5 @@
+<module name="shipping">
+<spec id="shipping_calc">CalculateShipping computes a flat shipping rate of $5.00 per item plus $0.50 per unit of quantity. There are no category-based rate adjustments — the rate is the same regardless of item type. The total is quantity * 0.50 + 5.00 per line item, summed across all items in the order. See <ref spec="order.create_order">order creation</ref>.</spec>
+<spec id="delivery_estimate">EstimateDelivery returns an estimated delivery date of 5 business days from today. Weekends are not counted. Holidays are not considered. See <ref spec="order.fulfill_order">order fulfillment</ref>.</spec>
+<spec id="track_shipment">TrackShipment returns a status string for a given order ID. Status is one of: "pending", "shipped", "in_transit", "delivered". If the order ID is not found, returns "unknown".</spec>
+</module>

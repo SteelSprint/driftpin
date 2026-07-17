@@ -1,0 +1,4 @@
+<module name="errors">
+<spec id="not_found">NotFound formats a not-found error message containing the entity type and the lookup key. The format is: "&lt;entityType&gt; not found: &lt;key&gt;". Used by inventory, supplier, and order lookups. See <ref spec="inventory.remove_item">inventory remove</ref> and <ref spec="supplier.supplier_lookup">supplier lookup</ref>.</spec>
+<spec id="validation_error">ValidationError formats a validation failure message containing the field name and the reason. The format is: "invalid &lt;field&gt;: &lt;reason&gt;". Used by <ref spec="validation.validate_item">validate_item</ref> when constructing error messages.</spec>
+</module>

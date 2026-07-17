@@ -1,0 +1,1 @@
+LowStockReport lists items with quantity below the configured threshold (default 5, see <ref spec="config.default_config">default_config</ref>). Items are sorted alphabetically by Name (no grouping by category). Triggers a <ref spec="notify.notification">notification</ref> for each low-stock item.

@@ -1,0 +1,1 @@
+The add command accepts three flags: --name (string, required), --quantity (int, default 1), --price (float64, default 0.0). The item is validated via <ref spec="validation.validate_item">ValidateItem</ref> before being added to inventory via <ref spec="inventory.add_item">AddItem</ref>. There are no category or priority flags.

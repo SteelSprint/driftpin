@@ -1,0 +1,21 @@
+func ValueReport(store *Store) string {
+	items := store.ListItems()
+	type valueEntry struct {
+		item  Item
+		value float64
+	}
+	entries := make([]valueEntry, len(items))
+	for i, item := range items {
+		entries[i] = valueEntry{item: item, value: float64(item.Quantity) * item.Price}
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].value > entries[j].value
+	})
+	var sb strings.Builder
+	sb.WriteString("Value Report (sorted by value descending)\n")
+	sb.WriteString("Name                          Qty    Price    Value\n")
+	for _, e := range entries {
+		sb.WriteString(fmt.Sprintf("%-30s %3d %8.2f %8.2f\n", e.item.Name, e.item.Quantity, e.item.Price, e.value))
+	}
+	return sb.String()
+}

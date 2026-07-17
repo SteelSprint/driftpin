@@ -1,0 +1,1 @@
+CalculateShipping computes a flat shipping rate of $5.00 per item plus $0.50 per unit of quantity. There are no category-based rate adjustments — the rate is the same regardless of item type. The total is quantity * 0.50 + 5.00 per line item, summed across all items in the order. See <ref spec="order.create_order">order creation</ref>.

@@ -1,0 +1,6 @@
+<module name="supplier">
+<spec id="supplier_model">A Supplier has three fields: Name (string), Contact (string), and ItemsSupplied (a slice of item names that this supplier provides). Suppliers are identified by Name for lookups and deduplication. See <ref spec="storage.save_load">storage</ref> for persistence.</spec>
+<spec id="add_supplier">AddSupplier registers a new supplier. If a supplier with the same Name already exists, a duplicate error is returned. The supplier's ItemsSupplied list must be non-empty (a supplier with no items is rejected). The store is persisted after adding.</spec>
+<spec id="list_suppliers">ListSuppliers returns all suppliers sorted alphabetically by Name. Each supplier's ItemsSupplied list is sorted alphabetically within the supplier entry. See <ref spec="report.supplier_report">supplier_report</ref> which consumes this output.</spec>
+<spec id="supplier_lookup">GetSupplier returns the supplier with the given Name. If not found, a <ref spec="errors.not_found">NotFound</ref> error is returned. Lookup is case-sensitive.</spec>
+</module>

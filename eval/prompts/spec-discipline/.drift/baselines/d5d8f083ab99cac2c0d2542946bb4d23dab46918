@@ -1,0 +1,20 @@
+func LoadConfig(path string) Config {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return DefaultConfig()
+	}
+	var cfg Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return DefaultConfig()
+	}
+	if cfg.DatabasePath == "" {
+		cfg.DatabasePath = DefaultConfig().DatabasePath
+	}
+	if cfg.Currency == "" {
+		cfg.Currency = DefaultConfig().Currency
+	}
+	if cfg.LowStockThreshold == 0 {
+		cfg.LowStockThreshold = DefaultConfig().LowStockThreshold
+	}
+	return cfg
+}

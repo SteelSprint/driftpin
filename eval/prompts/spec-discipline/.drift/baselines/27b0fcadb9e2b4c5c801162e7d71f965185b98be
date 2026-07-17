@@ -1,0 +1,1 @@
+RemoveItem deletes the item with the given Name from the store's slice. If no item with that Name exists, a <ref spec="errors.not_found">NotFound</ref> error is returned. The slice is compacted after removal (no gaps).

@@ -1,0 +1,3 @@
+func NotFound(entityType, key string) error {
+	return fmt.Errorf("%s not found: %s", entityType, key)
+}

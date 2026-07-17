@@ -1,0 +1,12 @@
+func ValidateItem(item Item) error {
+	if err := ValidateName(item.Name); err != nil {
+		return err
+	}
+	if err := ValidateQuantity(item.Quantity); err != nil {
+		return err
+	}
+	if err := ValidatePrice(item.Price); err != nil {
+		return err
+	}
+	return nil
+}

@@ -1,0 +1,1 @@
+ValueReport lists each item with its line value (quantity * price), sorted by line value descending (highest value first). This is the only report sorted by value rather than name. See <ref spec="inventory.list_items">ListItems</ref>.

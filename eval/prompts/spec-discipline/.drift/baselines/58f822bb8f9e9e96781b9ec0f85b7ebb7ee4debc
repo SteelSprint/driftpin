@@ -1,0 +1,6 @@
+func ValidateQuantity(qty int) error {
+	if qty <= 0 {
+		return ValidationError("quantity", "must be greater than zero")
+	}
+	return nil
+}

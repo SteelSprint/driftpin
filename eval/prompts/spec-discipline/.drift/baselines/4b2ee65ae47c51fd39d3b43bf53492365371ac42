@@ -1,0 +1,1 @@
+An Order has four fields: ID (string, auto-generated UUID), ItemName (string), Quantity (int), and Status (string: "pending", "fulfilled", "cancelled"). There is no category or priority field on an order. Orders are identified by ID for lookups.

@@ -1,0 +1,11 @@
+func (s *Store) RemoveItem(name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, item := range s.items {
+		if item.Name == name {
+			s.items = append(s.items[:i], s.items[i+1:]...)
+			return nil
+		}
+	}
+	return NotFound("item", name)
+}

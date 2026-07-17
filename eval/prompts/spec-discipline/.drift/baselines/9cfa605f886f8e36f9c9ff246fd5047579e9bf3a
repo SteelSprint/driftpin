@@ -1,0 +1,3 @@
+func ValidationError(field, reason string) error {
+	return fmt.Errorf("invalid %s: %s", field, reason)
+}

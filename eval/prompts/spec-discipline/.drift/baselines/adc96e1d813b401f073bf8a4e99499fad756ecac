@@ -1,0 +1,7 @@
+func DefaultConfig() Config {
+	return Config{
+		DatabasePath:      "inventory.json",
+		Currency:          "USD",
+		LowStockThreshold: 5,
+	}
+}

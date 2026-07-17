@@ -1,0 +1,4 @@
+func FormatNotification(message string) string {
+	ts := time.Now().UTC().Format(time.RFC3339)
+	return fmt.Sprintf("%s [INFO] %s", ts, message)
+}

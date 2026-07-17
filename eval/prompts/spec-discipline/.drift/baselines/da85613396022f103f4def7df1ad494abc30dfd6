@@ -1,0 +1,1 @@
+GetSupplier returns the supplier with the given Name. If not found, a <ref spec="errors.not_found">NotFound</ref> error is returned. Lookup is case-sensitive.

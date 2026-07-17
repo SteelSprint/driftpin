@@ -1,0 +1,19 @@
+func (s *Store) deserialize(data []byte) error {
+	type itemJSON struct {
+		Name     string  `json:"name"`
+		Quantity int     `json:"quantity"`
+		Price    float64 `json:"price"`
+	}
+	var items []itemJSON
+	if err := json.Unmarshal(data, &items); err != nil {
+		return err
+	}
+	s.items = make([]Item, 0, len(items))
+	for _, ij := range items {
+		if ij.Name == "" {
+			continue
+		}
+		s.items = append(s.items, Item{Name: ij.Name, Quantity: ij.Quantity, Price: ij.Price})
+	}
+	return nil
+}

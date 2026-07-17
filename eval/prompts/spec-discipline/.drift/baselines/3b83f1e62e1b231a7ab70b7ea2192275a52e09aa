@@ -1,0 +1,1 @@
+Authorize checks whether an authenticated user has permission for a given action. All authenticated users can perform all actions — there are no role-based restrictions. Returns true for any authenticated user. See <ref spec="auth.authenticate">authenticate</ref>.

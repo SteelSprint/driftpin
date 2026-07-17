@@ -1,0 +1,6 @@
+<module name="storage">
+<spec id="store_model">Store maintains inventory items in a slice preserving insertion order. The slice is the sole data structure — no maps, no grouping, no indexing by any field. The Store struct holds the slice and a mutex for concurrent access. See <ref spec="inventory.item_model">item_model</ref> for what an Item contains.</spec>
+<spec id="save_load">Save serializes the store to a JSON file at the configured path. Load reads the JSON file and reconstructs the store. Both operations acquire the store mutex. If the file does not exist, Load returns an empty store (no error). See <ref spec="storage.serialize">serialize</ref> and <ref spec="storage.deserialize">deserialize</ref> for the JSON format.</spec>
+<spec id="serialize">Serialize converts the store's item slice to a JSON array. Each item object has exactly three fields in this order: "name" (string), "quantity" (int), "price" (float64). No other fields are present in the JSON output.</spec>
+<spec id="deserialize">Deserialize parses a JSON array into a slice of items. If a JSON object is missing the "quantity" or "price" field, the default value 0 is used. If "name" is missing, the item is skipped (not added to the slice). See <ref spec="storage.serialize">serialize</ref> for the expected format.</spec>
+</module>

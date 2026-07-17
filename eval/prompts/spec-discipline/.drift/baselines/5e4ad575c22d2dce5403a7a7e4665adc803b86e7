@@ -1,0 +1,70 @@
+func handleList(store *Store, args []string) {
+	items := store.ListItems()
+	fmt.Printf("%-30s %5s %10s\n", "Name", "Qty", "Price")
+	for _, item := range items {
+		fmt.Printf("%-30s %5d %10.2f\n", item.Name, item.Quantity, item.Price)
+	}
+}
+
+func handleRemove(store *Store, args []string) {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "usage: remove <name>")
+		os.Exit(1)
+	}
+	if err := store.RemoveItem(args[0]); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+	fmt.Println("removed:", args[0])
+}
+
+func handleOrder(store *Store, args []string) {
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: order <item> <qty>")
+		os.Exit(1)
+	}
+	qty, _ := strconv.Atoi(args[1])
+	order, err := CreateOrder(store, args[0], qty)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+	fmt.Println("order created:", order.ID)
+}
+
+func handleReport(store *Store, cfg Config, args []string) {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "usage: report <summary|lowstock|value|supplier>")
+		os.Exit(1)
+	}
+	switch args[0] {
+	case "summary":
+		fmt.Println(Summary(store))
+	case "lowstock":
+		fmt.Println(LowStockReport(store, cfg.LowStockThreshold))
+	case "value":
+		fmt.Println(ValueReport(store))
+	case "supplier":
+		fmt.Println(SupplierReport())
+	default:
+		fmt.Fprintln(os.Stderr, "unknown report:", args[0])
+		os.Exit(1)
+	}
+}
+
+func handleSearch(store *Store, args []string) {
+	query := ""
+	if len(args) > 0 {
+		query = args[0]
+	}
+	items := store.SearchItems(query)
+	fmt.Printf("%-30s %5s %10s\n", "Name", "Qty", "Price")
+	for _, item := range items {
+		fmt.Printf("%-30s %5d %10.2f\n", item.Name, item.Quantity, item.Price)
+	}
+}
+
+func printUsage() {
+	fmt.Println("usage: supplychain [--api-key KEY] <command> [args]")
+	fmt.Println("commands: add, list, remove, order, report, search")
+}

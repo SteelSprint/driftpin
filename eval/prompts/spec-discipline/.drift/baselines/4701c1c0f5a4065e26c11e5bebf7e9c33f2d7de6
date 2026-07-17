@@ -1,0 +1,1 @@
+FilterByPrice filters a list of items to those within a price range [min, max] inclusive. Items with price exactly equal to min or max are included. Returns a new slice; the input is not modified.

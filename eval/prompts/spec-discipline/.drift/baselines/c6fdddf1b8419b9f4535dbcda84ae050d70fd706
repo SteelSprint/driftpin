@@ -1,0 +1,14 @@
+func TrackShipment(orderID string) string {
+	order, ok := orders[orderID]
+	if !ok {
+		return "unknown"
+	}
+	switch order.Status {
+	case "pending":
+		return "pending"
+	case "fulfilled":
+		return "shipped"
+	default:
+		return order.Status
+	}
+}

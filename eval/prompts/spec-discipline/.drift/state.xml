@@ -1,0 +1,146 @@
+<drift>
+  <specs>
+    <spec id="main.entry_point" hash="1fd2bea6e8c424485bba8b106ca92ea6f66ad48b" filepath="main.drift.xml" line="0"></spec>
+    <spec id="main.config_loading" hash="f8986e233ac3853fc2d87c1bacc03f15e0ef8481" filepath="main.drift.xml" line="0"></spec>
+    <spec id="errors.not_found" hash="70f3ec54406391794ea4556486e74661b2788f4d" filepath="errors/errors.drift.xml" line="0"></spec>
+    <spec id="errors.validation_error" hash="2f0e9af0b802ae4156f7dad61cebaef168a7e549" filepath="errors/errors.drift.xml" line="0"></spec>
+    <spec id="config.load_config" hash="6745883503b03e2f7569d10f463ede6197e52f87" filepath="config/config.drift.xml" line="0"></spec>
+    <spec id="config.default_config" hash="19cfa00cce25a9f09c8cc3663ed86112759bf77b" filepath="config/config.drift.xml" line="0"></spec>
+    <spec id="validation.validate_item" hash="dd33b821564b7250349d4775c84a8702b0092d63" filepath="validation/validation.drift.xml" line="0"></spec>
+    <spec id="validation.validate_name" hash="07ca824063e608219a15f78704f425d1fcef5eac" filepath="validation/validation.drift.xml" line="0"></spec>
+    <spec id="validation.validate_quantity" hash="96b028f1480ccb7c0bf886cb4675a8827062e9c0" filepath="validation/validation.drift.xml" line="0"></spec>
+    <spec id="validation.validate_price" hash="5bd76d20cf7bcb94600bb18810f27f44bd068d18" filepath="validation/validation.drift.xml" line="0"></spec>
+    <spec id="storage.store_model" hash="a5b8de3d6638e27b18c5f5e43d6e051cfa05515b" filepath="storage/storage.drift.xml" line="0"></spec>
+    <spec id="storage.save_load" hash="87f34965ca4c68ba6dfdc1cc7514cfdd755b5555" filepath="storage/storage.drift.xml" line="0"></spec>
+    <spec id="storage.serialize" hash="93c711306ec05918aa66a199e17861e9e8c979ed" filepath="storage/storage.drift.xml" line="0"></spec>
+    <spec id="storage.deserialize" hash="ca2003db70496cdf7cc7a9cbfd9ac0d7ada458d5" filepath="storage/storage.drift.xml" line="0"></spec>
+    <spec id="inventory.item_model" hash="1fa1c5a013af375ee0bf6e26fc884e24866204b6" filepath="inventory/inventory.drift.xml" line="0"></spec>
+    <spec id="inventory.add_item" hash="e6fa38b8be3f02f25bf969b36710d4a30bb9e89d" filepath="inventory/inventory.drift.xml" line="0"></spec>
+    <spec id="inventory.remove_item" hash="27b0fcadb9e2b4c5c801162e7d71f965185b98be" filepath="inventory/inventory.drift.xml" line="0"></spec>
+    <spec id="inventory.list_items" hash="2dcc7bc1a6e941544969e025ff895872d3ff46e3" filepath="inventory/inventory.drift.xml" line="0"></spec>
+    <spec id="supplier.supplier_model" hash="40acd01aa9b02a0a490015ad2892c9f33b06319c" filepath="supplier/supplier.drift.xml" line="0"></spec>
+    <spec id="supplier.add_supplier" hash="7c6d310dd4b37e391b1a70adadc93be7041c3141" filepath="supplier/supplier.drift.xml" line="0"></spec>
+    <spec id="supplier.list_suppliers" hash="79f8433a721b257efc2765c9d8d9b27f02458ea6" filepath="supplier/supplier.drift.xml" line="0"></spec>
+    <spec id="supplier.supplier_lookup" hash="da85613396022f103f4def7df1ad494abc30dfd6" filepath="supplier/supplier.drift.xml" line="0"></spec>
+    <spec id="search.search_items" hash="03e919ab4a88d531fe4ffe6774eea5a0df076fef" filepath="search/search.drift.xml" line="0"></spec>
+    <spec id="search.filter_results" hash="4701c1c0f5a4065e26c11e5bebf7e9c33f2d7de6" filepath="search/search.drift.xml" line="0"></spec>
+    <spec id="shipping.shipping_calc" hash="3fe35ae9fc513c62d0f7c389dc5c7a1090b39b2a" filepath="shipping/shipping.drift.xml" line="0"></spec>
+    <spec id="shipping.delivery_estimate" hash="0c46b677863e62149c4751b47c7e58d33d4cdd6d" filepath="shipping/shipping.drift.xml" line="0"></spec>
+    <spec id="shipping.track_shipment" hash="4b1c5641892121fe26e04e8fd45faf6cee1bfd1b" filepath="shipping/shipping.drift.xml" line="0"></spec>
+    <spec id="notify.notification" hash="d014654b434cd6027b57a3a4052c2d7a61a6692e" filepath="notify/notify.drift.xml" line="0"></spec>
+    <spec id="notify.alert" hash="1cf98fa1d7c0b9439f718ad7cd2b3db8ebeb8ae3" filepath="notify/notify.drift.xml" line="0"></spec>
+    <spec id="notify.format" hash="c31442521d22a8ce289d576f4d616f2232cfed10" filepath="notify/notify.drift.xml" line="0"></spec>
+    <spec id="audit.audit_log" hash="4697ecbd245a9c2938dc45d9fd91d077af1e0572" filepath="audit/audit.drift.xml" line="0"></spec>
+    <spec id="audit.audit_query" hash="68f3014bfd79ced0c0e47b8b667be0fec52578b5" filepath="audit/audit.drift.xml" line="0"></spec>
+    <spec id="auth.authenticate" hash="6b9722c385f9ecff8bde2e5e23ed02ed8d99f701" filepath="auth/auth.drift.xml" line="0"></spec>
+    <spec id="auth.authorize" hash="3b83f1e62e1b231a7ab70b7ea2192275a52e09aa" filepath="auth/auth.drift.xml" line="0"></spec>
+    <spec id="report.summary" hash="56f34174515feb3f16d1e4bf8e9803b27e3b5e13" filepath="report/report.drift.xml" line="0"></spec>
+    <spec id="report.low_stock" hash="f9e5496860a3f1b465b4016479064f9dac950bb7" filepath="report/report.drift.xml" line="0"></spec>
+    <spec id="report.value_report" hash="51617c233c0eb25f620a99c5adf53559f962b4c6" filepath="report/report.drift.xml" line="0"></spec>
+    <spec id="report.supplier_report" hash="c841cb1b639df47f2dd998ffbb3dc65c8f4b271c" filepath="report/report.drift.xml" line="0"></spec>
+    <spec id="order.order_model" hash="4b2ee65ae47c51fd39d3b43bf53492365371ac42" filepath="order/order.drift.xml" line="0"></spec>
+    <spec id="order.create_order" hash="31976670da3677d9826c4ce417aae46d8876a049" filepath="order/order.drift.xml" line="0"></spec>
+    <spec id="order.fulfill_order" hash="15724d784c5fa460de93f4c0740a919454df8af8" filepath="order/order.drift.xml" line="0"></spec>
+    <spec id="order.cancel_order" hash="ebf58530d81be4a6d4b03bf978aa2b878876b747" filepath="order/order.drift.xml" line="0"></spec>
+    <spec id="cli.dispatch" hash="7a2b7393613aa488069d38067a04fc66c2b421fa" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="cli.parser" hash="d5d9efca9ea224e43f696c82cdca584633257f88" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="cli.add_command" hash="a640bf6be6b187a69eb0d4b752b5e9ae45e167c8" filepath="cli/cli.drift.xml" line="0"></spec>
+    <spec id="cli.list_command" hash="16ffba89e31eb9c907b513c1c1fe87c8c855d70b" filepath="cli/cli.drift.xml" line="0"></spec>
+  </specs>
+  <markers>
+    <marker id="authz_check" hash="8dcc08bd418f09030c361a8c3ff338a0e8fec80c" filepath="auth.go" line="16" endline="20"></marker>
+    <marker id="auth_check" hash="d543cddbae95ac7e489b7911ddefc2a31f3c1b51" filepath="auth.go" line="3" endline="14"></marker>
+    <marker id="cli_list" hash="5e4ad575c22d2dce5403a7a7e4665adc803b86e7" filepath="cli.go" line="86" endline="157"></marker>
+    <marker id="cli_dispatch" hash="a815908af2417391666f082bc34c1a1ef7ef872a" filepath="cli.go" line="10" endline="41"></marker>
+    <marker id="cli_parser" hash="bd0e073707dd86539bd2268e489e2ca59b7a42fd" filepath="cli.go" line="43" endline="66"></marker>
+    <marker id="cli_add" hash="9af3079fe2d191916214a9f33693dc72c4b75ac6" filepath="cli.go" line="68" endline="84"></marker>
+    <marker id="cfg_def" hash="adc96e1d813b401f073bf8a4e99499fad756ecac" filepath="config.go" line="14" endline="22"></marker>
+    <marker id="cfg_load" hash="d5d8f083ab99cac2c0d2542946bb4d23dab46918" filepath="config.go" line="24" endline="45"></marker>
+    <marker id="err_nf" hash="3277853c3a1522d657709bf27c44b03b1457d779" filepath="errors.go" line="5" endline="9"></marker>
+    <marker id="err_ve" hash="9cfa605f886f8e36f9c9ff246fd5047579e9bf3a" filepath="errors.go" line="11" endline="15"></marker>
+    <marker id="srch_items" hash="18520d709185b175ceafcb7d3d30a1c33301de3b" filepath="inventory.go" line="60" endline="79"></marker>
+    <marker id="srch_filter" hash="d184796eb9dfed3717b22acbdef67c07b7bf1c2c" filepath="inventory.go" line="81" endline="91"></marker>
+    <marker id="inv_model" hash="c8fad7b00478b014fbc36fecb0fb01574afb5a10" filepath="inventory.go" line="8" endline="14"></marker>
+    <marker id="inv_add" hash="0e0e562a327fa499e82e0f1d5f33f146b7e31975" filepath="inventory.go" line="16" endline="31"></marker>
+    <marker id="inv_remove" hash="98b08a3a73e857e5ceee1325966148ae23c03940" filepath="inventory.go" line="33" endline="45"></marker>
+    <marker id="inv_list" hash="43023453a4ae080c5ef14aa15eb4350ebfaa6ba1" filepath="inventory.go" line="47" endline="58"></marker>
+    <marker id="main_entry" hash="1671c966e763fd2389dc431e5cb4202ebad0c85a" filepath="main.go" line="8" endline="26"></marker>
+    <marker id="notif_notify" hash="c5ef29af513ec71816f278adedbd240f1d7785b0" filepath="notify.go" line="8" endline="12"></marker>
+    <marker id="notif_alert" hash="440fe9dc79b0198c831e37984bbbab8566d978ca" filepath="notify.go" line="14" endline="18"></marker>
+    <marker id="notif_format" hash="54e6170252b92f8dc652b0ec68462cf3415ee08b" filepath="notify.go" line="20" endline="25"></marker>
+    <marker id="audit_log" hash="ce52b0219d882e515536ed4184935465280d4261" filepath="notify.go" line="27" endline="35"></marker>
+    <marker id="audit_query" hash="18eba3985e51eee2b01c38f0a6b18aea2f97398e" filepath="notify.go" line="37" endline="51"></marker>
+    <marker id="ord_fulfill" hash="c56eee05d8fe475f5b30581dd7c425a5289ca82c" filepath="order.go" line="38" endline="57"></marker>
+    <marker id="ord_cancel" hash="c289263549743f8ae5e36f779c5ae4d63b98fe23" filepath="order.go" line="59" endline="72"></marker>
+    <marker id="ord_model" hash="697e1ce6d5a36c251fea9411eb09e77f59097e33" filepath="order.go" line="8" endline="15"></marker>
+    <marker id="ord_create" hash="1bb05176649c309342b5f2c399c3b3b75501893f" filepath="order.go" line="19" endline="36"></marker>
+    <marker id="rep_summary" hash="23c4fb884ec7cd1e79bb9057791ba3bccffc8410" filepath="report.go" line="9" endline="34"></marker>
+    <marker id="rep_lowstock" hash="a2dc77efa03860fa2dffa72bedf3b344b32992db" filepath="report.go" line="36" endline="49"></marker>
+    <marker id="rep_value" hash="d91e9b96e98cb8cd50a4aab05e402bd59d6c4631" filepath="report.go" line="51" endline="73"></marker>
+    <marker id="rep_supplier" hash="896e60852e976ef10ae67352f9e6bd48e16bdde5" filepath="report.go" line="75" endline="88"></marker>
+    <marker id="ship_calc" hash="256ae0addde0d3329d4200c05a980680dc0eaa30" filepath="shipping.go" line="5" endline="9"></marker>
+    <marker id="ship_est" hash="58e89c7f2190ee361e3f28c068f23e83468a032e" filepath="shipping.go" line="11" endline="16"></marker>
+    <marker id="ship_track" hash="c6fdddf1b8419b9f4535dbcda84ae050d70fd706" filepath="shipping.go" line="18" endline="33"></marker>
+    <marker id="st_model" hash="a44368cf8df5647eb8cf8a8ba58c3f2f3f7dd2b8" filepath="storage.go" line="9" endline="14"></marker>
+    <marker id="st_save_load" hash="37896726df9c2ec68623e36ba8fc7ecfe919deae" filepath="storage.go" line="20" endline="44"></marker>
+    <marker id="st_ser" hash="156e42d66658e7433bd9f869b123e3f841ea4549" filepath="storage.go" line="46" endline="61"></marker>
+    <marker id="st_deser" hash="7292a5d94a6cbe9dd05f6b7de197edf3bc6f5655" filepath="storage.go" line="63" endline="83"></marker>
+    <marker id="sup_model" hash="04903a2d8db855acd333345a98bb5d766111b579" filepath="supplier.go" line="8" endline="14"></marker>
+    <marker id="sup_add" hash="5b57745498e5ea33be98c982b023e7e4171c8ccd" filepath="supplier.go" line="18" endline="29"></marker>
+    <marker id="sup_list" hash="6eba9e4781dd97c5426d87ae353178a3cbdca931" filepath="supplier.go" line="31" endline="45"></marker>
+    <marker id="sup_get" hash="4892f25b3d33efd915ffd1616982d342e2e081d1" filepath="supplier.go" line="47" endline="55"></marker>
+    <marker id="val_name" hash="c5c3b52fe3e1bb946c6eddd2795492d3c02cbaf8" filepath="validation.go" line="18" endline="28"></marker>
+    <marker id="val_qty" hash="58f822bb8f9e9e96781b9ec0f85b7ebb7ee4debc" filepath="validation.go" line="30" endline="37"></marker>
+    <marker id="val_price" hash="7cdf2e2ff40283bfd8908f45efc8805054769c70" filepath="validation.go" line="39" endline="46"></marker>
+    <marker id="val_item" hash="64450b320cc7273616aa227c64dfbf644727f156" filepath="validation.go" line="3" endline="16"></marker>
+  </markers>
+  <links>
+    <link specId="errors.not_found" markerId="err_nf"></link>
+    <link specId="errors.validation_error" markerId="err_ve"></link>
+    <link specId="config.default_config" markerId="cfg_def"></link>
+    <link specId="config.load_config" markerId="cfg_load"></link>
+    <link specId="validation.validate_item" markerId="val_item"></link>
+    <link specId="validation.validate_name" markerId="val_name"></link>
+    <link specId="validation.validate_quantity" markerId="val_qty"></link>
+    <link specId="validation.validate_price" markerId="val_price"></link>
+    <link specId="storage.store_model" markerId="st_model"></link>
+    <link specId="storage.save_load" markerId="st_save_load"></link>
+    <link specId="storage.serialize" markerId="st_ser"></link>
+    <link specId="storage.deserialize" markerId="st_deser"></link>
+    <link specId="inventory.item_model" markerId="inv_model"></link>
+    <link specId="inventory.add_item" markerId="inv_add"></link>
+    <link specId="inventory.remove_item" markerId="inv_remove"></link>
+    <link specId="inventory.list_items" markerId="inv_list"></link>
+    <link specId="search.search_items" markerId="srch_items"></link>
+    <link specId="search.filter_results" markerId="srch_filter"></link>
+    <link specId="supplier.supplier_model" markerId="sup_model"></link>
+    <link specId="supplier.add_supplier" markerId="sup_add"></link>
+    <link specId="supplier.list_suppliers" markerId="sup_list"></link>
+    <link specId="supplier.supplier_lookup" markerId="sup_get"></link>
+    <link specId="report.summary" markerId="rep_summary"></link>
+    <link specId="report.low_stock" markerId="rep_lowstock"></link>
+    <link specId="report.value_report" markerId="rep_value"></link>
+    <link specId="report.supplier_report" markerId="rep_supplier"></link>
+    <link specId="order.order_model" markerId="ord_model"></link>
+    <link specId="order.create_order" markerId="ord_create"></link>
+    <link specId="order.fulfill_order" markerId="ord_fulfill"></link>
+    <link specId="order.cancel_order" markerId="ord_cancel"></link>
+    <link specId="shipping.shipping_calc" markerId="ship_calc"></link>
+    <link specId="shipping.delivery_estimate" markerId="ship_est"></link>
+    <link specId="shipping.track_shipment" markerId="ship_track"></link>
+    <link specId="notify.notification" markerId="notif_notify"></link>
+    <link specId="notify.alert" markerId="notif_alert"></link>
+    <link specId="notify.format" markerId="notif_format"></link>
+    <link specId="audit.audit_log" markerId="audit_log"></link>
+    <link specId="audit.audit_query" markerId="audit_query"></link>
+    <link specId="auth.authenticate" markerId="auth_check"></link>
+    <link specId="auth.authorize" markerId="authz_check"></link>
+    <link specId="cli.dispatch" markerId="cli_dispatch"></link>
+    <link specId="cli.parser" markerId="cli_parser"></link>
+    <link specId="cli.add_command" markerId="cli_add"></link>
+    <link specId="cli.list_command" markerId="cli_list"></link>
+    <link specId="main.entry_point" markerId="main_entry"></link>
+    <link specId="main.config_loading" markerId="main_entry"></link>
+  </links>
+  <resolutions></resolutions>
+</drift>

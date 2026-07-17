@@ -1,0 +1,7 @@
+func GetSupplier(name string) (*Supplier, error) {
+	sup, ok := suppliers[name]
+	if !ok {
+		return nil, NotFound("supplier", name)
+	}
+	return sup, nil
+}

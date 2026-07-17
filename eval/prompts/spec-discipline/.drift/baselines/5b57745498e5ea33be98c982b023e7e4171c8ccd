@@ -1,0 +1,10 @@
+func AddSupplier(sup *Supplier) error {
+	if len(sup.ItemsSupplied) == 0 {
+		return ValidationError("itemsSupplied", "must not be empty")
+	}
+	if _, exists := suppliers[sup.Name]; exists {
+		return ValidationError("name", "duplicate supplier: "+sup.Name)
+	}
+	suppliers[sup.Name] = sup
+	return nil
+}

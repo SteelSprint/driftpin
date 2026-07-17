@@ -1,0 +1,1 @@
+LoadConfig reads a JSON configuration file from the path given. If the file does not exist, DefaultConfig is returned instead of an error. The config file is expected to contain key-value pairs for database path, default currency, and low-stock threshold. See <ref spec="config.default_config">default_config</ref>.

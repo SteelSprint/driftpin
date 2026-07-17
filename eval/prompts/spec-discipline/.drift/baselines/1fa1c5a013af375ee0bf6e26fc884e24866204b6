@@ -1,0 +1,1 @@
+An Item has exactly three fields: Name (string), Quantity (int), and Price (float64). There are no other fields. Items are compared by Name for equality. See <ref spec="storage.store_model">storage</ref> for how items are stored and <ref spec="validation.validate_item">validation</ref> for how items are validated.

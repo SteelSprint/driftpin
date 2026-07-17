@@ -1,0 +1,6 @@
+<module name="inventory">
+<spec id="item_model">An Item has exactly three fields: Name (string), Quantity (int), and Price (float64). There are no other fields. Items are compared by Name for equality. See <ref spec="storage.store_model">storage</ref> for how items are stored and <ref spec="validation.validate_item">validation</ref> for how items are validated.</spec>
+<spec id="add_item">AddItem appends a new item to the store's slice after validating it via <ref spec="validation.validate_item">ValidateItem</ref>. If validation fails, the error is returned and the item is not added. If an item with the same Name already exists, a duplicate error is returned. The store mutex is held during the entire operation.</spec>
+<spec id="remove_item">RemoveItem deletes the item with the given Name from the store's slice. If no item with that Name exists, a <ref spec="errors.not_found">NotFound</ref> error is returned. The slice is compacted after removal (no gaps).</spec>
+<spec id="list_items">ListItems returns a copy of all items in the store, sorted alphabetically by Name. The original slice is not exposed (defensive copy). The sort is case-sensitive (uppercase before lowercase). See <ref spec="report.summary">report summary</ref> which uses this output.</spec>
+</module>

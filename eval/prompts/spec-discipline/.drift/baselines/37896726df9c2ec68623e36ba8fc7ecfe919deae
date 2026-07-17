@@ -1,0 +1,23 @@
+func (s *Store) Save(path string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data, err := json.MarshalIndent(s.items, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
+func (s *Store) Load(path string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			s.items = make([]Item, 0)
+			return nil
+		}
+		return err
+	}
+	return s.deserialize(data)
+}

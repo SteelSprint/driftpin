@@ -1,0 +1,12 @@
+func CancelOrder(orderID, reason string) error {
+	order, ok := orders[orderID]
+	if !ok {
+		return NotFound("order", orderID)
+	}
+	if order.Status == "fulfilled" {
+		return ValidationError("status", fmt.Sprintf("order %s is already fulfilled", orderID))
+	}
+	order.Status = "cancelled"
+	AuditLog("cancel", order.ItemName, fmt.Sprintf("order %s cancelled: %s", orderID, reason))
+	return nil
+}

@@ -113,6 +113,9 @@ func loadBatteryPrompts(root string) ([]promptItem, error) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
 		}
+		if strings.HasSuffix(e.Name(), "-judge.md") {
+			continue // judge templates, not subject prompts
+		}
 		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
 		if err != nil {
 			return nil, err

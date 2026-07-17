@@ -1,0 +1,1 @@
+EstimateDelivery returns an estimated delivery date of 5 business days from today. Weekends are not counted. Holidays are not considered. See <ref spec="order.fulfill_order">order fulfillment</ref>.

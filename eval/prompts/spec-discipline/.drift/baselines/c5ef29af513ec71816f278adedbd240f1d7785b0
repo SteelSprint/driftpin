@@ -1,0 +1,3 @@
+func Notify(itemName string, quantity int) string {
+	return fmt.Sprintf("[STOCK] %s: %d remaining", itemName, quantity)
+}

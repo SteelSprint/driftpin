@@ -1,0 +1,1 @@
+Notify creates a notification message for a stock event. The message format is: "[STOCK] &lt;item_name&gt;: &lt;quantity&gt; remaining". There are no category or priority fields in the notification text. See <ref spec="report.low_stock">low_stock report</ref> which triggers notifications.

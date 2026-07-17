@@ -1,0 +1,1 @@
+Summary generates a text report with total item count, total value (sum of quantity * price across all items), and average price. The report is a plain-text table with one row per item, columns: Name, Quantity, Price, LineValue. Items are sorted alphabetically by Name (no grouping). See <ref spec="inventory.list_items">ListItems</ref>.

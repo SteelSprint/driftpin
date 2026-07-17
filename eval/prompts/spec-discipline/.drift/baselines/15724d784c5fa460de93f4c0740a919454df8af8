@@ -1,0 +1,1 @@
+FulfillOrder transitions an order from "pending" to "fulfilled". Deducts the ordered quantity from inventory. Calculates shipping via <ref spec="shipping.shipping_calc">CalculateShipping</ref>. Sends a <ref spec="notify.alert">notification</ref>. If the order is already fulfilled or cancelled, returns an error.

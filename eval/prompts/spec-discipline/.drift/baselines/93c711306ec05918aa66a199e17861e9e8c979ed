@@ -1,0 +1,1 @@
+Serialize converts the store's item slice to a JSON array. Each item object has exactly three fields in this order: "name" (string), "quantity" (int), "price" (float64). No other fields are present in the JSON output.

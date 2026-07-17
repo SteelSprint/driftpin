@@ -1,0 +1,4 @@
+type Store struct {
+	mu    sync.Mutex
+	items []Item
+}

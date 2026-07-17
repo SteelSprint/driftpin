@@ -1,0 +1,22 @@
+func ParseArgs(args []string) map[string]string {
+	out := make(map[string]string)
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if strings.HasPrefix(a, "--") {
+			if idx := strings.Index(a, "="); idx >= 0 {
+				out[a[2:idx]] = a[idx+1:]
+			} else if i+1 < len(args) && !strings.HasPrefix(args[i+1], "--") {
+				out[a[2:]] = args[i+1]
+				i++
+			} else {
+				out[a[2:]] = "true"
+			}
+		}
+	}
+	return out
+}
+
+func getFlag(args []string, flag string) string {
+	flags := ParseArgs(args)
+	return flags[strings.TrimPrefix(flag, "--")]
+}

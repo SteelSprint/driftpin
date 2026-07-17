@@ -1,0 +1,1 @@
+The list command prints all items in a table format with columns: Name, Quantity, Price. Items are sorted alphabetically by Name (no grouping). No --category or --priority filter flags exist. See <ref spec="inventory.list_items">ListItems</ref>.

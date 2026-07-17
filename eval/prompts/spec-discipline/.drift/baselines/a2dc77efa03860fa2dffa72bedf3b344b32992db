@@ -1,0 +1,12 @@
+func LowStockReport(store *Store, threshold int) string {
+	items := store.ListItems()
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Low Stock Report (threshold: %d)\n", threshold))
+	for _, item := range items {
+		if item.Quantity < threshold {
+			sb.WriteString(fmt.Sprintf("  %s: %d remaining\n", item.Name, item.Quantity))
+			Notify(item.Name, item.Quantity)
+		}
+	}
+	return sb.String()
+}

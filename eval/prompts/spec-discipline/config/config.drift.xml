@@ -1,0 +1,4 @@
+<module name="config">
+<spec id="load_config">LoadConfig reads a JSON configuration file from the path given. If the file does not exist, DefaultConfig is returned instead of an error. The config file is expected to contain key-value pairs for database path, default currency, and low-stock threshold. See <ref spec="config.default_config">default_config</ref>.</spec>
+<spec id="default_config">DefaultConfig returns a Config with database path "inventory.json", currency "USD", and low-stock threshold 5. These are the fallback values used when no config file is present or when a field is missing from the config file.</spec>
+</module>

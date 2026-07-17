@@ -1,0 +1,3 @@
+func SendAlert(message string) {
+	fmt.Println(message)
+}

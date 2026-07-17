@@ -1,0 +1,6 @@
+<module name="report">
+<spec id="summary">Summary generates a text report with total item count, total value (sum of quantity * price across all items), and average price. The report is a plain-text table with one row per item, columns: Name, Quantity, Price, LineValue. Items are sorted alphabetically by Name (no grouping). See <ref spec="inventory.list_items">ListItems</ref>.</spec>
+<spec id="low_stock">LowStockReport lists items with quantity below the configured threshold (default 5, see <ref spec="config.default_config">default_config</ref>). Items are sorted alphabetically by Name (no grouping by category). Triggers a <ref spec="notify.notification">notification</ref> for each low-stock item.</spec>
+<spec id="value_report">ValueReport lists each item with its line value (quantity * price), sorted by line value descending (highest value first). This is the only report sorted by value rather than name. See <ref spec="inventory.list_items">ListItems</ref>.</spec>
+<spec id="supplier_report">SupplierReport generates a text listing of all suppliers and the items they supply. Suppliers are sorted alphabetically by Name. Within each supplier, items are sorted alphabetically. No category grouping. See <ref spec="supplier.list_suppliers">ListSuppliers</ref>.</spec>
+</module>

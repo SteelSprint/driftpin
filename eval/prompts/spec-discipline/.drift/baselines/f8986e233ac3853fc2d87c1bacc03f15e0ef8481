@@ -1,0 +1,1 @@
+Configuration is loaded from the path specified by the --config flag (default: config.json). If the file does not exist, <ref spec="config.default_config">DefaultConfig</ref> is used. The loaded config is passed to the store initializer and the report generator (for the low-stock threshold).

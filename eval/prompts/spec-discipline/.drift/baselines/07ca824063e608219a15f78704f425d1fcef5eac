@@ -1,0 +1,1 @@
+ValidateName rejects empty strings and strings longer than 100 characters. Returns nil for any string with length 1-100.

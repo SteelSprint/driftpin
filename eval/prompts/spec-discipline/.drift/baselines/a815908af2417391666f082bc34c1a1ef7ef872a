@@ -1,0 +1,30 @@
+func Dispatch(store *Store, cfg Config, args []string) {
+	if len(args) < 1 {
+		printUsage()
+		os.Exit(1)
+	}
+	apiKey := getFlag(args, "--api-key")
+	if apiKey == "" || !Authenticate(apiKey) {
+		fmt.Fprintln(os.Stderr, "error: authentication required (--api-key)")
+		os.Exit(1)
+	}
+	cmd := args[0]
+	rest := args[1:]
+	switch cmd {
+	case "add":
+		handleAdd(store, rest)
+	case "list":
+		handleList(store, rest)
+	case "remove":
+		handleRemove(store, rest)
+	case "order":
+		handleOrder(store, rest)
+	case "report":
+		handleReport(store, cfg, rest)
+	case "search":
+		handleSearch(store, rest)
+	default:
+		printUsage()
+		os.Exit(1)
+	}
+}

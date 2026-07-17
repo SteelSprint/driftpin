@@ -196,7 +196,7 @@ func (p *Pipeline) runJudge(originalPrompt string) error {
 	}
 	defer judgeOut.Close()
 
-	judgePrompt := buildJudgePrompt(originalPrompt, p.workspaceDir, p.runDir)
+	judgePrompt := p.resolveJudgePrompt(originalPrompt)
 
 	return p.runOpencode(&opencodeArgs{
 		agent:   "eval-judge",
@@ -207,6 +207,44 @@ func (p *Pipeline) runJudge(originalPrompt string) error {
 		stdout:  judgeOut,
 		timeout: judgeTimeout,
 	})
+}
+
+// resolveJudgePrompt checks for a prompt-specific judge template at
+// eval/prompts/<fixtureName>-judge.md. If found, substitutes placeholders
+// and returns the specialized prompt. Otherwise falls back to the generic
+// buildJudgePrompt.
+func (p *Pipeline) resolveJudgePrompt(originalPrompt string) string {
+	templatePath := filepath.Join(p.repoRoot, "eval", "prompts", p.fixtureName+"-judge.md")
+	data, err := os.ReadFile(templatePath)
+	if err != nil {
+		return buildJudgePrompt(originalPrompt, p.workspaceDir, p.runDir)
+	}
+	fixtureDir := filepath.Join(p.repoRoot, "eval", "prompts", p.fixtureName)
+	prompt := string(data)
+	prompt = replaceAll(prompt, "{{TASK}}", originalPrompt)
+	prompt = replaceAll(prompt, "{{WORKSPACE}}", p.workspaceDir)
+	prompt = replaceAll(prompt, "{{FIXTURE_DIR}}", fixtureDir)
+	prompt = replaceAll(prompt, "{{RUN_DIR}}", p.runDir)
+	return prompt
+}
+
+func replaceAll(s, old, new string) string {
+	for {
+		i := indexOf(s, old)
+		if i < 0 {
+			return s
+		}
+		s = s[:i] + new + s[i+len(old):]
+	}
+}
+
+func indexOf(s, sub string) int {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
 }
 
 func (p *Pipeline) surface() error {

@@ -1,0 +1,7 @@
+var auditEntries []string
+
+func AuditLog(action, entity, details string) {
+	ts := time.Now().UTC().Format(time.RFC3339)
+	entry := fmt.Sprintf("%s %s %s: %s", ts, action, entity, details)
+	auditEntries = append(auditEntries, entry)
+}

@@ -1,0 +1,5 @@
+type Supplier struct {
+	Name          string
+	Contact       string
+	ItemsSupplied []string
+}

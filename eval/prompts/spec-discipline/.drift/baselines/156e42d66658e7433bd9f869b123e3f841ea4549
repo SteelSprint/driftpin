@@ -1,0 +1,14 @@
+func (s *Store) Serialize() ([]byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	type itemJSON struct {
+		Name     string  `json:"name"`
+		Quantity int     `json:"quantity"`
+		Price    float64 `json:"price"`
+	}
+	out := make([]itemJSON, len(s.items))
+	for i, item := range s.items {
+		out[i] = itemJSON{Name: item.Name, Quantity: item.Quantity, Price: item.Price}
+	}
+	return json.Marshal(out)
+}

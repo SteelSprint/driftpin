@@ -1,0 +1,1 @@
+DefaultConfig returns a Config with database path "inventory.json", currency "USD", and low-stock threshold 5. These are the fallback values used when no config file is present or when a field is missing from the config file.

@@ -1,0 +1,1 @@
+AuditQuery searches the audit log for entries matching a given action string (exact match). Returns matching entries in chronological order (oldest first). An empty action returns all entries.

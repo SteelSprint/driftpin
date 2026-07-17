@@ -1,0 +1,1 @@
+Deserialize parses a JSON array into a slice of items. If a JSON object is missing the "quantity" or "price" field, the default value 0 is used. If "name" is missing, the item is skipped (not added to the slice). See <ref spec="storage.serialize">serialize</ref> for the expected format.

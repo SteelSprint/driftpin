@@ -1,0 +1,1 @@
+ValidatePrice rejects negative prices. Returns nil for any non-negative float64 value, including zero (free items are allowed).

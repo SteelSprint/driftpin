@@ -1,0 +1,1 @@
+SearchItems performs a case-insensitive substring match against item names. Returns all items whose Name contains the query string. Results are sorted alphabetically by Name. An empty query returns all items (same as <ref spec="inventory.list_items">ListItems</ref>).

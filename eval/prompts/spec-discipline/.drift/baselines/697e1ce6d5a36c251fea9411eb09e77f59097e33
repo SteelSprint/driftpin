@@ -1,0 +1,6 @@
+type Order struct {
+	ID       string
+	ItemName string
+	Quantity int
+	Status   string
+}

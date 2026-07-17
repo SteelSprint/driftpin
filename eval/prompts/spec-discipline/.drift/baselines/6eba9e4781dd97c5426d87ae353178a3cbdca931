@@ -1,0 +1,13 @@
+func ListSuppliers() []*Supplier {
+	out := make([]*Supplier, 0, len(suppliers))
+	for _, sup := range suppliers {
+		out = append(out, sup)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+	for _, sup := range out {
+		sort.Strings(sup.ItemsSupplied)
+	}
+	return out
+}

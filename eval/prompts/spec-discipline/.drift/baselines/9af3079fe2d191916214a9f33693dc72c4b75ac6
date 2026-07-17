@@ -1,0 +1,15 @@
+func handleAdd(store *Store, args []string) {
+	flags := ParseArgs(args)
+	name := flags["name"]
+	qty, _ := strconv.Atoi(flags["quantity"])
+	if qty == 0 {
+		qty = 1
+	}
+	price, _ := strconv.ParseFloat(flags["price"], 64)
+	item := Item{Name: name, Quantity: qty, Price: price}
+	if err := store.AddItem(item); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
+	fmt.Println("added:", name)
+}

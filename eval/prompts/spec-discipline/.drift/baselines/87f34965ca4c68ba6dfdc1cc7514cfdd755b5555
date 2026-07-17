@@ -1,0 +1,1 @@
+Save serializes the store to a JSON file at the configured path. Load reads the JSON file and reconstructs the store. Both operations acquire the store mutex. If the file does not exist, Load returns an empty store (no error). See <ref spec="storage.serialize">serialize</ref> and <ref spec="storage.deserialize">deserialize</ref> for the JSON format.

@@ -1,0 +1,1 @@
+ValidateQuantity rejects zero and negative quantities. Returns nil for any integer greater than zero.

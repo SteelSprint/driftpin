@@ -1,0 +1,4 @@
+func EstimateDelivery() string {
+	// 5 business days from today (simplified: just add 7 calendar days to skip weekends)
+	return "5 business days from today"
+}

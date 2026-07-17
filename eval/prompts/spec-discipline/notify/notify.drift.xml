@@ -1,0 +1,5 @@
+<module name="notify">
+<spec id="notification">Notify creates a notification message for a stock event. The message format is: "[STOCK] &lt;item_name&gt;: &lt;quantity&gt; remaining". There are no category or priority fields in the notification text. See <ref spec="report.low_stock">low_stock report</ref> which triggers notifications.</spec>
+<spec id="alert">SendAlert dispatches a notification to the configured alert channel (stdout by default). The alert is formatted by <ref spec="notify.format">FormatNotification</ref> before sending. If the alert channel is unavailable, the error is logged but not returned (best-effort delivery).</spec>
+<spec id="format">FormatNotification wraps a message in a standard envelope: timestamp prefix (RFC3339), severity level in brackets, then the message body. The format is: "2006-01-02T15:04:05Z [INFO] message". No item metadata (category, priority) is included in the envelope.</spec>
+</module>

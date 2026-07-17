@@ -1,0 +1,4 @@
+<module name="audit">
+<spec id="audit_log">AuditLog records a single audit entry with timestamp, action (string), entity name (string), and details (string). The entry is appended to an in-memory log slice. The format is: "2006-01-02T15:04:05Z ACTION entity: details". No category or priority field is recorded.</spec>
+<spec id="audit_query">AuditQuery searches the audit log for entries matching a given action string (exact match). Returns matching entries in chronological order (oldest first). An empty action returns all entries.</spec>
+</module>

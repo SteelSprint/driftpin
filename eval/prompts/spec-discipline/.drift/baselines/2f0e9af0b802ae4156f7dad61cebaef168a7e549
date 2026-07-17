@@ -1,0 +1,1 @@
+ValidationError formats a validation failure message containing the field name and the reason. The format is: "invalid &lt;field&gt;: &lt;reason&gt;". Used by <ref spec="validation.validate_item">validate_item</ref> when constructing error messages.

@@ -1,0 +1,3 @@
+func CalculateShipping(order *Order) float64 {
+	return float64(order.Quantity)*0.50 + 5.00
+}

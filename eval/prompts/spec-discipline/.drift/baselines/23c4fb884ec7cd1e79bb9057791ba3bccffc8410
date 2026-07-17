@@ -1,0 +1,24 @@
+func Summary(store *Store) string {
+	items := store.ListItems()
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Total items: %d\n", len(items)))
+	totalValue := 0.0
+	totalQty := 0
+	for _, item := range items {
+		lineValue := float64(item.Quantity) * item.Price
+		totalValue += lineValue
+		totalQty += item.Quantity
+	}
+	avgPrice := 0.0
+	if len(items) > 0 {
+		avgPrice = totalValue / float64(totalQty)
+	}
+	sb.WriteString(fmt.Sprintf("Total value: %.2f\n", totalValue))
+	sb.WriteString(fmt.Sprintf("Average price: %.2f\n", avgPrice))
+	sb.WriteString("Name                          Qty    Price    LineValue\n")
+	for _, item := range items {
+		lineValue := float64(item.Quantity) * item.Price
+		sb.WriteString(fmt.Sprintf("%-30s %3d %8.2f %10.2f\n", item.Name, item.Quantity, item.Price, lineValue))
+	}
+	return sb.String()
+}

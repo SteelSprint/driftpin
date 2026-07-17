@@ -1,0 +1,10 @@
+func (s *Store) ListItems() []Item {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Item, len(s.items))
+	copy(out, s.items)
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+	return out
+}

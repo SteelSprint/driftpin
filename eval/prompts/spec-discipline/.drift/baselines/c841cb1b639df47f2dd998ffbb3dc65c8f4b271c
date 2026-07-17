@@ -1,0 +1,1 @@
+SupplierReport generates a text listing of all suppliers and the items they supply. Suppliers are sorted alphabetically by Name. Within each supplier, items are sorted alphabetically. No category grouping. See <ref spec="supplier.list_suppliers">ListSuppliers</ref>.

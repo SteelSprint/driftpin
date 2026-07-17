@@ -1,0 +1,1 @@
+AddSupplier registers a new supplier. If a supplier with the same Name already exists, a duplicate error is returned. The supplier's ItemsSupplied list must be non-empty (a supplier with no items is rejected). The store is persisted after adding.

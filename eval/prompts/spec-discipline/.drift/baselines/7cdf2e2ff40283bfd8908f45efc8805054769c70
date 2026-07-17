@@ -1,0 +1,6 @@
+func ValidatePrice(price float64) error {
+	if price < 0 {
+		return ValidationError("price", "must not be negative")
+	}
+	return nil
+}

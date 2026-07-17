@@ -1,0 +1,1 @@
+CreateOrder generates a new order for an item. The item must exist in inventory (checked via <ref spec="inventory.add_item">inventory lookup</ref>) and the requested quantity must be available. The order is created with status "pending". An <ref spec="audit.audit_log">audit entry</ref> is recorded.

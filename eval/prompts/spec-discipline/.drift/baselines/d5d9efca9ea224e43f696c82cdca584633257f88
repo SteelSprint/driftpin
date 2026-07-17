@@ -1,0 +1,1 @@
+ParseArgs handles two flag formats: --flag=value and --flag value. Boolean flags use the --flag form (no value). Unknown flags are silently ignored (not treated as errors). Positional arguments are collected in order of appearance.

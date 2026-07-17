@@ -1,0 +1,14 @@
+func (s *Store) AddItem(item Item) error {
+	if err := ValidateItem(item); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, existing := range s.items {
+		if existing.Name == item.Name {
+			return ValidationError("name", "duplicate item: "+item.Name)
+		}
+	}
+	s.items = append(s.items, item)
+	return nil
+}

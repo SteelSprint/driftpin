@@ -1,0 +1,1 @@
+ListSuppliers returns all suppliers sorted alphabetically by Name. Each supplier's ItemsSupplied list is sorted alphabetically within the supplier entry. See <ref spec="report.supplier_report">supplier_report</ref> which consumes this output.

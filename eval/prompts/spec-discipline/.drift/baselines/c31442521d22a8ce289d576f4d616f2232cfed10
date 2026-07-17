@@ -1,0 +1,1 @@
+FormatNotification wraps a message in a standard envelope: timestamp prefix (RFC3339), severity level in brackets, then the message body. The format is: "2006-01-02T15:04:05Z [INFO] message". No item metadata (category, priority) is included in the envelope.

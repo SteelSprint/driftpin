@@ -1,0 +1,1 @@
+SendAlert dispatches a notification to the configured alert channel (stdout by default). The alert is formatted by <ref spec="notify.format">FormatNotification</ref> before sending. If the alert channel is unavailable, the error is logged but not returned (best-effort delivery).

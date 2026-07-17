@@ -1,0 +1,10 @@
+var validAPIKeys = []string{"key123", "key456", "key789"}
+
+func Authenticate(apiKey string) bool {
+	for _, k := range validAPIKeys {
+		if k == apiKey {
+			return true
+		}
+	}
+	return false
+}

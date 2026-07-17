@@ -1,0 +1,1 @@
+AddItem appends a new item to the store's slice after validating it via <ref spec="validation.validate_item">ValidateItem</ref>. If validation fails, the error is returned and the item is not added. If an item with the same Name already exists, a duplicate error is returned. The store mutex is held during the entire operation.

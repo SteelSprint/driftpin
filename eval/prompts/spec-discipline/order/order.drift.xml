@@ -1,0 +1,6 @@
+<module name="order">
+<spec id="order_model">An Order has four fields: ID (string, auto-generated UUID), ItemName (string), Quantity (int), and Status (string: "pending", "fulfilled", "cancelled"). There is no category or priority field on an order. Orders are identified by ID for lookups.</spec>
+<spec id="create_order">CreateOrder generates a new order for an item. The item must exist in inventory (checked via <ref spec="inventory.add_item">inventory lookup</ref>) and the requested quantity must be available. The order is created with status "pending". An <ref spec="audit.audit_log">audit entry</ref> is recorded.</spec>
+<spec id="fulfill_order">FulfillOrder transitions an order from "pending" to "fulfilled". Deducts the ordered quantity from inventory. Calculates shipping via <ref spec="shipping.shipping_calc">CalculateShipping</ref>. Sends a <ref spec="notify.alert">notification</ref>. If the order is already fulfilled or cancelled, returns an error.</spec>
+<spec id="cancel_order">CancelOrder transitions an order from "pending" to "cancelled" with a reason string. If the order is already fulfilled, cancellation is rejected. An <ref spec="audit.audit_log">audit entry</ref> is recorded with the cancellation reason.</spec>
+</module>

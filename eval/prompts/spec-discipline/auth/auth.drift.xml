@@ -1,0 +1,4 @@
+<module name="auth">
+<spec id="authenticate">Authenticate checks an API key against a list of valid keys loaded from config. Returns true if the key matches any entry; false otherwise. Authentication is case-sensitive. No rate limiting or lockout is applied.</spec>
+<spec id="authorize">Authorize checks whether an authenticated user has permission for a given action. All authenticated users can perform all actions — there are no role-based restrictions. Returns true for any authenticated user. See <ref spec="auth.authenticate">authenticate</ref>.</spec>
+</module>

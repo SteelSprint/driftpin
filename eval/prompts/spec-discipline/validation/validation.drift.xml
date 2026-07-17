@@ -1,0 +1,6 @@
+<module name="validation">
+<spec id="validate_item">ValidateItem checks that an item has a non-empty name (delegated to <ref spec="validation.validate_name">validate_name</ref>), a positive quantity (delegated to <ref spec="validation.validate_quantity">validate_quantity</ref>), and a non-negative price (delegated to <ref spec="validation.validate_price">validate_price</ref>). Returns nil if all checks pass; returns a <ref spec="errors.validation_error">ValidationError</ref> describing the first failure otherwise.</spec>
+<spec id="validate_name">ValidateName rejects empty strings and strings longer than 100 characters. Returns nil for any string with length 1-100.</spec>
+<spec id="validate_quantity">ValidateQuantity rejects zero and negative quantities. Returns nil for any integer greater than zero.</spec>
+<spec id="validate_price">ValidatePrice rejects negative prices. Returns nil for any non-negative float64 value, including zero (free items are allowed).</spec>
+</module>
