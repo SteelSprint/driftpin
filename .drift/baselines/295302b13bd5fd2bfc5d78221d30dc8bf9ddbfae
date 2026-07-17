@@ -1,6 +1,3 @@
-package output
-
-// D! id=othms range-start
 
 // AllThemes maps theme names to Theme values. lookupTheme looks up by name
 // (case-sensitive). Unknown names return (Theme{}, false); callers fall back
@@ -287,4 +284,3 @@ var DraculaTheme = Theme{
 	CodeNumber:    Style{Color: "38;5;215"},
 }
 
-// D! id=othms range-end

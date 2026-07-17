@@ -161,6 +161,31 @@ func TestGuardrailProperty(t *testing.T) {
 				},
 			})
 		}},
+		// --- ShowResult: code content with all token types ---
+		{"show_code_content", func(p Presenter) string {
+			spec := &core.Spec{ID: "main.s1", Hash: "abc", Filepath: "main.drift.xml"}
+			return p.Show(ShowResult{
+				IsSpec: true, ID: "main.s1", Spec: spec,
+				Content: "func main() {\n    // comment\n    return \"hello\" + 42\n    x := 3.14\n}",
+			})
+		}},
+		// --- ShowResult: linked marker with code ---
+		{"show_with_linked_code", func(p Presenter) string {
+			spec := &core.Spec{ID: "main.s1", Hash: "abc", Filepath: "main.drift.xml"}
+			return p.Show(ShowResult{
+				IsSpec: true, ID: "main.s1", Spec: spec, Content: "spec text",
+				LinkedMarkers: []LinkedMarker{
+					{Marker: core.Marker{ID: "m1", Hash: "def", Filepath: "code.go", LineNumber: 1, EndLineNumber: 5}, Content: "func test() {\n    # python comment\n    return nil\n}"},
+				},
+			})
+		}},
+		// --- DiffEdgeResult: drifted with code tokens in diff ---
+		{"diff_edge_code", func(p Presenter) string {
+			return p.DiffEdge(DiffEdgeResult{Result: orchestrator.DiffResult{
+				Spec:   orchestrator.DiffSide{ID: "main.s1", Filepath: "main.drift.xml", BaselineHash: "abc", CurrentHash: "xyz", HasBaseline: true, Baseline: "func old() {\n    return 1\n}\n", Current: "func new() {\n    return 42\n}\n"},
+				Marker: orchestrator.DiffSide{ID: "m1", Filepath: "code.go", Lines: "1-3", BaselineHash: "def", CurrentHash: "ghi", HasBaseline: true, Baseline: "var x = \"old\"\n", Current: "var x = \"new\"\n"},
+			}})
+		}},
 		// --- OkResult ---
 		{"ok", func(p Presenter) string {
 			return p.Ok(OkResult{Command: "link", Message: `Linked marker "m1" to spec "main.s1"`})

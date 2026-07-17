@@ -32,6 +32,10 @@ func TestLoadCustomTheme(t *testing.T) {
   <element id="diff_add" color="92"/>
   <element id="diff_remove" color="91"/>
   <element id="diff_hunk" color="96" bold="true"/>
+  <element id="code_comment" dim="true"/>
+  <element id="code_string" color="92"/>
+  <element id="code_keyword" color="96"/>
+  <element id="code_number" color="93"/>
 </theme>`
 		os.MkdirAll(filepath.Join(dir, ".drift"), 0755)
 		os.WriteFile(filepath.Join(dir, ".drift", "theme.xml"), []byte(xml), 0644)
@@ -93,6 +97,10 @@ func TestLoadCustomTheme(t *testing.T) {
   <element id="diff_add" color="38;5;37"/>
   <element id="diff_remove" color="38;5;124"/>
   <element id="diff_hunk" color="38;5;44" bold="true"/>
+  <element id="code_comment" dim="true"/>
+  <element id="code_string" color="38;5;100"/>
+  <element id="code_keyword" color="38;5;33"/>
+  <element id="code_number" color="38;5;136"/>
 </theme>`
 		os.MkdirAll(filepath.Join(dir, ".drift"), 0755)
 		os.WriteFile(filepath.Join(dir, ".drift", "theme.xml"), []byte(xml), 0644)

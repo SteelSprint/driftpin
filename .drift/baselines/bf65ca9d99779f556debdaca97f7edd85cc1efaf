@@ -1,16 +1,3 @@
-package output
-
-import (
-	"fmt"
-	"strconv"
-	"strings"
-
-	"drift/core"
-	"drift/internal/diff"
-	"drift/orchestrator"
-)
-
-// D! id=ocol range-start
 // ColorPresenter formats Result data using a Theme. Every method renders from
 // Result data independently from PlainPresenter, using theme element lookups
 // (e.g. t.MarkerID.Apply(idString)) to wrap text in ANSI codes. The guardrail
@@ -415,4 +402,3 @@ func (p ColorPresenter) Version(r VersionResult) string {
 	return "drift version " + r.Version
 }
 
-// D! id=ocol range-end
