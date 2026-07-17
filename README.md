@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Drift Headline Image.png" alt="Drift" />
+</p>
+
 # Drift
 
 **Drift** links your requirements to the exact code that makes them real. When the code or the requirements change, the tool tells you exactly what is affected — not "something in this file," but which lines, which function, which rule. One rule can point to many places in the code, so you can trace any requirement to every spot that carries it out. `drift todo` tells you what fell out of sync. `drift diff` shows you what changed. `drift show` walks you through every piece of code behind a rule. This lets AI agents check their own work against the rules before saying "done" — not just "the tests passed," but "every rule still matches its code."
