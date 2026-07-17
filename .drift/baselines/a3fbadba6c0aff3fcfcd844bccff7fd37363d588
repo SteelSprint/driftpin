@@ -1,6 +1,3 @@
-package output
-
-// D! id=opres range-start
 // Presenter is implemented by each output mode (Plain, Color, JSON). Each method
 // receives a typed Result and returns the rendered string. Presenters are pure:
 // no I/O, no state mutation, no command dispatch. The caller (cli.RunWithRender)
@@ -48,4 +45,3 @@ func Render(p Presenter, r Result) string {
 		return ""
 	}
 }
-// D! id=opres range-end

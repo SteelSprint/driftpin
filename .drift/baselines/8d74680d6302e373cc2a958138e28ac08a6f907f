@@ -1,11 +1,3 @@
-package output
-
-import (
-	"drift/core"
-	"drift/orchestrator"
-)
-
-// D! id=ores range-start
 // Result is a sealed interface implemented by exactly the types below. Each
 // command path in cli.RunWithRender produces one Result; the selected Presenter
 // renders it to a string. Presenters never do command dispatch, I/O, or state
@@ -113,4 +105,3 @@ func (OkResult) isResult()           {}
 func (ErrorResult) isResult()        {}
 func (TextResult) isResult()         {}
 func (VersionResult) isResult()      {}
-// D! id=ores range-end
