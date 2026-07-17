@@ -1,5 +1,3 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/go-postgres
 {
 	"name": "drift",
 	"dockerComposeFile": "docker-compose.yml",
@@ -10,10 +8,7 @@
 	// Configure tool-specific properties.
 	// "customizations": {},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	"forwardPorts": [
-		5432,
-		8080
-	],
+	// "forwardPorts": [],
 	// Use 'postCreateCommand' to run commands after the container is created.
 	"postCreateCommand": ".devcontainer/scripts/postCreateCommand.sh"
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
