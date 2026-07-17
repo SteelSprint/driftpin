@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       snapshot:
-        description: "Run a snapshot build (no release, no publish)"
+        description: "Run a snapshot build (no release, upload artifacts only)"
         required: false
         default: "true"
 
@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   release:
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,17 +30,20 @@ jobs:
           go-version: "1.26"
           cache: true
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean
+      - name: Build binaries + archives + checksums
+        run: ./scripts/release.sh "${GITHUB_REF_NAME}"
+
+      - name: Create GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/*.tar.gz dist/*.zip dist/checksums.txt \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
 
   snapshot:
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.snapshot == 'true'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -53,16 +57,10 @@ jobs:
           go-version: "1.26"
           cache: true
 
-      - name: Run GoReleaser (snapshot)
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --snapshot --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build (snapshot)
+        run: ./scripts/release.sh snapshot
 
-      - name: Upload snapshot artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: drift-snapshot
