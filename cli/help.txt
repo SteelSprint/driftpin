@@ -29,6 +29,11 @@ Global flags (accepted by every command):
   --color=auto|always|never     Control color mode (default: auto)
   --help, -h                    Show command-specific help
 
+Exit codes (all commands):
+  0                             Success / clean (drift todo: no drift found)
+  1                             Drift found / todo pending (drift todo: edges need review)
+  2                             Error (bad args, corrupt state, I/O failure)
+
 Themes:
   12 built-in: default, minimal, monochrome, high-contrast, dark, light,
     protanopia, solarized-dark, solarized-light, gruvbox, nord, dracula

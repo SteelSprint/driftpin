@@ -8,9 +8,26 @@ drift help            # Show command reference
 drift skill           # Print this guide (pipe to a file or read into context)
 ```
 
+# What to Commit to Git
+
+Drift state must be committed so the whole team shares the same baseline.
+
+**Commit:**
+- `*.drift.xml` — your spec files
+- `.drift/state.xml` — baseline hashes, links, resolution state
+- `.drift/baselines/` — content-addressed baseline snapshots
+- `.drift/theme.xml` — project-level custom theme (if present)
+- `.gitignore` or `drift.ignore` — ignore rules
+- All marker-wrapped code files
+
+**Do NOT commit:**
+- `.drift/user-settings.xml` — per-user theme preference (auto-excluded by `.drift/.gitignore`, created by `drift init`)
+
+`.drift/.gitignore` is created automatically by `drift init` and contains `user-settings.xml`. If you use a monorepo or custom setup, ensure `.drift/user-settings.xml` is excluded.
+
 # Workflow
 
-1. **Initialize**: `drift init` — creates `.drift/` (state directory with `state.xml` and `baselines/`) and `main.drift.xml` (spec entry point template). Edit `main.drift.xml` to add your specs. Note: `drift init` is NOT idempotent — it fails if `.drift/state.xml` already exists. To reinitialize, delete `.drift/` by hand (drift provides no command for this, by design — protecting against accidental state loss).
+1. **Initialize**: `drift init` — creates `.drift/` (state directory with `state.xml` and `baselines/`) and `main.drift.xml` (spec entry point template). Edit `main.drift.xml` to add your specs. `drift init` is idempotent: if `.drift/state.xml` already exists, it prints "Already initialized" and exits 0 without modifying anything. To reinitialize from scratch, delete `.drift/` by hand (drift provides no command for this, by design — protecting against accidental state loss).
 
 2. **Write specs**: Edit `*.drift.xml` files. Each file has a root `<module name="...">` (or `<main>` for the entry point). Specs are `<spec id="...">description</spec>` elements — they must be **direct children** of the root element, not nested inside a `<specs>` wrapper.
 
@@ -47,6 +64,13 @@ Specs live in `*.drift.xml` files. The entry point is `main.drift.xml` in the pr
 Spec IDs are qualified as `<module>.<specId>`. Specs in `main.drift.xml` use the `main.` prefix (e.g. `main.bootstrap`). Imports are relative to the importing file. Diamond imports are deduplicated by absolute path. Cycles are detected and reported with a trace.
 
 **ID format invariants:** The local `id` attribute in a `<spec>` element must NOT contain a dot — dots are reserved for module qualification (e.g. `module.specid`). Marker shortcodes must NOT contain a dot either. This ensures every spec ID has exactly one dot (separating module from local ID) and marker IDs have none, enabling unambiguous disambiguation in CLI commands like `drift reset <id>`.
+
+```
+✓  <spec id="validate">     → spec ID: main.validate
+✓  marker id="validate"     → marker ID: validate
+✗  <spec id="core.validate"> → REJECTED: dot in local ID
+✗  marker id="core.validate" → REJECTED: dot in marker ID
+```
 
 # Markers
 

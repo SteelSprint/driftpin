@@ -16,11 +16,10 @@ type InitCommand struct {
 func (c InitCommand) Run(ctx Context) (output.Result, int) {
 	if err := ctx.Orch.Init(); err != nil {
 		if errors.Is(err, orchestrator.ErrAlreadyInitialized) {
-			return output.ErrorResult{
+			return output.OkResult{
 				Command: "init",
-				Message: fmt.Sprintf("Project already initialized: %s/.drift/state.xml exists.\nTo reinitialize, delete .drift/ by hand (drift provides no command for this, by design).", ctx.Dir),
-				Exit:    1,
-			}, 1
+				Message: "Already initialized. Run `drift todo` to check state.",
+			}, 0
 		}
 		return output.ErrorResult{Command: "init", Message: err.Error(), Exit: 1}, 1
 	}
@@ -40,7 +39,7 @@ func (c InitCommand) Meta() Meta {
 	return Meta{
 		Name:  "init",
 		Short: "Initialize: create .drift/ + starter main.drift.xml",
-		Usage: "Usage: drift init\n\nInitialize the .drift/ directory (state.xml + baselines/) and write a starter\nmain.drift.xml template if one does not already exist.\n\nNot idempotent: fails with exit code 1 if .drift/state.xml already exists.\nTo reinitialize, delete .drift/ by hand (drift provides no command for this).\n\nNo arguments.",
+		Usage: "Usage: drift init\n\nInitialize the .drift/ directory (state.xml + baselines/) and write a starter\nmain.drift.xml template if one does not already exist.\n\nIdempotent: if .drift/state.xml already exists, prints \"Already initialized\"\nwith exit code 0 and does not modify any files. To forcibly reinitialize,\ndelete .drift/ by hand (drift provides no command for this, by design).\n\nNo arguments.",
 		Flags: nil,
 	}
 }

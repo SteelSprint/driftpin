@@ -62,7 +62,7 @@ func TestCLIInit(t *testing.T) {
 		testutil.AssertStateEquals(t, state, statestore.State{})
 	})
 
-	t.Run("init_fails_if_already_initialized", func(t *testing.T) {
+	t.Run("init_is_idempotent_if_already_initialized", func(t *testing.T) {
 		dir := t.TempDir()
 		writeMainDrift(t, dir, `<main></main>`)
 
@@ -72,14 +72,11 @@ func TestCLIInit(t *testing.T) {
 		}
 
 		output, code := cli.Run([]string{"init"}, dir)
-		if code != 1 {
-			t.Fatalf("second init should exit 1, got %d, output: %s", code, output)
+		if code != 0 {
+			t.Fatalf("second init should exit 0 (idempotent), got %d, output: %s", code, output)
 		}
 		if !strings.Contains(strings.ToLower(output), "already initialized") {
 			t.Fatalf("output should mention 'already initialized', got: %s", output)
-		}
-		if !strings.Contains(output, "state.xml") {
-			t.Fatalf("output should mention state.xml path, got: %s", output)
 		}
 	})
 
@@ -102,13 +99,13 @@ func a() {}
 		}
 
 		reinitOutput, reinitCode := cli.Run([]string{"init"}, dir)
-		if reinitCode != 1 {
-			t.Fatalf("reinit should fail, got code %d, output: %s", reinitCode, reinitOutput)
+		if reinitCode != 0 {
+			t.Fatalf("reinit should succeed (idempotent), got code %d, output: %s", reinitCode, reinitOutput)
 		}
 
 		afterOutput, _ := cli.Run([]string{"list"}, dir)
 		if !strings.Contains(afterOutput, "main.s1") {
-			t.Fatalf("existing state should be preserved after failed reinit, got: %s", afterOutput)
+			t.Fatalf("existing state should be preserved after reinit, got: %s", afterOutput)
 		}
 	})
 }
