@@ -100,7 +100,7 @@ The marker pattern is a regex: `D!\s+id=(\S+)(?:\s+(range-start|range-end))?`. I
 | Command | Description |
 |---|---|
 | `drift init` | Create `.drift/` directory (state.xml + baselines/) and `main.drift.xml` template. |
-| `drift todo` | Scan specs and markers, report drift. Exit 0 if clean, 1 if drift, 2 on error. Each item includes a hint to run `drift diff`. |
+| `drift todo` | Scan specs and markers, report drift. Exit 0 if clean (all linked + in sync), 1 if drift or unlinked markers, 2 on error. Each item includes a hint to run `drift diff`. |
 | `drift list [--verbose]` | Show all specs, markers, links, and sync state. `--verbose` adds spec text and marker content preview. Read-only. |
 | `drift show <marker\|spec>` | Show current content of a spec or marker with filepath and line ranges. Linked specs/markers are also displayed. Read-only. |
 | `drift diff <marker\|spec>` | Show unified diffs of spec and marker content vs baselines for all linked edges. Read-only. |
@@ -285,4 +285,4 @@ A `.gitignore`-style file at the project root. Patterns exclude files/directorie
 - **Deleted markers:** Same deletion-as-drift model as specs. The marker's hash becomes empty, triggering drift on all linked edges.
 - **Orphaned entries (deleted, no links):** Shown with `[deleted]` tag in `drift list`. Cleaned via `drift reset <id>` (single-arg: dot = spec, no dot = marker).
 - **`drift reset` semantics:** Rewrites the baseline hash to the current hash and clears the resolution entry. Prints "Resolved: MARKER → SPEC. Baseline updated." on success.
-- **`drift todo` exit codes:** 0 = clean, 1 = drift exists, 2 = error. Use in CI: `drift todo && echo "clean"`.
+- **`drift todo` exit codes:** 0 = clean (all specs linked AND all edges in sync), 1 = drift or unlinked markers, 2 = error. Use in CI: `drift todo && echo "clean"`. Unlinked markers are treated as actionable drift — they represent unfinished coverage work.

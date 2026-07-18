@@ -30,8 +30,8 @@ Global flags (accepted by every command):
   --help, -h                    Show command-specific help
 
 Exit codes (all commands):
-  0                             Success / clean (drift todo: no drift found)
-  1                             Drift found / todo pending (drift todo: edges need review)
+  0                             Success / clean (drift todo: all linked + in sync)
+  1                             Drift found / unlinked markers / todo pending
   2                             Error (bad args, corrupt state, I/O failure)
 
 Themes:

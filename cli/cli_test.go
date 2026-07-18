@@ -201,8 +201,8 @@ func handleRequest() {
 `)
 
 		output, code := cli.Run([]string{"todo"}, dir)
-		if code != 0 {
-			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		if code != 1 {
+			t.Fatalf("exit code = %d, want 1 (unlinked marker), output: %s", code, output)
 		}
 		if !strings.HasPrefix(output, "No changes detected.") {
 			t.Fatalf("output = %q, want \"No changes detected.\" prefix", output)
@@ -1492,8 +1492,8 @@ func b() { doOther() }
 		cli.Run([]string{"link", "m1", "main.s1"}, dir)
 
 		output, code := cli.Run([]string{"todo"}, dir)
-		if code != 0 {
-			t.Fatalf("clean todo should exit 0, got %d, output: %s", code, output)
+		if code != 1 {
+			t.Fatalf("todo with unlinked marker should exit 1, got %d, output: %s", code, output)
 		}
 		if !strings.Contains(output, "1 unlinked marker found") {
 			t.Fatalf("output should warn about 1 unlinked marker, got: %s", output)
@@ -1523,8 +1523,8 @@ func c() { doThird() }
 		cli.Run([]string{"link", "m1", "main.s1"}, dir)
 
 		output, code := cli.Run([]string{"todo"}, dir)
-		if code != 0 {
-			t.Fatalf("clean todo should exit 0, got %d, output: %s", code, output)
+		if code != 1 {
+			t.Fatalf("todo with unlinked markers should exit 1, got %d, output: %s", code, output)
 		}
 		if !strings.Contains(output, "2 unlinked markers found") {
 			t.Fatalf("output should warn about 2 unlinked markers, got: %s", output)
@@ -1730,11 +1730,11 @@ func a() { doSomething() }
 		}
 
 		output, code := cli.Run([]string{"todo"}, dir)
-		if code != 0 {
-			t.Fatalf("exit code = %d, want 0, output: %s", code, output)
+		if code != 1 {
+			t.Fatalf("exit code = %d, want 1 (m1 is now unlinked), output: %s", code, output)
 		}
 		if !strings.HasPrefix(output, "No changes detected.") {
-			t.Fatalf("expected clean todo after reset, got: %s", output)
+			t.Fatalf("expected clean drift summary after reset, got: %s", output)
 		}
 
 		store := statestore.NewFileStateStore(dir)
