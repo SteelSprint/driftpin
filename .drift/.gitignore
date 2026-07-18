@@ -1,2 +1,4 @@
 # User-specific settings — not committed
 user-settings.xml
+# Runtime lock file — not committed
+state.lock

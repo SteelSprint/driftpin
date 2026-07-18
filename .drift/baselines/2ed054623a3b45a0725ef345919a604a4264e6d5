@@ -1,0 +1,43 @@
+func (o *Orchestrator) Unlink(markerID, specID string) error {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	state, err := o.stateStore.Load()
+	if err != nil {
+		return err
+	}
+
+	linkIndex := -1
+	for i, l := range state.Links {
+		if l.MarkerID == markerID && l.SpecID == specID {
+			linkIndex = i
+			break
+		}
+	}
+	if linkIndex == -1 {
+		return fmt.Errorf("%w: marker=%q spec=%q", ErrUnlinkNotFound, markerID, specID)
+	}
+
+	newLinks := make([]core.Link, 0, len(state.Links)-1)
+	newLinks = append(newLinks, state.Links[:linkIndex]...)
+	newLinks = append(newLinks, state.Links[linkIndex+1:]...)
+
+	newResolutions := make([]core.ResolutionState, 0, len(state.ResolutionState))
+	for _, res := range state.ResolutionState {
+		if res.MarkerID == markerID && res.SpecID == specID {
+			continue
+		}
+		newResolutions = append(newResolutions, res)
+	}
+
+	return o.stateStore.Save(statestore.State{
+		Specs:           state.Specs,
+		Markers:         state.Markers,
+		Links:           newLinks,
+		ResolutionState: newResolutions,
+	})
+}
+

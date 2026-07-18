@@ -1,0 +1,1 @@
+Unlink acquires an exclusive state lock (StateStore.Lock) for the entire Load→modify→Save window, loads State, finds the link matching the given marker and spec, removes it from Links, also removes any ResolutionState entries for that edge, and saves the State. If no matching link exists, returns an error.

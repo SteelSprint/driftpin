@@ -1,0 +1,113 @@
+func (o *Orchestrator) ResetOrphan(id string) error {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	state, err := o.stateStore.Load()
+	if err != nil {
+		return err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return err
+	}
+
+	scannedSpecIDs := make(map[string]bool, len(scanResult.Specs))
+	for _, s := range scanResult.Specs {
+		scannedSpecIDs[s.ID] = true
+	}
+	scannedMarkerIDs := make(map[string]bool, len(scanResult.Markers))
+	for _, m := range scanResult.Markers {
+		scannedMarkerIDs[m.ID] = true
+	}
+
+	isSpec := strings.Contains(id, ".")
+
+	if isSpec {
+		specFound := false
+		for _, s := range state.Specs {
+			if s.ID == id {
+				specFound = true
+				break
+			}
+		}
+		if !specFound {
+			return fmt.Errorf("%w: %q", ErrOrphanNotFound, id)
+		}
+		if scannedSpecIDs[id] {
+			return fmt.Errorf("%w: %q", ErrOrphanStillOnDisk, id)
+		}
+		linkCount := 0
+		for _, l := range state.Links {
+			if l.SpecID == id {
+				linkCount++
+			}
+		}
+		if linkCount > 0 {
+			return fmt.Errorf("%w: %q still has %d link(s); resolve them first with `drift reset <marker> <spec>`", ErrOrphanHasLinks, id, linkCount)
+		}
+		newSpecs := make([]core.Spec, 0, len(state.Specs)-1)
+		for _, s := range state.Specs {
+			if s.ID != id {
+				newSpecs = append(newSpecs, s)
+			}
+		}
+		newResolutions := make([]core.ResolutionState, 0, len(state.ResolutionState))
+		for _, r := range state.ResolutionState {
+			if r.SpecID != id {
+				newResolutions = append(newResolutions, r)
+			}
+		}
+		return o.stateStore.Save(statestore.State{
+			Specs:           newSpecs,
+			Markers:         state.Markers,
+			Links:           state.Links,
+			ResolutionState: newResolutions,
+		})
+	}
+
+	markerFound := false
+	for _, m := range state.Markers {
+		if m.ID == id {
+			markerFound = true
+			break
+		}
+	}
+	if !markerFound {
+		return fmt.Errorf("%w: %q", ErrOrphanNotFound, id)
+	}
+	if scannedMarkerIDs[id] {
+		return fmt.Errorf("%w: %q", ErrOrphanStillOnDisk, id)
+	}
+	linkCount := 0
+	for _, l := range state.Links {
+		if l.MarkerID == id {
+			linkCount++
+		}
+	}
+	if linkCount > 0 {
+		return fmt.Errorf("%w: %q still has %d link(s); resolve them first with `drift reset <marker> <spec>`", ErrOrphanHasLinks, id, linkCount)
+	}
+	newMarkers := make([]core.Marker, 0, len(state.Markers)-1)
+	for _, m := range state.Markers {
+		if m.ID != id {
+			newMarkers = append(newMarkers, m)
+		}
+	}
+	newResolutions := make([]core.ResolutionState, 0, len(state.ResolutionState))
+	for _, r := range state.ResolutionState {
+		if r.MarkerID != id {
+			newResolutions = append(newResolutions, r)
+		}
+	}
+	return o.stateStore.Save(statestore.State{
+		Specs:           state.Specs,
+		Markers:         newMarkers,
+		Links:           state.Links,
+		ResolutionState: newResolutions,
+	})
+}
+

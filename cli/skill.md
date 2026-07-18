@@ -23,7 +23,7 @@ Drift state must be committed so the whole team shares the same baseline.
 **Do NOT commit:**
 - `.drift/user-settings.xml` — per-user theme preference (auto-excluded by `.drift/.gitignore`, created by `drift init`)
 
-`.drift/.gitignore` is created automatically by `drift init` and contains `user-settings.xml`. If you use a monorepo or custom setup, ensure `.drift/user-settings.xml` is excluded.
+`.drift/.gitignore` is created automatically by `drift init` and contains `user-settings.xml` and `state.lock`. If you use a monorepo or custom setup, ensure `.drift/user-settings.xml` is excluded.
 
 # Workflow
 
@@ -268,7 +268,7 @@ If you find yourself wanting a bulk reset, that is a signal that you are not act
 - `baselines/` — content-addressed baseline files. Each file is named by its SHA1 hash (`sha1(content) == filename`). Written on `link` and `reset`. Dedup'd automatically. Orphaned files (from collapsed baselines) are harmless. Commit to git.
 - `theme.xml` — Optional project-level custom theme definition (all 18 elements). Commit to git if present. See <ref spec="output.custom_theme">Theming</ref>.
 - `user-settings.xml` — Per-user theme preference (written by `drift config theme`). NOT committed — excluded by `.drift/.gitignore`.
-- `.gitignore` — Created by `drift init`. Contains `user-settings.xml` to prevent accidental commits of personal preferences.
+- `.gitignore` — Created by `drift init`. Contains `user-settings.xml` and `state.lock` to prevent accidental commits of personal preferences and runtime artifacts.
 
 # drift.ignore
 

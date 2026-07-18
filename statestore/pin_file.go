@@ -30,6 +30,12 @@ type StateStore interface {
 	// check itself fails (e.g. permission error). Used by Init to make the
 	// init command non-idempotent.
 	Initialized() (bool, error)
+	// Lock acquires an exclusive advisory lock on the state file, blocking
+	// until acquired. The returned function releases the lock and must be
+	// called (typically via defer). All state-mutating operations must hold
+	// the lock for the entire Load→modify→Save window to prevent concurrent
+	// writers from silently overwriting each other's changes.
+	Lock() (func(), error)
 }
 
 type FileStateStore struct {

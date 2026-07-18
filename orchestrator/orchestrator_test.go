@@ -44,6 +44,10 @@ func (f *fakeStateStore) Initialized() (bool, error) {
 	return f.initialized, nil
 }
 
+func (f *fakeStateStore) Lock() (func(), error) {
+	return func() {}, nil
+}
+
 type fakeScanner struct {
 	result scanner.ScanResult
 	err    error

@@ -143,6 +143,12 @@ func (o *Orchestrator) Todo() (core.EvaluatedState, error) {
 
 // D! id=orest range-start
 func (o *Orchestrator) Reset(markerID, specID string) (core.EvaluatedState, error) {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+	defer unlock()
+
 	state, err := o.stateStore.Load()
 	if err != nil {
 		return core.EvaluatedState{}, err
@@ -212,6 +218,12 @@ func (o *Orchestrator) Reset(markerID, specID string) (core.EvaluatedState, erro
 
 // D! id=crorph range-start
 func (o *Orchestrator) ResetOrphan(id string) error {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
 	state, err := o.stateStore.Load()
 	if err != nil {
 		return err
@@ -322,6 +334,12 @@ func (o *Orchestrator) ResetOrphan(id string) error {
 
 // D! id=olink range-start
 func (o *Orchestrator) Link(markerID, specID string) error {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
 	state, err := o.stateStore.Load()
 	if err != nil {
 		return err
@@ -408,6 +426,12 @@ func (o *Orchestrator) Link(markerID, specID string) error {
 
 // D! id=ounlnk range-start
 func (o *Orchestrator) Unlink(markerID, specID string) error {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
 	state, err := o.stateStore.Load()
 	if err != nil {
 		return err

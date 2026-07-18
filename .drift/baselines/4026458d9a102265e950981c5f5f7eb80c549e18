@@ -1,0 +1,72 @@
+func (o *Orchestrator) Reset(markerID, specID string) (core.EvaluatedState, error) {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+	defer unlock()
+
+	state, err := o.stateStore.Load()
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	reconciledSpecs, err := reconcileSpecs(state.Specs, scanResult.Specs)
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	reconciledMarkers, err := reconcileMarkers(state.Markers, scanResult.Markers)
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	scan := buildScan(scanResult, reconciledSpecs, reconciledMarkers)
+
+	ctx := core.CoreAlgorithmContext{
+		Specs:           reconciledSpecs,
+		Markers:         reconciledMarkers,
+		Links:           state.Links,
+		ResolutionState: state.ResolutionState,
+		Action: core.ResetAction{
+			SpecID:   specID,
+			MarkerID: markerID,
+			Scan:     scan,
+		},
+	}
+
+	evaluated, err := o.core.EvaluateState(ctx)
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	err = o.stateStore.Save(statestore.State{
+		Specs:           evaluated.Specs,
+		Markers:         evaluated.Markers,
+		Links:           evaluated.Links,
+		ResolutionState: evaluated.ResolutionState,
+	})
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	for _, s := range scanResult.Specs {
+		if s.ID == specID {
+			_ = o.writeBaseline(s.Hash, s.Filepath, specID, 0, 0, true)
+			break
+		}
+	}
+	for _, m := range scanResult.Markers {
+		if m.ID == markerID {
+			_ = o.writeBaseline(m.Hash, m.Filepath, "", m.LineNumber, m.EndLineNumber, false)
+			break
+		}
+	}
+
+	return evaluated, nil
+}
+
