@@ -8,14 +8,15 @@ Usage:
 Commands:
   init                          Initialize: create .drift/ + starter main.drift.xml
   todo                          Scan specs and markers, report drift
-  list [--verbose]              Show all specs, markers, links, and sync state
+  list [--verbose]              Show all specs, markers, edges, and sync state
   show <marker|spec>            Show current content of a spec or marker
   diff <marker|spec>            Show what changed (unified diff vs baseline)
   diff <marker> <module.spec>   Show what changed for a specific edge
   diff --all                    Show diffs for ALL drifted edges at once (review before reset)
-  link <marker> <module.spec>   Connect a marker to a spec
-  unlink <marker> <module.spec>  Remove a link between a marker and a spec
-  reset <marker> <module.spec>  Mark a drifted edge as resolved
+  link <marker> <module.spec>   Connect a marker to a spec (link-style edge)
+  unlink <marker> <module.spec>  Remove a link-style edge
+  reset <marker> <module.spec>  Mark a drifted link-style edge as resolved
+  reset <spec> <spec>           Mark a drifted spec-spec edge as resolved (both args have dots)
   reset <id>                    Remove an orphaned (deleted) spec/marker from state.xml
   config theme <name>           Set theme preference (default, gruvbox, nord, dracula, etc.)
   config theme                  Show current theme preference
@@ -48,6 +49,13 @@ Spec files:
   *.drift.xml with <main> or <module name="..."> root
   Specs are <spec id="...">description</spec> — direct children of root
   Spec IDs are module-qualified: <module>.<specId>
+  Refs: <ref spec="module.localid">label</ref> inside spec content
+        declares a spec-spec edge; drift propagates rhizomatically
+
+Reset dispatch (dots are the discriminator):
+  drift reset <marker> <spec>   no dot, dot — link-style edge reset
+  drift reset <spec> <spec>     dot, dot     — spec-spec edge reset
+  drift reset <id>              single arg    — orphan removal (dot=spec, no dot=marker)
 
 Quick start:
   drift init
@@ -61,4 +69,5 @@ Examples:
   drift todo --json               # JSON output for LLM consumption
   drift config theme gruvbox       # set theme preference
   drift unlink validate_input core.validate_input
-  drift reset validate_input core.validate_input
+  drift reset validate_input core.validate_input   # link-style reset
+  drift reset output.color_mode output_impl.color_presenter  # spec-spec reset

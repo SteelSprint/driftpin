@@ -1,4 +1,4 @@
-Drift is a spec-drift detection tool designed for LLM coding agents. It tracks the relationship between specification terms (specs) and the code that implements them (markers). When either side changes, `drift todo` surfaces the drift so the agent can verify alignment.
+Drift is a spec-drift detection tool designed for LLM coding agents. It tracks the relationship between specification terms (specs), the code that implements them (markers), and the citations between specs (refs). When any side changes, `drift todo` surfaces the drift so the agent can verify alignment.
 
 # Quick Start
 
@@ -14,7 +14,7 @@ Drift state must be committed so the whole team shares the same baseline.
 
 **Commit:**
 - `*.drift.xml` — your spec files
-- `.drift/state.xml` — baseline hashes, links, resolution state
+- `.drift/state.xml` — baseline hashes, edges, resolutions (version=3, unified `<edges>` + `<edgeResolutions>`)
 - `.drift/baselines/` — content-addressed baseline snapshots
 - `.drift/theme.xml` — project-level custom theme (if present)
 - `.gitignore` or `drift.ignore` — ignore rules
@@ -22,6 +22,7 @@ Drift state must be committed so the whole team shares the same baseline.
 
 **Do NOT commit:**
 - `.drift/user-settings.xml` — per-user theme preference (auto-excluded by `.drift/.gitignore`, created by `drift init`)
+- `bak/` — local binary backups written by `make build`
 
 `.drift/.gitignore` is created automatically by `drift init` and contains `user-settings.xml` and `state.lock`. If you use a monorepo or custom setup, ensure `.drift/user-settings.xml` is excluded.
 
@@ -31,15 +32,17 @@ Drift state must be committed so the whole team shares the same baseline.
 
 2. **Write specs**: Edit `*.drift.xml` files. Each file has a root `<module name="...">` (or `<main>` for the entry point). Specs are `<spec id="...">description</spec>` elements — they must be **direct children** of the root element, not nested inside a `<specs>` wrapper.
 
-3. **Place markers**: Add `// D! id=<markerid> range-start` and `// D! id=<markerid> range-end` comment lines in your code, wrapping the code that implements a spec. The marker IDs are short unique strings you choose.
+3. **Cite other specs (optional)**: Inside a `<spec>` element, add `<ref spec="module.localid">label text</ref>` (or self-closing `<ref spec="module.localid" />`) to declare a spec-spec edge. Drift will track this citation: when the cited spec changes, this spec gets chain drift. First time you add a ref, `drift todo` reports it as TodoEdgeAdded; review and `drift reset <your-spec> <cited-spec>` to baseline the new edge.
 
-4. **Link markers to specs**: `drift link <marker> <module.spec>` — connects a marker to a spec. Spec IDs are module-qualified (e.g. `core.validate`).
+4. **Place markers**: Add `// D! id=<markerid> range-start` and `// D! id=<markerid> range-end` comment lines in your code, wrapping the code that implements a spec. The marker IDs are short unique strings you choose.
 
-5. **Check for drift**: `drift todo` — scans specs and markers, compares hashes against baselines, and reports any drift as a todo list. Each item includes a hint: `→ Run 'drift diff <marker> <spec>' to see what changed.` LLM agents can use `drift todo --json` for structured output.
+5. **Link markers to specs**: `drift link <marker> <module.spec>` — connects a marker to a spec. Spec IDs are module-qualified (e.g. `core.validate`).
 
-6. **See what changed**: `drift diff <marker> <module.spec>` — shows a unified diff of both the spec and marker content against their baselines. This is the verify step before resolving.
+6. **Check for drift**: `drift todo` — scans specs and markers, compares hashes against baselines, and reports any drift as a todo list. Drift kinds: TodoEdgeDrift (direct edge hash drift), TodoCascade (marker drifted due to upstream spec change), TodoEdgeAdded/Removed (new/removed ref), TodoBrokenEdge (ref to nonexistent spec). LLM agents can use `drift todo --json` for structured output.
 
-7. **Resolve drift**: After verifying that code and specs are still aligned, run `drift reset <marker> <module.spec>` to mark the edge as resolved and collapse baselines.
+7. **See what changed**: `drift diff <marker> <module.spec>` — shows a unified diff of both the spec and marker content against their baselines. This is the verify step before resolving.
+
+8. **Resolve drift**: After verifying that code and specs are still aligned, run `drift reset <from> <to>` to mark the edge as resolved and collapse baselines. For link edges: `drift reset <marker> <module.spec>`. For ref edges: `drift reset <your-spec> <cited-spec>`.
 
 # Spec Files
 
@@ -56,14 +59,14 @@ Specs live in `*.drift.xml` files. The entry point is `main.drift.xml` in the pr
 **Module files** (e.g. `core/core.drift.xml`):
 ```xml
 <module name="core">
-  <spec id="validate">Input must be validated before processing</spec>
+  <spec id="validate">Input must be validated before processing. See <ref spec="main.bootstrap">bootstrap</ref>.</spec>
   <spec id="parse">Parse input tokens into structured data</spec>
 </module>
 ```
 
 Spec IDs are qualified as `<module>.<specId>`. Specs in `main.drift.xml` use the `main.` prefix (e.g. `main.bootstrap`). Imports are relative to the importing file. Diamond imports are deduplicated by absolute path. Cycles are detected and reported with a trace.
 
-**ID format invariants:** The local `id` attribute in a `<spec>` element must NOT contain a dot — dots are reserved for module qualification (e.g. `module.specid`). Marker shortcodes must NOT contain a dot either. This ensures every spec ID has exactly one dot (separating module from local ID) and marker IDs have none, enabling unambiguous disambiguation in CLI commands like `drift reset <id>`.
+**ID format invariants:** The local `id` attribute in a `<spec>` element must NOT contain a dot — dots are reserved for module qualification (e.g. `module.specid`). Marker shortcodes must NOT contain a dot either. This ensures every spec ID has exactly one dot (separating module from local ID) and marker IDs have none, enabling unambiguous disambiguation in CLI commands like `drift reset <from> <to>` (dispatch is dots-based: marker+spec for link edges, spec+spec for ref edges).
 
 ```
 ✓  <spec id="validate">     → spec ID: main.validate
@@ -71,6 +74,15 @@ Spec IDs are qualified as `<module>.<specId>`. Specs in `main.drift.xml` use the
 ✗  <spec id="core.validate"> → REJECTED: dot in local ID
 ✗  marker id="core.validate" → REJECTED: dot in marker ID
 ```
+
+# Refs (spec-spec edges)
+
+A `<ref spec="module.localid">label</ref>` inside a `<spec>` element declares a directed spec-spec edge: "this spec cites that spec." The scanner parses these and stores them as baseline edges. Two key properties:
+
+- **Canonical hashing**: refs are stripped from spec content before hashing. Only the label text is preserved. So renaming a referenced spec ID (and updating the `<ref spec="…">` to match) does NOT invalidate the referrer's hash — ID renames stay localized.
+- **Rhizomatic propagation**: drift propagation treats the ref graph as undirected. A change at any spec propagates to every transitively-connected spec (chain drift), and every marker linked to those specs gets cascade drift. The stored direction records who-cited-whom (used for cycle detection); the propagation is symmetric.
+
+**No directed cycles among spec-spec edges.** `A → B → A` is rejected by validation. The scanner reports all cycles in one pass.
 
 # Markers
 
@@ -101,15 +113,15 @@ The marker pattern is a regex: `D!\s+id=(\S+)(?:\s+(range-start|range-end))?`. I
 |---|---|
 | `drift init` | Create `.drift/` directory (state.xml + baselines/) and `main.drift.xml` template. |
 | `drift todo` | Scan specs and markers, report drift. Exit 0 if clean (all linked + in sync), 1 if drift or unlinked markers, 2 on error. Each item includes a hint to run `drift diff`. |
-| `drift list [--verbose]` | Show all specs, markers, links, and sync state. `--verbose` adds spec text and marker content preview. Read-only. |
-| `drift show <marker\|spec>` | Show current content of a spec or marker with filepath and line ranges. Linked specs/markers are also displayed. Read-only. |
+| `drift list [--verbose]` | Show all specs, markers, edges, and sync state. `--verbose` adds spec text and marker content preview. Read-only. |
+| `drift show <marker\|spec>` | Show current content of a spec or marker with filepath and line ranges. For specs, also lists outbound and inbound refs. Read-only. |
 | `drift diff <marker\|spec>` | Show unified diffs of spec and marker content vs baselines for all linked edges. Read-only. |
 | `drift diff <marker> <module.spec>` | Show unified diff for a specific edge (spec side + marker side). Read-only. |
 | `drift diff --all` | Show unified diffs for ALL drifted edges at once — every entry in `drift todo`. Forces review of every broken edge before resolving any of them. Read-only. |
 | `drift link <marker> <module.spec>` | Connect a marker to a spec. Both must exist on disk. Writes baseline snapshots. |
 | `drift unlink <marker> <module.spec>` | Remove a link between a marker and a spec. Also clears resolution state for that edge. |
-| `drift reset <marker> <module.spec>` | Mark a drifted edge as resolved. Prints confirmation. Collapses baselines when all edges for a node are resolved. |
-| `drift reset <id>` | Remove an orphaned (deleted, no links) spec/marker from state.xml. |
+| `drift reset <from> <to>` | Mark a drifted edge as resolved. Dispatch on dots: `<marker> <spec>` (no dot, dot) for link edges; `<spec> <spec>` (dot, dot) for ref edges. Collapses baselines when all edges for a node are resolved. |
+| `drift reset <id>` | Remove an orphaned (deleted, no edges) spec/marker from state.xml. |
 | `drift config theme <name>` | Set theme preference (e.g. gruvbox, nord, dracula). Stored in .drift/user-settings.xml (not committed to git). |
 | `drift config theme` | Show current theme preference. |
 | `drift help` | Show command reference with examples. |
@@ -146,15 +158,15 @@ drift todo --json
 
 Example output (abbreviated):
 ```json
-{"ok":true,"specs":12,"markers":8,"links":10,"todos":[],"unlinkedMarkers":0}
+{"ok":true,"specs":12,"markers":8,"edges":10,"todos":[],"unlinkedMarkers":0}
 ```
 
 When drift exists (todos non-empty):
 ```json
-{"ok":false,"specs":12,"markers":8,"links":10,"todos":[{"marker":"cval","spec":"core.validate","markerLocation":"core/core.go:114","specLocation":"core/core.drift.xml:0","markerChanged":true,"specChanged":false,"markerDeleted":false,"specDeleted":false}],"unlinkedMarkers":0}
+{"ok":false,"specs":12,"markers":8,"edges":10,"todos":[{"kind":"edgeDrift","from":"cval","to":"core.validate","fromLocation":"core/core.go:114","toLocation":"core/core.drift.xml:0","fromChanged":true,"toChanged":false}],"unlinkedMarkers":0}
 ```
 
-Every command supports `--json`. The JSON shape is deterministic (struct-defined field order, not alphabetized). JSON output never contains ANSI escape codes.
+Todo kinds in JSON: `edgeDrift`, `cascade`, `edgeAdded`, `edgeRemoved`, `brokenEdge`. Every command supports `--json`. The JSON shape is deterministic (struct-defined field order, not alphabetized). JSON output never contains ANSI escape codes.
 
 # Theming
 
@@ -222,14 +234,19 @@ Color values accept basic ANSI (`"31"`), bright (`"91"`), and 256-color (`"38;5;
 
 # How Drift Detection Works
 
-`drift` SHA1-hashes spec content (the text inside `<spec>` elements) and marker content (the lines between `range-start` and `range-end`, with other marker declarations blanked). These hashes are stored as baselines in `.drift/state.xml`. On each `drift todo`, current hashes are compared against baselines:
+`drift` SHA1-hashes spec content (canonicalized — refs stripped, label text preserved) and marker content (the lines between `range-start` and `range-end`, with other marker declarations blanked). These hashes are stored as baselines in `.drift/state.xml`. On each `drift todo`, current hashes are compared against baselines and drift is detected per edge:
 
-- **No drift**: All hashes match → "No changes detected. N specs, M markers, K links in sync."
-- **Marker changed**: The code near a marker was modified. Check if it still matches the spec.
-- **Spec changed**: The spec text was modified. Check if the code still implements it.
-- **Both changed**: Both sides changed. Verify alignment on both sides.
+- **TodoEdgeDrift (direct)**: a baseline edge (link or ref) where one or both endpoint hashes changed.
+- **TodoEdgeDrift (chain)**: a spec reached transitively through the ref graph from a hash-drifted spec. The SourceSpecID field identifies the changed source. Resolving the chain drift auto-clears cascade todos for markers linked to this spec.
+- **TodoCascade**: a marker linked to a chain-drifted spec. Derived — not independently resettable. Resolves when the upstream chain drift resolves.
+- **TodoEdgeAdded / TodoEdgeRemoved**: a spec-spec edge appears in only one of {baseline, scan} (a new or deleted `<ref>`).
+- **TodoBrokenEdge**: a scan edge whose To endpoint does not exist as a node (typically a typo in a `<ref>` target).
 
-Drift is per-edge (one marker ↔ one spec). If 1 spec is linked to 3 markers and the spec changes, that's 3 todo items. `drift reset <marker> <module.spec>` resolves one edge. When all edges for a node are resolved, the baseline collapses to the current hash.
+**No drift**: All hashes match → "No changes detected. N specs, M markers, K edges in sync."
+
+Drift is per-edge. If 1 spec is linked to 3 markers and the spec changes, that's 3 todo items. `drift reset <from> <to>` resolves one edge. When all edges for a node are resolved, the baseline collapses to the current hash.
+
+**Source-of-truth asymmetry**: marker hash-drift does NOT propagate (markers are leaf implementations; the spec might still be correct). Spec hash-drift DOES propagate rhizomatically (a changed spec puts every transitively-connected spec's alignment in question).
 
 # Diffs
 
@@ -237,7 +254,7 @@ Drift is per-edge (one marker ↔ one spec). If 1 spec is linked to 3 markers an
 
 - `drift diff <marker> <module.spec>` — shows both the spec and marker diffs for one edge.
 - `drift diff <marker|spec>` — auto-expands to all linked edges.
-- `drift diff --all` — shows the diff for EVERY drifted edge (every entry in `drift todo`) in one pass. Use this to review all broken edges before resolving them.
+- `drift diff --all` — shows the diff for EVERY direct-edge drift (not chain/cascade/broken — those have no single edge to diff) in one pass.
 
 Each side shows:
 - Entity ID, filepath, and line range (markers only)
@@ -248,7 +265,7 @@ When there's no baseline snapshot (e.g. pre-migration or content-addressed miss)
 
 # Why no bulk reset?
 
-**Drift intentionally provides NO command to reset multiple edges at once.** There is no `drift reset --all`, no glob, no multi-arg form. Every drifted edge must be individually reviewed and individually resolved with `drift reset <marker> <module.spec>`.
+**Drift intentionally provides NO command to reset multiple edges at once.** There is no `drift reset --all`, no glob, no multi-arg form. Every drifted edge must be individually reviewed and individually resolved with `drift reset <from> <to>`.
 
 This friction is deliberate and is the whole point of the tool. A bulk reset would let you (or an LLM agent) blindly mark everything as reviewed without actually reading the changes — which would make drift useless as a spec-code sync tool.
 
@@ -256,7 +273,7 @@ The intended workflow when drift exists:
 
 1. `drift todo` — see what broke (which edges drifted).
 2. `drift diff --all` — review every broken edge's changes in one pass.
-3. `drift reset <marker> <module.spec>` — resolve ONE edge at a time, after reviewing it.
+3. `drift reset <from> <to>` — resolve ONE edge at a time, after reviewing it.
 
 If you find yourself wanting a bulk reset, that is a signal that you are not actually reviewing the drift — which is exactly the failure mode drift is designed to prevent.
 
@@ -264,8 +281,8 @@ If you find yourself wanting a bulk reset, that is a signal that you are not act
 
 `.drift/` is the state directory at the project root. It contains:
 
-- `state.xml` — XML state file storing baseline hashes, links, and resolution state. Tool-managed — do not edit by hand. Commit to git.
-- `baselines/` — content-addressed baseline files. Each file is named by its SHA1 hash (`sha1(content) == filename`). Written on `link` and `reset`. Dedup'd automatically. Orphaned files (from collapsed baselines) are harmless. Commit to git.
+- `state.xml` — XML state file (version=3) storing baseline hashes and unified `<edges>` + `<edgeResolutions>` sections. Tool-managed — do not edit by hand. Commit to git.
+- `baselines/` — content-addressed baseline files. Each file is named by its SHA-equivalent hash (for markers, sha1(content); for specs, the canonical hash with refs stripped — file content is raw spec text including refs so `drift diff` displays faithful text). Written on `link` and `reset`. Dedup'd automatically. Orphaned files (from collapsed baselines) are harmless. Commit to git.
 - `theme.xml` — Optional project-level custom theme definition (all 18 elements). Commit to git if present. See <ref spec="output.custom_theme">Theming</ref>.
 - `user-settings.xml` — Per-user theme preference (written by `drift config theme`). NOT committed — excluded by `.drift/.gitignore`.
 - `.gitignore` — Created by `drift init`. Contains `user-settings.xml` and `state.lock` to prevent accidental commits of personal preferences and runtime artifacts.
@@ -281,8 +298,15 @@ A `.gitignore`-style file at the project root. Patterns exclude files/directorie
 - **Nested ranges:** An outer range can contain inner ranges. Inner marker declarations are blanked from the outer range's hash, so changing an inner marker's ID does not affect the outer marker's hash.
 - **Overlapping ranges:** Ranges that partially overlap (neither fully contains the other) are allowed.
 - **Empty ranges:** A `range-start` immediately followed by `range-end` (no content between them) hashes an empty string. This is allowed but not useful.
-- **Deleted specs:** When a spec is removed from a `.drift.xml` file but still in `state.xml`, it is treated as drift (not an error). `drift todo` shows a deletion-specific message. Resolve with `drift reset <marker> <spec>`. After resolution, the deleted spec and its links are pruned from `state.xml`.
-- **Deleted markers:** Same deletion-as-drift model as specs. The marker's hash becomes empty, triggering drift on all linked edges.
-- **Orphaned entries (deleted, no links):** Shown with `[deleted]` tag in `drift list`. Cleaned via `drift reset <id>` (single-arg: dot = spec, no dot = marker).
-- **`drift reset` semantics:** Rewrites the baseline hash to the current hash and clears the resolution entry. Prints "Resolved: MARKER → SPEC. Baseline updated." on success.
+- **Deleted specs:** When a spec is removed from a `.drift.xml` file but still in `state.xml`, it is treated as drift (not an error). `drift todo` shows a deletion-specific message. Resolve with `drift reset <marker> <spec>`. After resolution, the deleted spec and its edges are pruned from `state.xml`.
+- **Deleted markers:** Same deletion-as-drift model as specs. The marker's hash becomes empty, triggering drift on all touching edges.
+- **Orphaned entries (deleted, no edges):** Shown with `[deleted]` tag in `drift list`. Cleaned via `drift reset <id>` (single-arg: dot = spec, no dot = marker).
+- **Broken refs (`TodoBrokenEdge`):** A `<ref spec="X">` whose target spec ID `X` does not exist (typo, or target was deleted). NOT resettable — fix the spec text or restore the missing spec.
+- **Ref cycles (`A → B → A`):** Validation rejects directed cycles among spec-spec edges. The scanner reports all cycles in one pass with the offending path.
+- **Cascade drift:** Markers linked to a chain-drifted spec show as TodoCascade. These are derived todos — not independently resettable. Resolving the upstream chain drift (TodoEdgeDrift with SourceSpecID set) clears the cascade automatically.
+- **`drift reset` semantics:** Rewrites the baseline hash to the current hash and clears the resolution entry. Prints "Resolved: FROM → TO. Baseline updated." on link-style success; "Resolved edge: X reviewed against Y." on spec-spec success.
 - **`drift todo` exit codes:** 0 = clean (all specs linked AND all edges in sync), 1 = drift or unlinked markers, 2 = error. Use in CI: `drift todo && echo "clean"`. Unlinked markers are treated as actionable drift — they represent unfinished coverage work.
+
+# Build gate (`make build`)
+
+`make build` runs `drift todo` as a spec-drift gate before declaring the build complete. The build fails if any drift is detected. On each successful rebuild the prior `./drift` binary is backed up to `bak/drift-<UTC-timestamp>` (gitignored). Roll back with `cp bak/drift-<ts> drift`. To skip the gate and just compile, use `go build -o drift ./cmd/drift` directly.

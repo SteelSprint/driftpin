@@ -4,7 +4,7 @@
 
 # Drift
 
-**Drift** links your requirements to the exact code that makes them real. When the code or the requirements change, the tool tells you exactly what is affected — not "something in this file," but which lines, which function, which rule. One rule can point to many places in the code, so you can trace any requirement to every spot that carries it out. `drift todo` tells you what fell out of sync. `drift diff` shows you what changed. `drift show` walks you through every piece of code behind a rule. This lets AI agents check their own work against the rules before saying "done" — not just "the tests passed," but "every rule still matches its code."
+**Drift** links your requirements to the exact code that makes them real. Specs cite each other via `<ref>` tags, so the spec graph is tracked too — editing a foundational spec surfaces drift on every spec transitively connected to it. When the code, the requirements, or the citations change, the tool tells you exactly what is affected — not "something in this file," but which lines, which function, which rule. One rule can point to many places in the code, so you can trace any requirement to every spot that carries it out. `drift todo` tells you what fell out of sync. `drift diff` shows you what changed. `drift show` walks you through every piece of code behind a rule. This lets AI agents check their own work against the rules before saying "done" — not just "the tests passed," but "every rule still matches its code."
 
 ## Zero dependencies
 
@@ -156,9 +156,11 @@ Bugs are fixed test-first. Write the test that reproduces the bug, confirm it fa
 
 ## Anatomy
 
-- **Specs** — `*.drift.xml` files containing `<spec id="...">` elements under `<main>` or `<module name="...">` roots
-- **Markers** — `// D! id=<shortcode> range-start` and `// D! id=<shortcode> range-end` comment lines in code files, wrapping the code that implements a spec
-- **`.drift/`** — state directory at project root containing `state.xml` (baseline hashes, links, resolution state), `baselines/` (content-addressed baseline snapshots), optional `theme.xml` (project-level custom theme), and `user-settings.xml` (per-user theme preference, gitignored). Tool-managed — do not edit by hand. Commit to git (except user-settings.xml).
-- **CLI** — `drift init`, `drift todo`, `drift list`, `drift show`, `drift diff`, `drift link`, `drift unlink`, `drift reset`, `drift config theme`, `drift help`, `drift skill`, `drift version`. Global flags: `--json`, `--no-color`, `--color={auto,always,never}`.
+- **Specs** — `*.drift.xml` files containing `<spec id="...">` elements under `<main>` or `<module name="...">` roots. Specs cite each other via `<ref spec="module.localid">label</ref>` tags inside spec content; refs are tracked as spec-spec edges and propagate drift rhizomatically.
+- **Markers** — `// D! id=<shortcode> range-start` and `// D! id=<shortcode> range-end` comment lines in code files, wrapping the code that implements a spec. Marker-spec connections (link edges) are created via `drift link`.
+- **Edges** — unified storage for both link edges (marker → spec) and ref edges (spec → spec). Stored in a single `<edges>` section in `.drift/state.xml`. Direction records who-declared-who (used for cycle detection); drift propagation is undirected (rhizomatic).
+- **`.drift/`** — state directory at project root containing `state.xml` v3 (baseline hashes, unified edges, resolution state), `baselines/` (content-addressed baseline snapshots), optional `theme.xml` (project-level custom theme), and `user-settings.xml` (per-user theme preference, gitignored). Tool-managed — do not edit by hand. Commit to git (except user-settings.xml).
+- **CLI** — `drift init`, `drift todo`, `drift list`, `drift show`, `drift diff`, `drift link`, `drift unlink`, `drift reset`, `drift config theme`, `drift help`, `drift skill`, `drift version`. `drift reset` dispatches on dots: `<marker> <spec>` for link edges, `<spec> <spec>` for ref edges. Global flags: `--json`, `--no-color`, `--color={auto,always,never}`.
+- **Build gate** — `make build` runs `drift todo` before declaring the build complete. The build fails if any drift is detected. Prior binary backed up to `bak/drift-<UTC-timestamp>` on each successful rebuild (gitignored).
 
 See [DOCUMENTATION.md](DOCUMENTATION.md) for the full documentation.
