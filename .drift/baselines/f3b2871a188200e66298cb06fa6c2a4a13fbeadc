@@ -1,0 +1,1 @@
+FileStateStore.Save marshals State to indented XML and writes it to .drift/state.xml, truncating any existing file. It also ensures .drift/baselines/ exists. The XML root element is drift with nested specs, markers, links, refs, resolutions, and refResolutions sections.

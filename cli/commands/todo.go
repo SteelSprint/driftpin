@@ -21,9 +21,13 @@ func (c TodoCommand) Run(ctx Context) (output.Result, int) {
 }
 
 func hasUnlinkedMarkers(state core.EvaluatedState) bool {
-	linkedMarkers := make(map[string]bool, len(state.Links))
-	for _, link := range state.Links {
-		linkedMarkers[link.MarkerID] = true
+	linkedMarkers := make(map[string]bool)
+	for _, e := range state.Edges {
+		// Link-style edge: From is marker (no dot).
+		if isSpecIDLocal(e.From) {
+			continue
+		}
+		linkedMarkers[e.From] = true
 	}
 	for _, m := range state.Markers {
 		if !m.Deleted && !linkedMarkers[m.ID] {

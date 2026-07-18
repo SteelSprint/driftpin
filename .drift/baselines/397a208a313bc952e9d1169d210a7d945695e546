@@ -1,0 +1,43 @@
+func (algorithm *CoreAlgorithm) evaluateResetAction(ctx CoreAlgorithmContext, action ResetAction) (EvaluatedState, error) {
+	if err := validateScanCoversAllNodes(action.Scan, ctx.Specs, ctx.Markers); err != nil {
+		return EvaluatedState{}, err
+	}
+	// The edge must exist in baseline, in either direction (resolutions are
+	// undirected — a (From, To) resolution covers either declaration).
+	edgeFound := false
+	for _, e := range ctx.Edges {
+		if (e.From == action.From && e.To == action.To) ||
+			(e.From == action.To && e.To == action.From) {
+			edgeFound = true
+			break
+		}
+	}
+	if !edgeFound {
+		return EvaluatedState{}, fmt.Errorf("%w: from=%q to=%q", ErrResetEdgeNotInBaseline, action.From, action.To)
+	}
+
+	specsByID := copySpecsToMutableMap(ctx.Specs)
+	markersByID := copyMarkersToMutableMap(ctx.Markers)
+	resolutionsByEdge := indexResolutionsByEdge(ctx.Resolutions)
+
+	resolutionsByEdge[action.From+"\x00"+action.To] = EdgeResolution{
+		From:            action.From,
+		To:              action.To,
+		CurrentFromHash: nodeScanHash(action.From, action.Scan, specsByID, markersByID),
+		CurrentToHash:   nodeScanHash(action.To, action.Scan, specsByID, markersByID),
+	}
+
+	collapsedMarkers := map[string]bool{}
+	collapsedSpecs := map[string]bool{}
+	collapseResolvedNodes(ctx.Edges, specsByID, markersByID, resolutionsByEdge, action.Scan, collapsedMarkers, collapsedSpecs)
+
+	filteredEdges := filterEdgesByNodes(ctx.Edges, specsByID, markersByID)
+
+	return EvaluatedState{
+		Specs:       specsFromMutableMap(specsByID),
+		Markers:     markersFromMutableMap(markersByID),
+		Edges:       filteredEdges,
+		Resolutions: resolutionsFromMutableMap(resolutionsByEdge),
+	}, nil
+}
+

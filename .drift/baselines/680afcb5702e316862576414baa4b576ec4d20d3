@@ -1,0 +1,1 @@
+The version command flows through the dispatch pipeline like every other command (was previously a main.go pre-check). Returns VersionResult{Version}. Plain prints "drift version &lt;X&gt;"; JSON prints {"version":"&lt;X&gt;"}. --version and -v at args[0] are normalized to "version" by main.go before dispatch.

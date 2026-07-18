@@ -11,16 +11,17 @@ import (
 )
 
 var (
-	ErrLinkMarkerNotFound = fmt.Errorf("link references unknown marker")
-	ErrLinkSpecNotFound   = fmt.Errorf("link references unknown spec")
-	ErrLinkAlreadyExists  = fmt.Errorf("link already exists")
-	ErrUnlinkNotFound     = fmt.Errorf("no link found between marker and spec")
-	ErrOrphanNotFound     = fmt.Errorf("no spec or marker found in state.xml")
-	ErrOrphanStillOnDisk  = fmt.Errorf("spec or marker is still on disk")
-	ErrOrphanHasLinks     = fmt.Errorf("spec or marker still has links")
-	ErrDiffEntityNotFound = fmt.Errorf("no spec or marker found for diff")
-	ErrAlreadyInitialized = fmt.Errorf("project already initialized")
-	markerSyntax          = "D" + "! id=<shortcode>"
+	ErrLinkMarkerNotFound    = fmt.Errorf("link references unknown marker")
+	ErrLinkSpecNotFound      = fmt.Errorf("link references unknown spec")
+	ErrLinkAlreadyExists     = fmt.Errorf("link already exists")
+	ErrUnlinkNotFound        = fmt.Errorf("no link found between marker and spec")
+	ErrOrphanNotFound        = fmt.Errorf("no spec or marker found in state.xml")
+	ErrOrphanStillOnDisk     = fmt.Errorf("spec or marker is still on disk")
+	ErrOrphanHasEdges        = fmt.Errorf("spec or marker still has edges")
+	ErrDiffEntityNotFound    = fmt.Errorf("no spec or marker found for diff")
+	ErrAlreadyInitialized    = fmt.Errorf("project already initialized")
+	ErrBrokenEdgeNotResettable = fmt.Errorf("broken edge cannot be resolved by reset; fix the spec text or restore the missing spec")
+	markerSyntax             = "D" + "! id=<shortcode>"
 )
 
 type Orchestrator struct {
@@ -59,12 +60,7 @@ type DiffResult struct {
 }
 
 // writeBaseline writes a content-addressed baseline file for the given
-// spec or marker using its current scanned hash. Best-effort: if the
-// BaselineStore is nil (e.g. in tests that don't exercise diff), this
-// is a no-op. The scanned hash always equals sha1(current content), so
-// the integrity check in BaselineStore.Write is satisfied. For entities
-// whose baselined hash differs from the scanned hash (drifted), this creates
-// an orphan file at the scanned-hash address — harmless and dedup-safe.
+// spec or marker using its current scanned hash. Best-effort.
 func (o *Orchestrator) writeBaseline(scannedHash, filepath, specID string, startLine, endLine int, isSpec bool) error {
 	if o.baselines == nil {
 		return nil
@@ -78,7 +74,7 @@ func (o *Orchestrator) writeBaseline(scannedHash, filepath, specID string, start
 		content, err = scanner.ReadMarkerContent(absPath, startLine, endLine)
 	}
 	if err != nil {
-		return nil // entity may be deleted mid-operation; skip silently
+		return nil
 	}
 	return o.baselines.Write(scannedHash, content)
 }
@@ -129,11 +125,11 @@ func (o *Orchestrator) Todo() (core.EvaluatedState, error) {
 	scan := buildScan(scanResult, reconciledSpecs, reconciledMarkers)
 
 	ctx := core.CoreAlgorithmContext{
-		Specs:           reconciledSpecs,
-		Markers:         reconciledMarkers,
-		Links:           state.Links,
-		ResolutionState: state.ResolutionState,
-		Action:          core.TodoAction{Scan: scan},
+		Specs:       reconciledSpecs,
+		Markers:     reconciledMarkers,
+		Edges:       state.Edges,
+		Resolutions: state.Resolutions,
+		Action:      core.TodoAction{Scan: scan},
 	}
 
 	return o.core.EvaluateState(ctx)
@@ -142,7 +138,13 @@ func (o *Orchestrator) Todo() (core.EvaluatedState, error) {
 // D! id=otodo range-end
 
 // D! id=orest range-start
-func (o *Orchestrator) Reset(markerID, specID string) (core.EvaluatedState, error) {
+// Reset resolves one drifted edge. The from/to arguments name the edge
+// endpoints; the CLI dispatches based on dots in the IDs (marker-spec for
+// link-style, spec-spec for ref-style). The unified core path finds the
+// edge in baseline (in either direction), stamps an EdgeResolution at the
+// current endpoint hashes, and collapses any nodes whose every edge is
+// consistent or resolved.
+func (o *Orchestrator) Reset(fromID, toID string) (core.EvaluatedState, error) {
 	unlock, err := o.stateStore.Lock()
 	if err != nil {
 		return core.EvaluatedState{}, err
@@ -171,15 +173,36 @@ func (o *Orchestrator) Reset(markerID, specID string) (core.EvaluatedState, erro
 
 	scan := buildScan(scanResult, reconciledSpecs, reconciledMarkers)
 
+	// Spec-spec ref-edge reset (both args have dots): if the edge exists in
+	// scan but not baseline (TodoEdgeAdded), add it to baseline; if it exists
+	// in baseline but not scan (TodoEdgeRemoved), drop it from baseline and
+	// prune its resolutions. Otherwise stamp a resolution and let collapse
+	// handle it.
+	edges := state.Edges
+	if isSpecID(fromID) && isSpecID(toID) {
+		// Refuse broken-edge resets: target spec must exist on disk.
+		specExists := false
+		for _, s := range scanResult.Specs {
+			if s.ID == toID {
+				specExists = true
+				break
+			}
+		}
+		if !specExists {
+			return core.EvaluatedState{}, fmt.Errorf("%w: from=%q to=%q", ErrBrokenEdgeNotResettable, fromID, toID)
+		}
+		edges = applyRefEdgeReset(state.Edges, scanResult.Edges, fromID, toID)
+	}
+
 	ctx := core.CoreAlgorithmContext{
-		Specs:           reconciledSpecs,
-		Markers:         reconciledMarkers,
-		Links:           state.Links,
-		ResolutionState: state.ResolutionState,
+		Specs:       reconciledSpecs,
+		Markers:     reconciledMarkers,
+		Edges:       edges,
+		Resolutions: state.Resolutions,
 		Action: core.ResetAction{
-			SpecID:   specID,
-			MarkerID: markerID,
-			Scan:     scan,
+			From: fromID,
+			To:   toID,
+			Scan: scan,
 		},
 	}
 
@@ -188,26 +211,40 @@ func (o *Orchestrator) Reset(markerID, specID string) (core.EvaluatedState, erro
 		return core.EvaluatedState{}, err
 	}
 
+	// For ref-edge removal, drop resolutions touching the removed edge in
+	// either direction (Validate would otherwise reject the next Load).
+	if isSpecID(fromID) && isSpecID(toID) {
+		scanHasEdge := false
+		for _, e := range scanResult.Edges {
+			if (e.From == fromID && e.To == toID) || (e.From == toID && e.To == fromID) {
+				scanHasEdge = true
+				break
+			}
+		}
+		if !scanHasEdge {
+			evaluated.Resolutions = pruneResolutionsTouchingPair(evaluated.Resolutions, fromID, toID)
+		}
+	}
+
 	err = o.stateStore.Save(statestore.State{
-		Specs:           evaluated.Specs,
-		Markers:         evaluated.Markers,
-		Links:           evaluated.Links,
-		ResolutionState: evaluated.ResolutionState,
+		Specs:       evaluated.Specs,
+		Markers:     evaluated.Markers,
+		Edges:       evaluated.Edges,
+		Resolutions: evaluated.Resolutions,
 	})
 	if err != nil {
 		return core.EvaluatedState{}, err
 	}
 
+	// Best-effort: refresh baseline files for the resolved endpoints.
 	for _, s := range scanResult.Specs {
-		if s.ID == specID {
-			_ = o.writeBaseline(s.Hash, s.Filepath, specID, 0, 0, true)
-			break
+		if s.ID == fromID || s.ID == toID {
+			_ = o.writeBaseline(s.Hash, s.Filepath, s.ID, 0, 0, true)
 		}
 	}
 	for _, m := range scanResult.Markers {
-		if m.ID == markerID {
+		if m.ID == fromID || m.ID == toID {
 			_ = o.writeBaseline(m.Hash, m.Filepath, "", m.LineNumber, m.EndLineNumber, false)
-			break
 		}
 	}
 
@@ -259,14 +296,14 @@ func (o *Orchestrator) ResetOrphan(id string) error {
 		if scannedSpecIDs[id] {
 			return fmt.Errorf("%w: %q", ErrOrphanStillOnDisk, id)
 		}
-		linkCount := 0
-		for _, l := range state.Links {
-			if l.SpecID == id {
-				linkCount++
+		edgeCount := 0
+		for _, e := range state.Edges {
+			if e.From == id || e.To == id {
+				edgeCount++
 			}
 		}
-		if linkCount > 0 {
-			return fmt.Errorf("%w: %q still has %d link(s); resolve them first with `drift reset <marker> <spec>`", ErrOrphanHasLinks, id, linkCount)
+		if edgeCount > 0 {
+			return fmt.Errorf("%w: %q still has %d edge(s); resolve them first with `drift reset`", ErrOrphanHasEdges, id, edgeCount)
 		}
 		newSpecs := make([]core.Spec, 0, len(state.Specs)-1)
 		for _, s := range state.Specs {
@@ -274,17 +311,19 @@ func (o *Orchestrator) ResetOrphan(id string) error {
 				newSpecs = append(newSpecs, s)
 			}
 		}
-		newResolutions := make([]core.ResolutionState, 0, len(state.ResolutionState))
-		for _, r := range state.ResolutionState {
-			if r.SpecID != id {
-				newResolutions = append(newResolutions, r)
+		// Prune any resolutions touching the orphaned spec.
+		newResolutions := make([]core.EdgeResolution, 0, len(state.Resolutions))
+		for _, r := range state.Resolutions {
+			if r.From == id || r.To == id {
+				continue
 			}
+			newResolutions = append(newResolutions, r)
 		}
 		return o.stateStore.Save(statestore.State{
-			Specs:           newSpecs,
-			Markers:         state.Markers,
-			Links:           state.Links,
-			ResolutionState: newResolutions,
+			Specs:       newSpecs,
+			Markers:     state.Markers,
+			Edges:       state.Edges,
+			Resolutions: newResolutions,
 		})
 	}
 
@@ -301,14 +340,14 @@ func (o *Orchestrator) ResetOrphan(id string) error {
 	if scannedMarkerIDs[id] {
 		return fmt.Errorf("%w: %q", ErrOrphanStillOnDisk, id)
 	}
-	linkCount := 0
-	for _, l := range state.Links {
-		if l.MarkerID == id {
-			linkCount++
+	edgeCount := 0
+	for _, e := range state.Edges {
+		if e.From == id || e.To == id {
+			edgeCount++
 		}
 	}
-	if linkCount > 0 {
-		return fmt.Errorf("%w: %q still has %d link(s); resolve them first with `drift reset <marker> <spec>`", ErrOrphanHasLinks, id, linkCount)
+	if edgeCount > 0 {
+		return fmt.Errorf("%w: %q still has %d edge(s); resolve them first with `drift reset`", ErrOrphanHasEdges, id, edgeCount)
 	}
 	newMarkers := make([]core.Marker, 0, len(state.Markers)-1)
 	for _, m := range state.Markers {
@@ -316,23 +355,27 @@ func (o *Orchestrator) ResetOrphan(id string) error {
 			newMarkers = append(newMarkers, m)
 		}
 	}
-	newResolutions := make([]core.ResolutionState, 0, len(state.ResolutionState))
-	for _, r := range state.ResolutionState {
-		if r.MarkerID != id {
-			newResolutions = append(newResolutions, r)
+	newResolutions := make([]core.EdgeResolution, 0, len(state.Resolutions))
+	for _, r := range state.Resolutions {
+		if r.From == id || r.To == id {
+			continue
 		}
+		newResolutions = append(newResolutions, r)
 	}
 	return o.stateStore.Save(statestore.State{
-		Specs:           state.Specs,
-		Markers:         newMarkers,
-		Links:           state.Links,
-		ResolutionState: newResolutions,
+		Specs:       state.Specs,
+		Markers:     newMarkers,
+		Edges:       state.Edges,
+		Resolutions: newResolutions,
 	})
 }
 
 // D! id=crorph range-end
 
 // D! id=olink range-start
+// Link constructs a link-style Edge (marker stores edge to spec) and appends
+// it to baseline. The edge kind is implicit from endpoint types: marker IDs
+// contain no dot, spec IDs contain exactly one.
 func (o *Orchestrator) Link(markerID, specID string) error {
 	unlock, err := o.stateStore.Lock()
 	if err != nil {
@@ -392,17 +435,21 @@ func (o *Orchestrator) Link(markerID, specID string) error {
 		return fmt.Errorf("link references unknown spec %q.\nSpec IDs are module-qualified: <module>.<specId> (e.g. main.example or core.validate).\nAvailable specs: %s", specID, strings.Join(available, ", "))
 	}
 
-	for _, l := range state.Links {
-		if l.MarkerID == markerID && l.SpecID == specID {
+	for _, e := range state.Edges {
+		if e.From == markerID && e.To == specID {
 			return fmt.Errorf("%w: marker=%q spec=%q", ErrLinkAlreadyExists, markerID, specID)
 		}
 	}
 
+	// Merge scanned ref-edges (spec-spec) into the baseline so the new
+	// state.xml carries both link-style and ref-style edges.
+	mergedEdges := mergeScannedEdges(state.Edges, scanResult.Edges)
+
 	if err := o.stateStore.Save(statestore.State{
-		Specs:           reconciledSpecs,
-		Markers:         reconciledMarkers,
-		Links:           append(state.Links, core.Link{SpecID: specID, MarkerID: markerID}),
-		ResolutionState: state.ResolutionState,
+		Specs:       reconciledSpecs,
+		Markers:     reconciledMarkers,
+		Edges:       append(mergedEdges, core.Edge{From: markerID, To: specID}),
+		Resolutions: state.Resolutions,
 	}); err != nil {
 		return err
 	}
@@ -437,34 +484,35 @@ func (o *Orchestrator) Unlink(markerID, specID string) error {
 		return err
 	}
 
-	linkIndex := -1
-	for i, l := range state.Links {
-		if l.MarkerID == markerID && l.SpecID == specID {
-			linkIndex = i
+	edgeIndex := -1
+	for i, e := range state.Edges {
+		if e.From == markerID && e.To == specID {
+			edgeIndex = i
 			break
 		}
 	}
-	if linkIndex == -1 {
+	if edgeIndex == -1 {
 		return fmt.Errorf("%w: marker=%q spec=%q", ErrUnlinkNotFound, markerID, specID)
 	}
 
-	newLinks := make([]core.Link, 0, len(state.Links)-1)
-	newLinks = append(newLinks, state.Links[:linkIndex]...)
-	newLinks = append(newLinks, state.Links[linkIndex+1:]...)
+	newEdges := make([]core.Edge, 0, len(state.Edges)-1)
+	newEdges = append(newEdges, state.Edges[:edgeIndex]...)
+	newEdges = append(newEdges, state.Edges[edgeIndex+1:]...)
 
-	newResolutions := make([]core.ResolutionState, 0, len(state.ResolutionState))
-	for _, res := range state.ResolutionState {
-		if res.MarkerID == markerID && res.SpecID == specID {
+	newResolutions := make([]core.EdgeResolution, 0, len(state.Resolutions))
+	for _, res := range state.Resolutions {
+		if (res.From == markerID && res.To == specID) ||
+			(res.From == specID && res.To == markerID) {
 			continue
 		}
 		newResolutions = append(newResolutions, res)
 	}
 
 	return o.stateStore.Save(statestore.State{
-		Specs:           state.Specs,
-		Markers:         state.Markers,
-		Links:           newLinks,
-		ResolutionState: newResolutions,
+		Specs:       state.Specs,
+		Markers:     state.Markers,
+		Edges:       newEdges,
+		Resolutions: newResolutions,
 	})
 }
 
@@ -484,10 +532,10 @@ func reconcileSpecs(baselined []core.Spec, scanned []core.Spec) ([]core.Spec, er
 
 	result := make([]core.Spec, 0, len(scanned)+len(baselined))
 	for _, s := range scanned {
-		if baselined, ok := baselinedByID[s.ID]; ok {
+		if b, ok := baselinedByID[s.ID]; ok {
 			result = append(result, core.Spec{
 				ID:         s.ID,
-				Hash:       baselined.Hash,
+				Hash:       b.Hash,
 				Filepath:   s.Filepath,
 				LineNumber: s.LineNumber,
 				Module:     s.Module,
@@ -527,10 +575,10 @@ func reconcileMarkers(baselined []core.Marker, scanned []core.Marker) ([]core.Ma
 
 	result := make([]core.Marker, 0, len(scanned)+len(baselined))
 	for _, m := range scanned {
-		if baselined, ok := baselinedByID[m.ID]; ok {
+		if b, ok := baselinedByID[m.ID]; ok {
 			result = append(result, core.Marker{
 				ID:            m.ID,
-				Hash:          baselined.Hash,
+				Hash:          b.Hash,
 				Filepath:      m.Filepath,
 				LineNumber:    m.LineNumber,
 				EndLineNumber: m.EndLineNumber,
@@ -650,6 +698,85 @@ func (o *Orchestrator) Diff(markerID, specID string) (DiffResult, error) {
 
 // D! id=odiff range-end
 
+// applyRefEdgeReset merges baseline edges with the scan result for the
+// (fromID, toID) pair: if the edge is new in scan, add it; if it's gone
+// from scan, drop it; otherwise leave baseline unchanged.
+func applyRefEdgeReset(baselineEdges []core.Edge, scanEdges []core.Edge, fromID, toID string) []core.Edge {
+	scanHasEdge := false
+	var scanEdge core.Edge
+	for _, e := range scanEdges {
+		if (e.From == fromID && e.To == toID) || (e.From == toID && e.To == fromID) {
+			scanHasEdge = true
+			scanEdge = e
+			break
+		}
+	}
+	baselineHasEdge := false
+	for _, e := range baselineEdges {
+		if (e.From == fromID && e.To == toID) || (e.From == toID && e.To == fromID) {
+			baselineHasEdge = true
+			break
+		}
+	}
+	switch {
+	case scanHasEdge && !baselineHasEdge:
+		return append(append([]core.Edge{}, baselineEdges...), scanEdge)
+	case !scanHasEdge && baselineHasEdge:
+		out := make([]core.Edge, 0, len(baselineEdges))
+		for _, e := range baselineEdges {
+			if (e.From == fromID && e.To == toID) || (e.From == toID && e.To == fromID) {
+				continue
+			}
+			out = append(out, e)
+		}
+		return out
+	default:
+		return baselineEdges
+	}
+}
+
+// pruneResolutionsTouchingPair drops resolutions referencing either
+// direction of the (a, b) pair. Used when a ref-edge is removed and the
+// resolutions would otherwise dangle.
+func pruneResolutionsTouchingPair(resolutions []core.EdgeResolution, a, b string) []core.EdgeResolution {
+	out := make([]core.EdgeResolution, 0, len(resolutions))
+	for _, r := range resolutions {
+		if (r.From == a && r.To == b) || (r.From == b && r.To == a) {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+// mergeScannedEdges returns baseline edges with all spec-spec edges replaced
+// by the scan's spec-spec edges. Link-style edges (marker-spec) are preserved
+// from baseline because they are user-curated, not auto-discovered.
+func mergeScannedEdges(baselineEdges, scanEdges []core.Edge) []core.Edge {
+	out := make([]core.Edge, 0, len(baselineEdges)+len(scanEdges))
+	// Keep all baseline link-style edges (marker → spec).
+	for _, e := range baselineEdges {
+		if !isSpecID(e.From) {
+			out = append(out, e)
+		}
+	}
+	// Append all scan spec-spec edges (ref-style).
+	for _, e := range scanEdges {
+		if isSpecID(e.From) && isSpecID(e.To) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func isSpecID(id string) bool {
+	first := strings.Index(id, ".")
+	if first < 0 {
+		return false
+	}
+	return strings.Index(id[first+1:], ".") < 0
+}
+
 func buildScan(scanResult scanner.ScanResult, reconciledSpecs []core.Spec, reconciledMarkers []core.Marker) core.Scan {
 	specHashes := make(map[string]string, len(scanResult.Specs))
 	for _, s := range scanResult.Specs {
@@ -682,5 +809,6 @@ func buildScan(scanResult scanner.ScanResult, reconciledSpecs []core.Spec, recon
 	return core.Scan{
 		SpecHashes:   specHashes,
 		MarkerHashes: markerHashes,
+		Edges:        scanResult.Edges,
 	}
 }

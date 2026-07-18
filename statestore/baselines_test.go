@@ -67,19 +67,24 @@ func TestBaselineStoreReadMissing(t *testing.T) {
 	}
 }
 
-func TestBaselineStoreWriteHashMismatch(t *testing.T) {
+func TestBaselineStoreWriteToleratesHashMismatch(t *testing.T) {
+	// Since refs were introduced, the canonical hash (refs stripped) does not
+	// equal sha1(raw content). Write must tolerate the mismatch so that diff
+	// display can use raw spec text while drift detection uses canonical hash.
 	dir := filepath.Join(t.TempDir(), ".drift", "baselines")
 	store := statestore.NewBaselineStore(dir)
 
 	content := "actual\n"
-	declaredHash := "deadbeef" // wrong on purpose
-	err := store.Write(declaredHash, content)
-	if err == nil {
-		t.Fatalf("expected error on hash mismatch")
+	declaredHash := "deadbeef" // does not match sha1(content)
+	if err := store.Write(declaredHash, content); err != nil {
+		t.Fatalf("Write returned error for hash mismatch: %v", err)
 	}
-	// File must not be written for a mismatched hash.
-	if _, statErr := os.Stat(filepath.Join(dir, declaredHash)); statErr == nil {
-		t.Fatalf("baseline file should not exist after hash mismatch")
+	got, ok := store.Read(declaredHash)
+	if !ok {
+		t.Fatalf("baseline file should exist after Write")
+	}
+	if got != content {
+		t.Fatalf("Read returned %q, want %q", got, content)
 	}
 }
 

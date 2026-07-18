@@ -1,0 +1,1 @@
+Errors are first-class output, not afterthoughts. Every error path produces an ErrorResult with a defined shape in every mode. There are no bare-string error returns anywhere in the command pipeline. See <ref spec="output.error_result_invariant">the error result invariant</ref>.

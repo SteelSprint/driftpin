@@ -1,0 +1,113 @@
+// Reset resolves one drifted edge. The from/to arguments name the edge
+// endpoints; the CLI dispatches based on dots in the IDs (marker-spec for
+// link-style, spec-spec for ref-style). The unified core path finds the
+// edge in baseline (in either direction), stamps an EdgeResolution at the
+// current endpoint hashes, and collapses any nodes whose every edge is
+// consistent or resolved.
+func (o *Orchestrator) Reset(fromID, toID string) (core.EvaluatedState, error) {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+	defer unlock()
+
+	state, err := o.stateStore.Load()
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	reconciledSpecs, err := reconcileSpecs(state.Specs, scanResult.Specs)
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	reconciledMarkers, err := reconcileMarkers(state.Markers, scanResult.Markers)
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	scan := buildScan(scanResult, reconciledSpecs, reconciledMarkers)
+
+	// Spec-spec ref-edge reset (both args have dots): if the edge exists in
+	// scan but not baseline (TodoEdgeAdded), add it to baseline; if it exists
+	// in baseline but not scan (TodoEdgeRemoved), drop it from baseline and
+	// prune its resolutions. Otherwise stamp a resolution and let collapse
+	// handle it.
+	edges := state.Edges
+	if isSpecID(fromID) && isSpecID(toID) {
+		// Refuse broken-edge resets: target spec must exist on disk.
+		specExists := false
+		for _, s := range scanResult.Specs {
+			if s.ID == toID {
+				specExists = true
+				break
+			}
+		}
+		if !specExists {
+			return core.EvaluatedState{}, fmt.Errorf("%w: from=%q to=%q", ErrBrokenEdgeNotResettable, fromID, toID)
+		}
+		edges = applyRefEdgeReset(state.Edges, scanResult.Edges, fromID, toID)
+	}
+
+	ctx := core.CoreAlgorithmContext{
+		Specs:       reconciledSpecs,
+		Markers:     reconciledMarkers,
+		Edges:       edges,
+		Resolutions: state.Resolutions,
+		Action: core.ResetAction{
+			From: fromID,
+			To:   toID,
+			Scan: scan,
+		},
+	}
+
+	evaluated, err := o.core.EvaluateState(ctx)
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	// For ref-edge removal, drop resolutions touching the removed edge in
+	// either direction (Validate would otherwise reject the next Load).
+	if isSpecID(fromID) && isSpecID(toID) {
+		scanHasEdge := false
+		for _, e := range scanResult.Edges {
+			if (e.From == fromID && e.To == toID) || (e.From == toID && e.To == fromID) {
+				scanHasEdge = true
+				break
+			}
+		}
+		if !scanHasEdge {
+			evaluated.Resolutions = pruneResolutionsTouchingPair(evaluated.Resolutions, fromID, toID)
+		}
+	}
+
+	err = o.stateStore.Save(statestore.State{
+		Specs:       evaluated.Specs,
+		Markers:     evaluated.Markers,
+		Edges:       evaluated.Edges,
+		Resolutions: evaluated.Resolutions,
+	})
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	// Best-effort: refresh baseline files for the resolved endpoints.
+	for _, s := range scanResult.Specs {
+		if s.ID == fromID || s.ID == toID {
+			_ = o.writeBaseline(s.Hash, s.Filepath, s.ID, 0, 0, true)
+		}
+	}
+	for _, m := range scanResult.Markers {
+		if m.ID == fromID || m.ID == toID {
+			_ = o.writeBaseline(m.Hash, m.Filepath, "", m.LineNumber, m.EndLineNumber, false)
+		}
+	}
+
+	return evaluated, nil
+}
+

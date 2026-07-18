@@ -1,0 +1,1 @@
+Every command's output in every mode is a defined contract. There are no "best effort" or "implementation-defined" outputs. Plain, Color, and JSON outputs are all specified; the cross-mode equivalence (Color modulo ANSI == Plain) is an enforced invariant, not a coincidence. See <ref spec="output.guardrail_property">the guardrail property</ref>.

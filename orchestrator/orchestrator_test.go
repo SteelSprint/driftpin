@@ -155,15 +155,15 @@ func TestOrchestratorTodoArity(t *testing.T) {
 		name    string
 		specs   []core.Spec
 		markers []core.Marker
-		links   []core.Link
+		links   []core.Edge
 	}{
 		{"0_specs_0_markers", nil, nil, nil},
 		{"1_spec_0_markers", []core.Spec{testutil.NewSpec("s1", "b1")}, nil, nil},
 		{"0_specs_1_marker", nil, []core.Marker{testutil.NewMarker("m1", "b1")}, nil},
-		{"1_spec_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Link{testutil.NewLink("s1", "m1")}},
-		{"many_specs_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}},
-		{"1_spec_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1")}},
-		{"many_specs_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")}},
+		{"1_spec_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Edge{testutil.NewLink("s1", "m1")}},
+		{"many_specs_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}},
+		{"1_spec_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1")}},
+		{"many_specs_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")}},
 	}
 
 	for _, shape := range shapes {
@@ -171,7 +171,7 @@ func TestOrchestratorTodoArity(t *testing.T) {
 			inputState := statestore.State{
 				Specs:   shape.specs,
 				Markers: shape.markers,
-				Links:   shape.links,
+				Edges:   shape.links,
 			}
 			scanResult := scanResultFromSpecsMarkers(shape.specs, shape.markers)
 			stateStore := &fakeStateStore{state: inputState}
@@ -190,7 +190,7 @@ func TestOrchestratorTodoArity(t *testing.T) {
 			inputState := statestore.State{
 				Specs:   shape.specs,
 				Markers: shape.markers,
-				Links:   shape.links,
+				Edges:   shape.links,
 			}
 			specOverrides := make(map[string]string)
 			for _, s := range shape.specs {
@@ -237,7 +237,7 @@ func TestOrchestratorTodoDoesNotSave(t *testing.T) {
 		inputState := statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "b1")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "b1")},
-			Links:   []core.Link{testutil.NewLink("s1", "m1")},
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1")},
 		}
 		scanResult := scanResultWithOverrides(inputState.Specs, inputState.Markers,
 			map[string]string{"s1": "changed"},
@@ -260,7 +260,7 @@ func TestOrchestratorReset(t *testing.T) {
 		inputState := statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "b1")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "b1")},
-			Links:   []core.Link{testutil.NewLink("s1", "m1")},
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1")},
 		}
 		scanResult := scanResultFromSpecsMarkers(inputState.Specs, inputState.Markers)
 		stateStore := &fakeStateStore{state: inputState}
@@ -268,17 +268,17 @@ func TestOrchestratorReset(t *testing.T) {
 		orch := orchestrator.NewOrchestrator(stateStore, scanner, nil)
 
 		_, err := orch.Reset("nonexistent", "nonexistent")
-		testutil.AssertErrorWraps(t, err, core.ErrResetEdgeNotLinked)
+		testutil.AssertErrorWraps(t, err, core.ErrResetEdgeNotInBaseline)
 	})
 
 	t.Run("reset_existing_edge_saves_state", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "b1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "b1")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
 		inputState := statestore.State{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
+			Edges:   links,
 		}
 		scanResult := scanResultWithOverrides(specs, markers,
 			map[string]string{"s1": "changed"},
@@ -318,11 +318,11 @@ func TestOrchestratorReset(t *testing.T) {
 	t.Run("reset_save_error", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "b1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "b1")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
 		inputState := statestore.State{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
+			Edges:   links,
 		}
 		scanResult := scanResultWithOverrides(specs, markers,
 			map[string]string{"s1": "changed"},
@@ -342,11 +342,11 @@ func TestOrchestratorResetPartialCollapse(t *testing.T) {
 	t.Run("reset_one_of_two_edges_saves_resolution", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "bs")}
 		markers := []core.Marker{testutil.NewMarker("m1", "bm1"), testutil.NewMarker("m2", "bm2")}
-		links := []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}
+		links := []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}
 		inputState := statestore.State{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
+			Edges:   links,
 		}
 		scanResult := scanResultWithOverrides(specs, markers,
 			map[string]string{"s1": "cs"},
@@ -394,8 +394,8 @@ func TestOrchestratorReconciliation(t *testing.T) {
 	t.Run("pin_with_specs_scan_same_hashes_no_drift", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
-		inputState := statestore.State{Specs: specs, Markers: markers, Links: links}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
+		inputState := statestore.State{Specs: specs, Markers: markers, Edges: links}
 		scanResult := scanResultFromSpecsMarkers(specs, markers)
 		stateStore := &fakeStateStore{state: inputState}
 		scanner := &fakeScanner{result: scanResult}
@@ -409,8 +409,8 @@ func TestOrchestratorReconciliation(t *testing.T) {
 	t.Run("pin_with_specs_scan_changed_hash_drift_detected", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
-		inputState := statestore.State{Specs: specs, Markers: markers, Links: links}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
+		inputState := statestore.State{Specs: specs, Markers: markers, Edges: links}
 		scanResult := scanResultWithOverrides(specs, markers,
 			map[string]string{"s1": "changed"},
 			nil)
@@ -427,7 +427,7 @@ func TestOrchestratorReconciliation(t *testing.T) {
 		inputState := statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "h2")},
-			Links:   []core.Link{testutil.NewLink("s1", "m1")},
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1")},
 		}
 		scanResult := scanner.ScanResult{
 			Specs:   []core.Spec{},
@@ -446,7 +446,7 @@ func TestOrchestratorReconciliation(t *testing.T) {
 		if state.Specs[0].ID != "s1" {
 			t.Fatalf("expected stale spec s1, got %q", state.Specs[0].ID)
 		}
-		if len(state.Todos) > 0 && !state.Todos[0].SpecDeleted {
+		if len(state.Todos) > 0 && !state.Todos[0].ToDeleted {
 			t.Fatalf("expected SpecDeleted=true on todo")
 		}
 	})
@@ -455,7 +455,7 @@ func TestOrchestratorReconciliation(t *testing.T) {
 		inputState := statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "h2")},
-			Links:   []core.Link{testutil.NewLink("s1", "m1")},
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1")},
 		}
 		scanResult := scanner.ScanResult{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
@@ -474,7 +474,7 @@ func TestOrchestratorReconciliation(t *testing.T) {
 		if state.Markers[0].ID != "m1" {
 			t.Fatalf("expected stale marker m1, got %q", state.Markers[0].ID)
 		}
-		if len(state.Todos) > 0 && !state.Todos[0].MarkerDeleted {
+		if len(state.Todos) > 0 && !state.Todos[0].FromDeleted {
 			t.Fatalf("expected MarkerDeleted=true on todo")
 		}
 	})
@@ -483,7 +483,7 @@ func TestOrchestratorReconciliation(t *testing.T) {
 		inputState := statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "h2")},
-			Links:   []core.Link{testutil.NewLink("s1", "m1")},
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1")},
 		}
 		scanResult := scanner.ScanResult{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1"), testutil.NewSpec("s2", "h3")},
@@ -524,11 +524,11 @@ func TestOrchestratorLink(t *testing.T) {
 			t.Fatalf("expected 1 save, got %d", len(stateStore.saved))
 		}
 		saved := stateStore.saved[0]
-		if len(saved.Links) != 1 {
-			t.Fatalf("expected 1 link, got %d", len(saved.Links))
+		if len(saved.Edges) != 1 {
+			t.Fatalf("expected 1 link, got %d", len(saved.Edges))
 		}
-		if saved.Links[0].SpecID != "s1" || saved.Links[0].MarkerID != "m1" {
-			t.Fatalf("link = %+v, want {SpecID:s1 MarkerID:m1}", saved.Links[0])
+		if saved.Edges[0].To != "s1" || saved.Edges[0].From != "m1" {
+			t.Fatalf("link = %+v, want {SpecID:s1 MarkerID:m1}", saved.Edges[0])
 		}
 	})
 
@@ -570,7 +570,7 @@ func TestOrchestratorLink(t *testing.T) {
 		inputState := statestore.State{
 			Specs:   specs,
 			Markers: markers,
-			Links:   []core.Link{testutil.NewLink("s1", "m1")},
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1")},
 		}
 		scanResult := scanResultFromSpecsMarkers(specs, markers)
 		stateStore := &fakeStateStore{state: inputState}
@@ -613,11 +613,11 @@ func TestOrchestratorUnlink(t *testing.T) {
 	t.Run("unlink_removes_link", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
 		inputState := statestore.State{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
+			Edges:   links,
 		}
 		stateStore := &fakeStateStore{state: inputState}
 		scanner := &fakeScanner{}
@@ -630,8 +630,8 @@ func TestOrchestratorUnlink(t *testing.T) {
 			t.Fatalf("expected 1 save, got %d", len(stateStore.saved))
 		}
 		saved := stateStore.saved[0]
-		if len(saved.Links) != 0 {
-			t.Fatalf("expected 0 links after unlink, got %d", len(saved.Links))
+		if len(saved.Edges) != 0 {
+			t.Fatalf("expected 0 links after unlink, got %d", len(saved.Edges))
 		}
 		if len(saved.Specs) != 1 {
 			t.Fatalf("specs should be preserved, got %d", len(saved.Specs))
@@ -662,15 +662,13 @@ func TestOrchestratorUnlink(t *testing.T) {
 	t.Run("unlink_removes_resolution_state", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
-		resolutions := []core.ResolutionState{
-			{SpecID: "s1", MarkerID: "m1", CurrentSpecHash: "h1", CurrentMarkerHash: "h2"},
-		}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
+		resolutions := []core.EdgeResolution{{From: "m1", To: "s1", CurrentFromHash: "h2", CurrentToHash: "h1"}}
 		inputState := statestore.State{
 			Specs:           specs,
 			Markers:         markers,
-			Links:           links,
-			ResolutionState: resolutions,
+			Edges:           links,
+			Resolutions: resolutions,
 		}
 		stateStore := &fakeStateStore{state: inputState}
 		scanner := &fakeScanner{}
@@ -680,27 +678,27 @@ func TestOrchestratorUnlink(t *testing.T) {
 		testutil.AssertNoError(t, err)
 
 		saved := stateStore.saved[0]
-		if len(saved.ResolutionState) != 0 {
-			t.Fatalf("expected 0 resolutions after unlink, got %d", len(saved.ResolutionState))
+		if len(saved.Resolutions) != 0 {
+			t.Fatalf("expected 0 resolutions after unlink, got %d", len(saved.Resolutions))
 		}
 	})
 
 	t.Run("unlink_preserves_other_links_and_resolutions", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "h1"), testutil.NewSpec("s2", "h3")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2"), testutil.NewMarker("m2", "h4")}
-		links := []core.Link{
+		links := []core.Edge{
 			testutil.NewLink("s1", "m1"),
 			testutil.NewLink("s2", "m2"),
 		}
-		resolutions := []core.ResolutionState{
-			{SpecID: "s1", MarkerID: "m1", CurrentSpecHash: "h1", CurrentMarkerHash: "h2"},
-			{SpecID: "s2", MarkerID: "m2", CurrentSpecHash: "h3", CurrentMarkerHash: "h4"},
+		resolutions := []core.EdgeResolution{
+			{From: "m1", To: "s1", CurrentFromHash: "h2", CurrentToHash: "h1"},
+			{From: "m2", To: "s2", CurrentFromHash: "h4", CurrentToHash: "h3"},
 		}
 		inputState := statestore.State{
 			Specs:           specs,
 			Markers:         markers,
-			Links:           links,
-			ResolutionState: resolutions,
+			Edges:           links,
+			Resolutions: resolutions,
 		}
 		stateStore := &fakeStateStore{state: inputState}
 		scanner := &fakeScanner{}
@@ -710,17 +708,17 @@ func TestOrchestratorUnlink(t *testing.T) {
 		testutil.AssertNoError(t, err)
 
 		saved := stateStore.saved[0]
-		if len(saved.Links) != 1 {
-			t.Fatalf("expected 1 link after unlink, got %d", len(saved.Links))
+		if len(saved.Edges) != 1 {
+			t.Fatalf("expected 1 link after unlink, got %d", len(saved.Edges))
 		}
-		if saved.Links[0].SpecID != "s2" || saved.Links[0].MarkerID != "m2" {
-			t.Fatalf("remaining link should be s2/m2, got %+v", saved.Links[0])
+		if saved.Edges[0].To != "s2" || saved.Edges[0].From != "m2" {
+			t.Fatalf("remaining link should be s2/m2, got %+v", saved.Edges[0])
 		}
-		if len(saved.ResolutionState) != 1 {
-			t.Fatalf("expected 1 resolution after unlink, got %d", len(saved.ResolutionState))
+		if len(saved.Resolutions) != 1 {
+			t.Fatalf("expected 1 resolution after unlink, got %d", len(saved.Resolutions))
 		}
-		if saved.ResolutionState[0].SpecID != "s2" || saved.ResolutionState[0].MarkerID != "m2" {
-			t.Fatalf("remaining resolution should be for s2/m2, got %+v", saved.ResolutionState[0])
+		if saved.Resolutions[0].To != "s2" || saved.Resolutions[0].From != "m2" {
+			t.Fatalf("remaining resolution should be for s2/m2, got %+v", saved.Resolutions[0])
 		}
 	})
 
@@ -733,9 +731,9 @@ func TestOrchestratorUnlink(t *testing.T) {
 	})
 
 	t.Run("unlink_save_error", func(t *testing.T) {
-		links := []core.Link{testutil.NewLink("s1", "m1")}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
 		inputState := statestore.State{
-			Links: links,
+			Edges: links,
 		}
 		stateStore := &fakeStateStore{state: inputState, saveErr: errors.New("save failed")}
 		scanner := &fakeScanner{}
@@ -774,8 +772,8 @@ func TestOrchestratorStaleEntryDrift(t *testing.T) {
 	t.Run("spec_deleted_with_links_drift_detected", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
-		inputState := statestore.State{Specs: specs, Markers: markers, Links: links}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
+		inputState := statestore.State{Specs: specs, Markers: markers, Edges: links}
 		scanResult := scanner.ScanResult{
 			Specs:   []core.Spec{},
 			Markers: markers,
@@ -787,7 +785,7 @@ func TestOrchestratorStaleEntryDrift(t *testing.T) {
 		state, err := orch.Todo()
 		testutil.AssertNoError(t, err)
 		testutil.AssertTodoCount(t, state, 1)
-		if !state.Todos[0].SpecDeleted {
+		if !state.Todos[0].ToDeleted {
 			t.Fatalf("expected SpecDeleted=true")
 		}
 	})
@@ -795,8 +793,8 @@ func TestOrchestratorStaleEntryDrift(t *testing.T) {
 	t.Run("marker_deleted_with_links_drift_detected", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
-		inputState := statestore.State{Specs: specs, Markers: markers, Links: links}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
+		inputState := statestore.State{Specs: specs, Markers: markers, Edges: links}
 		scanResult := scanner.ScanResult{
 			Specs:   specs,
 			Markers: []core.Marker{},
@@ -808,7 +806,7 @@ func TestOrchestratorStaleEntryDrift(t *testing.T) {
 		state, err := orch.Todo()
 		testutil.AssertNoError(t, err)
 		testutil.AssertTodoCount(t, state, 1)
-		if !state.Todos[0].MarkerDeleted {
+		if !state.Todos[0].FromDeleted {
 			t.Fatalf("expected MarkerDeleted=true")
 		}
 	})
@@ -816,8 +814,8 @@ func TestOrchestratorStaleEntryDrift(t *testing.T) {
 	t.Run("spec_deleted_with_links_reset_prunes", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
-		inputState := statestore.State{Specs: specs, Markers: markers, Links: links}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
+		inputState := statestore.State{Specs: specs, Markers: markers, Edges: links}
 		scanResult := scanner.ScanResult{
 			Specs:   []core.Spec{},
 			Markers: markers,
@@ -831,16 +829,16 @@ func TestOrchestratorStaleEntryDrift(t *testing.T) {
 		if len(state.Specs) != 0 {
 			t.Fatalf("expected 0 specs after prune, got %d", len(state.Specs))
 		}
-		if len(state.Links) != 0 {
-			t.Fatalf("expected 0 links after prune, got %d", len(state.Links))
+		if len(state.Edges) != 0 {
+			t.Fatalf("expected 0 links after prune, got %d", len(state.Edges))
 		}
 	})
 
 	t.Run("marker_deleted_with_links_reset_prunes", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "h1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
-		inputState := statestore.State{Specs: specs, Markers: markers, Links: links}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
+		inputState := statestore.State{Specs: specs, Markers: markers, Edges: links}
 		scanResult := scanner.ScanResult{
 			Specs:   specs,
 			Markers: []core.Marker{},
@@ -854,8 +852,8 @@ func TestOrchestratorStaleEntryDrift(t *testing.T) {
 		if len(state.Markers) != 0 {
 			t.Fatalf("expected 0 markers after prune, got %d", len(state.Markers))
 		}
-		if len(state.Links) != 0 {
-			t.Fatalf("expected 0 links after prune, got %d", len(state.Links))
+		if len(state.Edges) != 0 {
+			t.Fatalf("expected 0 links after prune, got %d", len(state.Edges))
 		}
 	})
 }
@@ -955,15 +953,15 @@ func TestOrchestratorResetOrphan(t *testing.T) {
 	t.Run("remove_orphan_spec_with_links_errors", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("main.linked", "h1")}
 		markers := []core.Marker{testutil.NewMarker("m1", "h2")}
-		links := []core.Link{testutil.NewLink("main.linked", "m1")}
-		inputState := statestore.State{Specs: specs, Markers: markers, Links: links}
+		links := []core.Edge{testutil.NewLink("main.linked", "m1")}
+		inputState := statestore.State{Specs: specs, Markers: markers, Edges: links}
 		scanResult := scanner.ScanResult{Markers: markers}
 		stateStore := &fakeStateStore{state: inputState}
 		scanner := &fakeScanner{result: scanResult}
 		orch := orchestrator.NewOrchestrator(stateStore, scanner, nil)
 
 		err := orch.ResetOrphan("main.linked")
-		testutil.AssertErrorWraps(t, err, orchestrator.ErrOrphanHasLinks)
+		testutil.AssertErrorWraps(t, err, orchestrator.ErrOrphanHasEdges)
 	})
 
 	t.Run("remove_orphan_nonexistent_errors", func(t *testing.T) {
@@ -1003,14 +1001,14 @@ func TestOrchestratorResetOrphan(t *testing.T) {
 	t.Run("remove_orphan_marker_with_links_errors", func(t *testing.T) {
 		markers := []core.Marker{testutil.NewMarker("m1", "h1")}
 		specs := []core.Spec{testutil.NewSpec("s1", "h2")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
-		inputState := statestore.State{Specs: specs, Markers: markers, Links: links}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
+		inputState := statestore.State{Specs: specs, Markers: markers, Edges: links}
 		scanResult := scanner.ScanResult{Specs: specs}
 		stateStore := &fakeStateStore{state: inputState}
 		scanner := &fakeScanner{result: scanResult}
 		orch := orchestrator.NewOrchestrator(stateStore, scanner, nil)
 
 		err := orch.ResetOrphan("m1")
-		testutil.AssertErrorWraps(t, err, orchestrator.ErrOrphanHasLinks)
+		testutil.AssertErrorWraps(t, err, orchestrator.ErrOrphanHasEdges)
 	})
 }

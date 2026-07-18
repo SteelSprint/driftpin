@@ -1,7 +1,31 @@
-.PHONY: build eval
+.PHONY: build eval gate build-bin
 
-build:
+# build-bin compiles the drift binary. The prior ./drift (if any) is staged
+# to bak/.drift-stash before the build and promoted to bak/drift-<UTC-timestamp>
+# only on a successful build — so a failed build leaves ./drift untouched and
+# produces no bak/ entry. bak/ is gitignored. Roll back with
+# `cp bak/drift-<ts> drift`.
+build-bin:
+	@mkdir -p bak
+	@if [ -f drift ]; then cp drift bak/.drift-stash; fi
 	go build -o drift ./cmd/drift
+	@if [ -f bak/.drift-stash ]; then \
+		ts=$$(date -u +%Y%m%dT%H%M%SZ); \
+		mv bak/.drift-stash "bak/drift-$$ts"; \
+		echo "backed up prior drift → bak/drift-$$ts"; \
+	fi
+
+# gate runs drift todo as a spec-drift gate. Exits non-zero if any drift
+# is detected (link/spec/marker hash drift, ref-graph drift, cascade drift,
+# unlinked markers, broken refs). Blocks the build until the tree is clean.
+# Run `drift todo` directly to see what drifted; `drift diff --all` to review.
+gate: build-bin
+	./drift todo
+	@echo "drift gate: clean"
+
+# build runs the gate, then leaves the compiled binary in ./drift.
+build: gate
+	@echo "build complete: ./drift"
 
 eval: build
 	@if [ -z "$(PROMPT)" ]; then \

@@ -1,0 +1,96 @@
+// Link constructs a link-style Edge (marker stores edge to spec) and appends
+// it to baseline. The edge kind is implicit from endpoint types: marker IDs
+// contain no dot, spec IDs contain exactly one.
+func (o *Orchestrator) Link(markerID, specID string) error {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	state, err := o.stateStore.Load()
+	if err != nil {
+		return err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return err
+	}
+
+	reconciledSpecs, err := reconcileSpecs(state.Specs, scanResult.Specs)
+	if err != nil {
+		return err
+	}
+
+	reconciledMarkers, err := reconcileMarkers(state.Markers, scanResult.Markers)
+	if err != nil {
+		return err
+	}
+
+	// 
+	markerExists := false
+	for _, m := range reconciledMarkers {
+		if m.ID == markerID {
+			markerExists = true
+			break
+		}
+	}
+	// 
+	if !markerExists {
+		var available []string
+		for _, m := range reconciledMarkers {
+			available = append(available, m.ID)
+		}
+		return fmt.Errorf("link references unknown marker %q.\nMarkers must be %s comment lines in code files.\nAvailable markers: %s", markerID, markerSyntax, strings.Join(available, ", "))
+	}
+
+	specExists := false
+	for _, s := range reconciledSpecs {
+		if s.ID == specID {
+			specExists = true
+			break
+		}
+	}
+	if !specExists {
+		var available []string
+		for _, s := range reconciledSpecs {
+			available = append(available, s.ID)
+		}
+		return fmt.Errorf("link references unknown spec %q.\nSpec IDs are module-qualified: <module>.<specId> (e.g. main.example or core.validate).\nAvailable specs: %s", specID, strings.Join(available, ", "))
+	}
+
+	for _, e := range state.Edges {
+		if e.From == markerID && e.To == specID {
+			return fmt.Errorf("%w: marker=%q spec=%q", ErrLinkAlreadyExists, markerID, specID)
+		}
+	}
+
+	// Merge scanned ref-edges (spec-spec) into the baseline so the new
+	// state.xml carries both link-style and ref-style edges.
+	mergedEdges := mergeScannedEdges(state.Edges, scanResult.Edges)
+
+	if err := o.stateStore.Save(statestore.State{
+		Specs:       reconciledSpecs,
+		Markers:     reconciledMarkers,
+		Edges:       append(mergedEdges, core.Edge{From: markerID, To: specID}),
+		Resolutions: state.Resolutions,
+	}); err != nil {
+		return err
+	}
+
+	for _, s := range scanResult.Specs {
+		if s.ID == specID {
+			_ = o.writeBaseline(s.Hash, s.Filepath, specID, 0, 0, true)
+			break
+		}
+	}
+	for _, m := range scanResult.Markers {
+		if m.ID == markerID {
+			_ = o.writeBaseline(m.Hash, m.Filepath, "", m.LineNumber, m.EndLineNumber, false)
+			break
+		}
+	}
+	return nil
+}
+

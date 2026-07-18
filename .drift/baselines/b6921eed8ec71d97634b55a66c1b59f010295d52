@@ -1,0 +1,1 @@
+Every command is a struct implementing the Command interface: Run(ctx CommandContext) (Result, int) and Meta() CommandMeta. The Run signature forces Result return (Go type system enforcement). See <ref spec="output_impl.command_interface_impl">command interface impl</ref>.

@@ -200,7 +200,7 @@ func f() {}
 		stateStore.Save(statestore.State{
 			Specs:   []core.Spec{{ID: "main.s1", Hash: "fakehash", Filepath: filepath.Join(dir, "main.drift.xml")}},
 			Markers: []core.Marker{{ID: "m1", Hash: "fakehash2", Filepath: filepath.Join(dir, "code.go"), LineNumber: 3, EndLineNumber: 5}},
-			Links:   []core.Link{{SpecID: "main.s1", MarkerID: "m1"}},
+			Edges:   []core.Edge{{From: "m1", To: "main.s1"}},
 		})
 
 		result, err := orch.Diff("m1", "main.s1")

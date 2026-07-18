@@ -28,16 +28,25 @@ func NewMarkerWithLocation(id string, hash string, filepath string, lineNumber i
 	return core.Marker{ID: id, Hash: hash, Filepath: filepath, LineNumber: lineNumber, EndLineNumber: lineNumber + 10}
 }
 
-func NewLink(specID string, markerID string) core.Link {
-	return core.Link{SpecID: specID, MarkerID: markerID}
+// NewLink constructs a link-style Edge: marker stores edge to spec.
+// Argument order preserved from the pre-collapse API for test readability.
+func NewLink(specID string, markerID string) core.Edge {
+	return core.Edge{From: markerID, To: specID}
 }
 
-func NewResolutionState(specID string, markerID string, currentSpecHash string, currentMarkerHash string) core.ResolutionState {
-	return core.ResolutionState{
-		SpecID:            specID,
-		MarkerID:          markerID,
-		CurrentSpecHash:   currentSpecHash,
-		CurrentMarkerHash: currentMarkerHash,
+// NewRef constructs a spec-spec Edge: fromSpec stores edge to toSpec.
+func NewRef(fromSpec, toSpec string) core.Edge {
+	return core.Edge{From: fromSpec, To: toSpec}
+}
+
+// NewResolutionState constructs an EdgeResolution covering a link-style edge.
+// Argument order preserved from the pre-collapse API.
+func NewResolutionState(specID string, markerID string, currentSpecHash string, currentMarkerHash string) core.EdgeResolution {
+	return core.EdgeResolution{
+		From:            markerID,
+		To:              specID,
+		CurrentFromHash: currentMarkerHash,
+		CurrentToHash:   currentSpecHash,
 	}
 }
 
@@ -64,20 +73,20 @@ func AssertTodoCount(t *testing.T, state core.EvaluatedState, want int) {
 
 func AssertResolutionStateCount(t *testing.T, state core.EvaluatedState, want int) {
 	t.Helper()
-	if len(state.ResolutionState) != want {
-		t.Fatalf("resolution state count = %d, want %d", len(state.ResolutionState), want)
+	if len(state.Resolutions) != want {
+		t.Fatalf("resolution state count = %d, want %d", len(state.Resolutions), want)
 	}
 }
 
 func AssertResolutionStateEntry(t *testing.T, state core.EvaluatedState, markerID string, specID string, currentSpecHash string, currentMarkerHash string) {
 	t.Helper()
-	for _, res := range state.ResolutionState {
-		if res.MarkerID == markerID && res.SpecID == specID {
-			if res.CurrentSpecHash != currentSpecHash {
-				t.Fatalf("resolution spec hash = %q, want %q", res.CurrentSpecHash, currentSpecHash)
+	for _, res := range state.Resolutions {
+		if res.From == markerID && res.To == specID {
+			if res.CurrentToHash != currentSpecHash {
+				t.Fatalf("resolution spec hash = %q, want %q", res.CurrentToHash, currentSpecHash)
 			}
-			if res.CurrentMarkerHash != currentMarkerHash {
-				t.Fatalf("resolution marker hash = %q, want %q", res.CurrentMarkerHash, currentMarkerHash)
+			if res.CurrentFromHash != currentMarkerHash {
+				t.Fatalf("resolution marker hash = %q, want %q", res.CurrentFromHash, currentMarkerHash)
 			}
 			return
 		}
@@ -121,11 +130,13 @@ func AssertBaselineHashes(t *testing.T, state core.EvaluatedState, specID string
 
 func AssertTodoDriftFlags(t *testing.T, todo core.Todo, wantSpecChanged bool, wantMarkerChanged bool) {
 	t.Helper()
-	if todo.SpecChanged != wantSpecChanged {
-		t.Fatalf("todo spec changed = %v, want %v", todo.SpecChanged, wantSpecChanged)
+	// In the post-collapse model, the marker is the From endpoint and the
+	// spec is the To endpoint of a link-style edge. Translate accordingly.
+	if todo.ToChanged != wantSpecChanged {
+		t.Fatalf("todo spec changed = %v, want %v", todo.ToChanged, wantSpecChanged)
 	}
-	if todo.MarkerChanged != wantMarkerChanged {
-		t.Fatalf("todo marker changed = %v, want %v", todo.MarkerChanged, wantMarkerChanged)
+	if todo.FromChanged != wantMarkerChanged {
+		t.Fatalf("todo marker changed = %v, want %v", todo.FromChanged, wantMarkerChanged)
 	}
 }
 
@@ -147,20 +158,20 @@ func AssertStateEquals(t *testing.T, got, want statestore.State) {
 			t.Fatalf("marker[%d] = %+v, want %+v", i, got.Markers[i], want.Markers[i])
 		}
 	}
-	if len(got.Links) != len(want.Links) {
-		t.Fatalf("links length = %d, want %d (got=%v want=%v)", len(got.Links), len(want.Links), got.Links, want.Links)
+	if len(got.Edges) != len(want.Edges) {
+		t.Fatalf("edges length = %d, want %d (got=%v want=%v)", len(got.Edges), len(want.Edges), got.Edges, want.Edges)
 	}
-	for i := range got.Links {
-		if got.Links[i] != want.Links[i] {
-			t.Fatalf("link[%d] = %+v, want %+v", i, got.Links[i], want.Links[i])
+	for i := range got.Edges {
+		if got.Edges[i] != want.Edges[i] {
+			t.Fatalf("edge[%d] = %+v, want %+v", i, got.Edges[i], want.Edges[i])
 		}
 	}
-	if len(got.ResolutionState) != len(want.ResolutionState) {
-		t.Fatalf("resolutions length = %d, want %d (got=%v want=%v)", len(got.ResolutionState), len(want.ResolutionState), got.ResolutionState, want.ResolutionState)
+	if len(got.Resolutions) != len(want.Resolutions) {
+		t.Fatalf("resolutions length = %d, want %d (got=%v want=%v)", len(got.Resolutions), len(want.Resolutions), got.Resolutions, want.Resolutions)
 	}
-	for i := range got.ResolutionState {
-		if got.ResolutionState[i] != want.ResolutionState[i] {
-			t.Fatalf("resolution[%d] = %+v, want %+v", i, got.ResolutionState[i], want.ResolutionState[i])
+	for i := range got.Resolutions {
+		if got.Resolutions[i] != want.Resolutions[i] {
+			t.Fatalf("resolution[%d] = %+v, want %+v", i, got.Resolutions[i], want.Resolutions[i])
 		}
 	}
 }
@@ -236,9 +247,9 @@ func FindMarkerInEvaluatedState(t *testing.T, state core.EvaluatedState, id stri
 
 func EvaluatedToState(state core.EvaluatedState) statestore.State {
 	return statestore.State{
-		Specs:           state.Specs,
-		Markers:         state.Markers,
-		Links:           state.Links,
-		ResolutionState: state.ResolutionState,
+		Specs:       state.Specs,
+		Markers:     state.Markers,
+		Edges:       state.Edges,
+		Resolutions: state.Resolutions,
 	}
 }

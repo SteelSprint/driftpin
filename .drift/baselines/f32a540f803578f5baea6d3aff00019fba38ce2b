@@ -1,0 +1,1 @@
+RunWithRender executes the following ordered steps for every invocation: (1) stripGlobalFlags; (2) help_flag check; (3) unknown_flag_rejection check; (4) registry lookup; (5) construct orchestrator + CommandContext; (6) cmd.Run(ctx) → (Result, exitCode); (7) presenter.Render(result) → output string; (8) return (string, int). No step may be skipped for any command.

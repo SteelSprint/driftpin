@@ -30,10 +30,9 @@ type ListResult struct {
 }
 
 // ShowResult carries the resolved entity (spec or marker), its content, and
-// any linked counterparts with their content. The dispatch resolves the entity
-// lookup and reads file content before constructing this Result; the presenter
-// only formats. If the entity was not found, Spec and Marker are both nil and
-// IsSpec indicates which "not found" message to render.
+// any linked counterparts with their content. Outbound/Inbound refs are
+// computed from baseline spec-spec edges for the spec view; both directions
+// are shown because the ref graph is rhizomatic.
 type ShowResult struct {
 	IsSpec        bool
 	ID            string
@@ -42,6 +41,8 @@ type ShowResult struct {
 	Content       string
 	LinkedSpecs   []LinkedSpec
 	LinkedMarkers []LinkedMarker
+	OutboundRefs  []string // specs referenced by this spec
+	InboundRefs   []string // specs that reference this spec
 }
 
 // LinkedSpec carries a spec linked to the primary marker plus its content.

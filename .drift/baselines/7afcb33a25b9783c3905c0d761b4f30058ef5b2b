@@ -1,0 +1,38 @@
+// pruneResolutionsForCollapsedNode removes resolution entries touching a
+// collapsed node. Deleted nodes have all touching resolutions pruned
+// unconditionally; non-deleted collapsed nodes have resolutions pruned when
+// the other endpoint is also in sync.
+func pruneResolutionsForCollapsedNode(
+	resolutionsByEdge map[string]EdgeResolution,
+	collapsedNodeID string,
+	edges []Edge,
+	specsByID map[string]*Spec,
+	markersByID map[string]*Marker,
+	scan Scan,
+) {
+	nodeDeleted := nodeScanHash(collapsedNodeID, scan) == ""
+	for _, e := range edges {
+		if e.From != collapsedNodeID && e.To != collapsedNodeID {
+			continue
+		}
+		other := e.To
+		if e.To == collapsedNodeID {
+			other = e.From
+		}
+		for _, key := range []string{e.From + "\x00" + e.To, e.To + "\x00" + e.From} {
+			if _, ok := resolutionsByEdge[key]; !ok {
+				continue
+			}
+			if nodeDeleted {
+				delete(resolutionsByEdge, key)
+				continue
+			}
+			otherBaseline := nodeBaselineHash(other, specsByID, markersByID)
+			otherCurrent := nodeScanHash(other, scan)
+			if otherBaseline == otherCurrent {
+				delete(resolutionsByEdge, key)
+			}
+		}
+	}
+}
+

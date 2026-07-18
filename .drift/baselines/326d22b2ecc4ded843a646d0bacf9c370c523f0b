@@ -1,0 +1,1 @@
+JSONPresenter in cli/output/json.go. Uses encoding/json with struct-driven field ordering and HTML escaping disabled for readability. Per-method serialization per <ref spec="output.json_schema">the JSON schema</ref>. The marshal helper uses json.Encoder with SetEscapeHTML(false) and trims the trailing newline. See <ref spec="output.json_mode">JSON mode</ref>.

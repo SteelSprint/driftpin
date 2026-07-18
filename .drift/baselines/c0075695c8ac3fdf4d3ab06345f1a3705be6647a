@@ -1,0 +1,20 @@
+func (s *FileScanner) scanSpecs() ([]core.Spec, []core.Edge, error) {
+	mainPath := filepath.Join(s.dir, "main.drift.xml")
+	if _, err := os.Stat(mainPath); os.IsNotExist(err) {
+		return nil, nil, fmt.Errorf("main.drift.xml not found in %s", s.dir)
+	}
+
+	loader := &importLoader{
+		seenIDs:    make(map[string]bool),
+		seenFiles:  make(map[string]bool),
+		seenNames:  make(map[string]string),
+		visitStack: nil,
+	}
+	absRoot, err := filepath.Abs(s.dir)
+	if err != nil {
+		return nil, nil, err
+	}
+	loader.rootDir = absRoot
+	return loader.load(mainPath)
+}
+

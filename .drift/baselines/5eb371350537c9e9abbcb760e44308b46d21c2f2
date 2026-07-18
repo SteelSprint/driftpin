@@ -1,0 +1,1 @@
+Software consuming drift — particularly LLM coding agents — must be able to parse output programmatically without regex-parsing human-formatted text. JSON is the contract for this. Every command must produce a defined JSON shape so an agent can rely on field names, types, and structure. See <ref spec="open_source_tools_drift.llm_agent_persona">the LLM agent persona</ref>.

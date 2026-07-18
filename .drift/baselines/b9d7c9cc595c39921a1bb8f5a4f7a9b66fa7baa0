@@ -1,0 +1,18 @@
+func (algorithm *CoreAlgorithm) evaluateTodoAction(ctx CoreAlgorithmContext, action TodoAction) (EvaluatedState, error) {
+	if err := validateScanCoversAllNodes(action.Scan, ctx.Specs, ctx.Markers); err != nil {
+		return EvaluatedState{}, err
+	}
+	todos := computeEdgeTodos(
+		ctx.Specs, ctx.Markers, ctx.Edges,
+		indexResolutionsByEdge(ctx.Resolutions),
+		action.Scan,
+	)
+	return EvaluatedState{
+		Specs:       ctx.Specs,
+		Markers:     ctx.Markers,
+		Edges:       ctx.Edges,
+		Resolutions: ctx.Resolutions,
+		Todos:       todos,
+	}, nil
+}
+

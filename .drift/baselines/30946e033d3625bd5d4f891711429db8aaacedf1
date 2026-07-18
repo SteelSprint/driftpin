@@ -1,0 +1,1 @@
+FileStateStore.Load reads .drift/state.xml from disk, unmarshals XML into Specs, Markers, Edges, and Resolutions, and returns the State. State.xml version=3 is the post-collapse unified format with single &lt;edges&gt; and &lt;edgeResolutions&gt; sections. If the file does not exist, it returns ErrStateNotFound.

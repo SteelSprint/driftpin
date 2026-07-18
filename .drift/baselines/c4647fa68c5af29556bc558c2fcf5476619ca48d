@@ -1,0 +1,139 @@
+func computeRhizomaticClosureTodos(
+	specs []Spec,
+	markers []Marker,
+	edges []Edge,
+	scanEdges []Edge,
+	resolutionsByEdge map[string]EdgeResolution,
+	scan Scan,
+	specByID map[string]*Spec,
+	markerByID map[string]*Marker,
+) []Todo {
+	changedSpecs := make(map[string]bool)
+	for _, s := range specs {
+		current, ok := scan.SpecHashes[s.ID]
+		if !ok || current == "" {
+			continue
+		}
+		if s.Hash != current {
+			changedSpecs[s.ID] = true
+		}
+	}
+	if len(changedSpecs) == 0 {
+		return nil
+	}
+
+	// Index baseline spec-spec edges to skip redundant chain-drift emission
+	// when direct-edge drift already covers the pair.
+	baselineSpecSpec := make(map[string]bool)
+	for _, e := range edges {
+		if isSpecID(e.From) && isSpecID(e.To) {
+			baselineSpecSpec[e.From+"\x00"+e.To] = true
+			baselineSpecSpec[e.To+"\x00"+e.From] = true
+		}
+	}
+
+	// Undirected adjacency over specs via spec-spec scan edges.
+	neighbors := make(map[string]map[string]bool)
+	addNeighbor := func(a, b string) {
+		if !isSpecID(a) || !isSpecID(b) {
+			return
+		}
+		if neighbors[a] == nil {
+			neighbors[a] = make(map[string]bool)
+		}
+		if neighbors[b] == nil {
+			neighbors[b] = make(map[string]bool)
+		}
+		neighbors[a][b] = true
+		neighbors[b][a] = true
+	}
+	for _, e := range scanEdges {
+		addNeighbor(e.From, e.To)
+	}
+
+	// Spec ID → linked markers (link-style baseline edges).
+	markersBySpec := make(map[string][]Marker)
+	for _, e := range edges {
+		if isSpecID(e.From) {
+			continue
+		}
+		if m, ok := markerByID[e.From]; ok {
+			markersBySpec[e.To] = append(markersBySpec[e.To], *m)
+		}
+	}
+
+	var todos []Todo
+	for sourceID := range changedSpecs {
+		sourceHash := scan.SpecHashes[sourceID]
+		sourceSpec := specByID[sourceID]
+		visited := map[string]bool{sourceID: true}
+		queue := []string{sourceID}
+		for len(queue) > 0 {
+			curr := queue[0]
+			queue = queue[1:]
+			for n := range neighbors[curr] {
+				if visited[n] {
+					continue
+				}
+				visited[n] = true
+				queue = append(queue, n)
+
+				if changedSpecs[n] {
+					continue
+				}
+
+				fromCurrent := sourceHash
+				toCurrent := scan.SpecHashes[n]
+				covered := false
+				if res, ok := resolutionsByEdge[n+"\x00"+sourceID]; ok {
+					if res.CurrentFromHash == toCurrent && res.CurrentToHash == fromCurrent {
+						covered = true
+					}
+				}
+				if !covered {
+					if res, ok := resolutionsByEdge[sourceID+"\x00"+n]; ok {
+						if res.CurrentFromHash == fromCurrent && res.CurrentToHash == toCurrent {
+							covered = true
+						}
+					}
+				}
+				if covered {
+					continue
+				}
+
+				spec := specByID[n]
+				// If the pair is a baseline spec-spec edge, direct-edge
+				// drift (step 1) already emits a todo; skip the chain-drift
+				// emission but still emit cascade for linked markers.
+				if !baselineSpecSpec[n+"\x00"+sourceID] {
+					todos = append(todos, Todo{
+						Kind:           TodoEdgeDrift,
+						From:           n,
+						To:             sourceID,
+						FromFilepath:   spec.Filepath,
+						ToFilepath:     sourceSpec.Filepath,
+						ToChanged:      true,
+						SourceSpecID:   sourceID,
+						SourceFilepath: sourceSpec.Filepath,
+					})
+				}
+
+				for _, m := range markersBySpec[n] {
+					todos = append(todos, Todo{
+						Kind:           TodoCascade,
+						From:           m.ID,
+						To:             n,
+						FromFilepath:   m.Filepath,
+						FromLineNumber: m.LineNumber,
+						ToFilepath:     spec.Filepath,
+						SourceSpecID:   sourceID,
+						SourceFilepath: sourceSpec.Filepath,
+					})
+				}
+			}
+		}
+	}
+
+	return todos
+}
+

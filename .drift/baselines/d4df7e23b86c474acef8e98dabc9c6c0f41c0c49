@@ -1,0 +1,14 @@
+	_, err := ctx.Orch.Reset(args[1], args[2])
+	if err != nil {
+		return output.ErrorResult{Command: "reset", Message: err.Error(), Exit: 1}, 1
+	}
+	if firstHasDot && secondHasDot {
+		return output.OkResult{
+			Command: "reset",
+			Message: fmt.Sprintf("Resolved edge: %s reviewed against %s.", args[1], args[2]),
+		}, 0
+	}
+	return output.OkResult{
+		Command: "reset",
+		Message: fmt.Sprintf("Resolved: %s → %s. Baseline updated.", args[1], args[2]),
+	}, 0

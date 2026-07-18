@@ -1,0 +1,3 @@
+		if moduleName == "" {
+			return nil, nil, fmt.Errorf("%s: module element missing name attribute", absPath)
+		}

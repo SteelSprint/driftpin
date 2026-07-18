@@ -1,0 +1,108 @@
+// Result is a sealed interface implemented by exactly the types below. Each
+// command path in cli.RunWithRender produces one Result; the selected Presenter
+// renders it to a string. Presenters never do command dispatch, I/O, or state
+// mutation — they only format what the Result carries.
+type Result interface {
+	isResult()
+}
+
+// TodoResult carries the evaluated state for `drift todo`.
+type TodoResult struct {
+	State core.EvaluatedState
+}
+
+// ListResult carries state plus pre-resolved content for verbose previews.
+// When Verbose is false, SpecContents and MarkerPreviews are nil and the
+// presenter skips previews entirely.
+type ListResult struct {
+	State          core.EvaluatedState
+	Verbose        bool
+	SpecContents   map[string]string // spec ID -> raw content (verbose only)
+	MarkerContents map[string]string // marker ID -> raw content (verbose only)
+}
+
+// ShowResult carries the resolved entity (spec or marker), its content, and
+// any linked counterparts with their content. Outbound/Inbound refs are
+// computed from baseline spec-spec edges for the spec view; both directions
+// are shown because the ref graph is rhizomatic.
+type ShowResult struct {
+	IsSpec        bool
+	ID            string
+	Spec          *core.Spec
+	Marker        *core.Marker
+	Content       string
+	LinkedSpecs   []LinkedSpec
+	LinkedMarkers []LinkedMarker
+	OutboundRefs  []string // specs referenced by this spec
+	InboundRefs   []string // specs that reference this spec
+}
+
+// LinkedSpec carries a spec linked to the primary marker plus its content.
+type LinkedSpec struct {
+	Spec    core.Spec
+	Content string
+}
+
+// LinkedMarker carries a marker linked to the primary spec plus its content.
+type LinkedMarker struct {
+	Marker  core.Marker
+	Content string
+}
+
+// DiffEdgeResult carries a single edge diff (one spec ↔ one marker).
+type DiffEdgeResult struct {
+	Result orchestrator.DiffResult
+}
+
+// DiffExpandedResult carries all linked edges for a single ID (marker or spec).
+type DiffExpandedResult struct {
+	ID    string
+	Edges []orchestrator.DiffResult
+}
+
+// DiffAllResult carries every drifted edge in state.Todos.
+type DiffAllResult struct {
+	State core.EvaluatedState
+	Edges []orchestrator.DiffResult
+}
+
+// OkResult is a generic success message for commands that don't produce
+// structured data (init, link, unlink, reset). PlainPresenter.Ok returns
+// Message verbatim.
+type OkResult struct {
+	Command string
+	Message string
+}
+
+// ErrorResult carries a structured error. PlainPresenter.Error returns Message
+// verbatim (followed by Hint if non-empty). JSONPresenter emits
+// {"ok":false, "error":..., "hint"?:..., "exit":N}.
+type ErrorResult struct {
+	Command string
+	Message string
+	Hint    string
+	Exit    int
+}
+
+// TextResult is a passthrough for embedded prose (help, skill).
+// PlainPresenter.Text returns Text verbatim.
+type TextResult struct {
+	Text string
+}
+
+// VersionResult carries the version string for `drift version`. PlainPresenter
+// returns "drift version <X>"; JSONPresenter emits {"version":"<X>"}.
+type VersionResult struct {
+	Version string
+}
+
+func (TodoResult) isResult()         {}
+func (ListResult) isResult()         {}
+func (ShowResult) isResult()         {}
+func (DiffEdgeResult) isResult()     {}
+func (DiffExpandedResult) isResult() {}
+func (DiffAllResult) isResult()      {}
+func (OkResult) isResult()           {}
+func (ErrorResult) isResult()        {}
+func (TextResult) isResult()         {}
+func (VersionResult) isResult()      {}

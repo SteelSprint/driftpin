@@ -1,0 +1,42 @@
+func (algorithm *CoreAlgorithm) evaluateResetAction(ctx CoreAlgorithmContext, action ResetAction) (EvaluatedState, error) {
+	if err := validateScanCoversAllNodes(action.Scan, ctx.Specs, ctx.Markers); err != nil {
+		return EvaluatedState{}, err
+	}
+	linkExists := false
+	for _, link := range ctx.Links {
+		if link.SpecID == action.SpecID && link.MarkerID == action.MarkerID {
+			linkExists = true
+			break
+		}
+	}
+	if !linkExists {
+		return EvaluatedState{}, fmt.Errorf("%w: spec=%q marker=%q", ErrResetEdgeNotLinked, action.SpecID, action.MarkerID)
+	}
+
+	specsByID := copySpecsToMutableMap(ctx.Specs)
+	markersByID := copyMarkersToMutableMap(ctx.Markers)
+	resolutionStateByEdge := indexResolutionStateByEdge(ctx.ResolutionState)
+
+	resolutionStateByEdge[resolutionEdgeKey(action.MarkerID, action.SpecID)] = ResolutionState{
+		SpecID:            action.SpecID,
+		MarkerID:          action.MarkerID,
+		CurrentSpecHash:   action.Scan.SpecHashes[action.SpecID],
+		CurrentMarkerHash: action.Scan.MarkerHashes[action.MarkerID],
+	}
+
+	collapsedMarkers := map[string]bool{}
+	collapsedSpecs := map[string]bool{}
+	collapseResolvedNodes(ctx.Links, specsByID, markersByID, resolutionStateByEdge, action.Scan, collapsedMarkers, collapsedSpecs)
+
+	filteredLinks := filterLinksByNodes(ctx.Links, specsByID, markersByID)
+
+	return EvaluatedState{
+		Specs:           specsFromMutableMap(specsByID),
+		Markers:         markersFromMutableMap(markersByID),
+		Links:           filteredLinks,
+		ResolutionState: resolutionStateFromMutableMap(resolutionStateByEdge),
+		Refs:            ctx.Refs,
+		RefResolutions:  ctx.RefResolutions,
+	}, nil
+}
+

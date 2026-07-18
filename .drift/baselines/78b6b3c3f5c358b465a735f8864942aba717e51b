@@ -1,0 +1,142 @@
+// computeRhizomaticClosureTodos propagates spec hash-drift through the
+// undirected spec-spec edge graph. For each changed spec C, walk the graph
+// and emit TodoEdgeDrift for every transitively-reachable spec N (with no
+// covering resolution), plus TodoCascade for every marker linked to N.
+//
+// The walk uses ONLY spec-spec edges. Markers are reached through their
+// linked spec after the walk completes — they're never graph nodes here.
+// Markers directly linked to the changed source spec do NOT get cascade
+// todos because TodoEdgeDrift on their direct (marker, source) edge already
+// covers them.
+func computeRhizomaticClosureTodos(
+	specs []Spec,
+	markers []Marker,
+	edges []Edge,
+	scanEdges []Edge,
+	resolutionsByEdge map[string]EdgeResolution,
+	scan Scan,
+	specByID map[string]*Spec,
+	markerByID map[string]*Marker,
+) []Todo {
+	// Identify hash-drifted specs (root causes).
+	changedSpecs := make(map[string]bool)
+	for _, s := range specs {
+		current, ok := scan.SpecHashes[s.ID]
+		if !ok || current == "" {
+			continue
+		}
+		if s.Hash != current {
+			changedSpecs[s.ID] = true
+		}
+	}
+	if len(changedSpecs) == 0 {
+		return nil
+	}
+
+	// Build undirected adjacency over specs via spec-spec scan edges.
+	neighbors := make(map[string]map[string]bool)
+	addNeighbor := func(a, b string) {
+		if !isSpecID(a) || !isSpecID(b) {
+			return
+		}
+		if neighbors[a] == nil {
+			neighbors[a] = make(map[string]bool)
+		}
+		if neighbors[b] == nil {
+			neighbors[b] = make(map[string]bool)
+		}
+		neighbors[a][b] = true
+		neighbors[b][a] = true
+	}
+	for _, e := range scanEdges {
+		addNeighbor(e.From, e.To)
+	}
+
+	// Index: spec ID → linked markers (for cascade emission). Uses baseline
+	// edges (link-style: marker → spec).
+	markersBySpec := make(map[string][]Marker)
+	for _, e := range edges {
+		// Link-style edge: From is a marker, To is a spec.
+		if isSpecID(e.From) {
+			continue
+		}
+		if m, ok := markerByID[e.From]; ok {
+			markersBySpec[e.To] = append(markersBySpec[e.To], *m)
+		}
+	}
+
+	var todos []Todo
+	for sourceID := range changedSpecs {
+		sourceHash := scan.SpecHashes[sourceID]
+		sourceSpec := specByID[sourceID] // *Spec
+		visited := map[string]bool{sourceID: true}
+		queue := []string{sourceID}
+		for len(queue) > 0 {
+			curr := queue[0]
+			queue = queue[1:]
+			for n := range neighbors[curr] {
+				if visited[n] {
+					continue
+				}
+				visited[n] = true
+				queue = append(queue, n)
+
+				// Other changed sources emit their own todos; skip.
+				if changedSpecs[n] {
+					continue
+				}
+
+				// Covering resolution check (either direction).
+				fromCurrent := sourceHash
+				toCurrent := scan.SpecHashes[n]
+				covered := false
+				if res, ok := resolutionsByEdge[n+"\x00"+sourceID]; ok {
+					if res.CurrentFromHash == toCurrent && res.CurrentToHash == fromCurrent {
+						covered = true
+					}
+				}
+				if !covered {
+					if res, ok := resolutionsByEdge[sourceID+"\x00"+n]; ok {
+						if res.CurrentFromHash == fromCurrent && res.CurrentToHash == toCurrent {
+							covered = true
+						}
+					}
+				}
+				if covered {
+					continue
+				}
+
+				spec := specByID[n] // *Spec
+				// Chain drift: emit a TodoEdgeDrift for the (n, source)
+				// pair, even though there may be no direct baseline edge
+				// between them — this is a rhizomatic (transitive)
+				// relationship, resolved by stamping an EdgeResolution.
+				todos = append(todos, Todo{
+					Kind:         TodoEdgeDrift,
+					From:         n,
+					To:           sourceID,
+					FromFilepath: spec.Filepath,
+					ToFilepath:   sourceSpec.Filepath,
+					ToChanged:    true,
+				})
+
+				// Cascade: every marker linked to this drifted spec.
+				for _, m := range markersBySpec[n] {
+					todos = append(todos, Todo{
+						Kind:           TodoCascade,
+						From:           m.ID,
+						To:             n,
+						FromFilepath:   m.Filepath,
+						FromLineNumber: m.LineNumber,
+						ToFilepath:     spec.Filepath,
+						SourceSpecID:   sourceID,
+						SourceFilepath: sourceSpec.Filepath,
+					})
+				}
+			}
+		}
+	}
+
+	return todos
+}
+

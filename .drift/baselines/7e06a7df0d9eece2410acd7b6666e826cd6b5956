@@ -1,0 +1,247 @@
+// computeRefTodos emits todos for ref-graph drift. It compares the baseline
+// ref set (ctx.Refs) against the scanned ref set (scan.Refs) to detect edge
+// add/remove, flags refs whose target ID is not a known spec (broken), and
+// (in the full rhizomatic closure) propagates spec hash-drift through the
+// undirected ref graph to connected specs and their linked markers.
+//
+// Resolutions: a ref edge that is new (TodoRefAdded) is considered resolved
+// when a ref resolution covers (reviewed, source) at the current source
+// hash; the same form resolves chain drift. Removed edges (TodoRefRemoved)
+// cannot be "resolved" by reset — they require the user to either restore
+// the ref in spec text or accept the removal by re-saving state (handled in
+// Phase E via ResetRef which drops the baseline ref).
+//
+// Phase C: implements add/remove/broken detection only. Phase D adds the
+// rhizomatic closure and cascade.
+func computeRefTodos(
+	specs []Spec,
+	markers []Marker,
+	links []Link,
+	refs []Ref,
+	refResolutionsByEdge map[string]RefResolutionState,
+	scan Scan,
+) []Todo {
+	specExists := make(map[string]bool, len(scan.SpecHashes))
+	for id, h := range scan.SpecHashes {
+		if h != "" {
+			specExists[id] = true
+		}
+	}
+	specByID := make(map[string]Spec, len(specs))
+	for _, s := range specs {
+		specByID[s.ID] = s
+	}
+	markerByID := make(map[string]Marker, len(markers))
+	for _, m := range markers {
+		markerByID[m.ID] = m
+	}
+
+	scanRefSet := make(map[string]bool, len(scan.Refs))
+	for _, r := range scan.Refs {
+		scanRefSet[r.FromSpec+"\x00"+r.ToSpec] = true
+	}
+	baselineRefSet := make(map[string]bool, len(refs))
+	for _, r := range refs {
+		baselineRefSet[r.FromSpec+"\x00"+r.ToSpec] = true
+	}
+
+	var todos []Todo
+
+	// New refs: in scan, not in baseline.
+	for _, r := range scan.Refs {
+		if baselineRefSet[r.FromSpec+"\x00"+r.ToSpec] {
+			continue
+		}
+		todos = append(todos, Todo{
+			Kind:  TodoRefAdded,
+			RefFrom: r.FromSpec,
+			RefTo:   r.ToSpec,
+		})
+	}
+
+	// Removed refs: in baseline, not in scan.
+	for _, r := range refs {
+		if scanRefSet[r.FromSpec+"\x00"+r.ToSpec] {
+			continue
+		}
+		fromSpec, srcOK := specByID[r.FromSpec]
+		todos = append(todos, Todo{
+			Kind:   TodoRefRemoved,
+			RefFrom: r.FromSpec,
+			RefTo:   r.ToSpec,
+			SourceFilepath: func() string {
+				if srcOK {
+					return fromSpec.Filepath
+				}
+				return ""
+			}(),
+		})
+	}
+
+	// Broken refs: target ID doesn't resolve to a known spec.
+	for _, r := range scan.Refs {
+		if specExists[r.ToSpec] {
+			continue
+		}
+		fromSpec, srcOK := specByID[r.FromSpec]
+		todos = append(todos, Todo{
+			Kind:   TodoBrokenRef,
+			RefFrom: r.FromSpec,
+			RefTo:   r.ToSpec,
+			SourceFilepath: func() string {
+				if srcOK {
+					return fromSpec.Filepath
+				}
+				return ""
+			}(),
+		})
+	}
+
+	// Phase D: rhizomatic closure (chain drift + cascade).
+	chainTodos := computeRhizomaticClosureTodos(
+		specs, markers, links, scan.Refs, refResolutionsByEdge, scan,
+		specByID, markerByID,
+	)
+	todos = append(todos, chainTodos...)
+
+	return todos
+}
+
+// computeRhizomaticClosureTodos implements the rhizomatic drift-propagation
+// algorithm: for every hash-drifted spec, walk the undirected graph (refs +
+// links, both treated as undirected edges) and emit a TodoRefChain for each
+// transitively-reachable spec (with no covering ref resolution) and a
+// TodoCascade for each transitively-reachable marker.
+//
+// Marker hash-drift does NOT propagate (source-of-truth asymmetry): a
+// marker's own hash drift is reported via the existing TodoLinkEdge path.
+//
+// Cycle-safe via standard visited-set tracking. The ref graph is validated
+// acyclic upstream, but the undirected walk could still loop through
+// multi-edge cycles if cycles are introduced by the link graph.
+func computeRhizomaticClosureTodos(
+	specs []Spec,
+	markers []Marker,
+	links []Link,
+	scanRefs []Ref,
+	refResolutionsByEdge map[string]RefResolutionState,
+	scan Scan,
+	specByID map[string]Spec,
+	markerByID map[string]Marker,
+) []Todo {
+	// Identify hash-drifted specs (root causes).
+	changedSpecs := make(map[string]bool)
+	for _, s := range specs {
+		current, ok := scan.SpecHashes[s.ID]
+		if !ok {
+			continue
+		}
+		if current == "" {
+			continue // deleted specs handled elsewhere
+		}
+		if s.Hash != current {
+			changedSpecs[s.ID] = true
+		}
+	}
+	if len(changedSpecs) == 0 {
+		return nil
+	}
+
+	// Build undirected adjacency over specs ∪ markers via refs ∪ links.
+	// Edge endpoint "kind" is implicit from ID: marker IDs never contain a
+	// dot, spec IDs always do. This relies on the existing ID-format rule
+	// (scanner.spec_id_format).
+	neighbors := make(map[string]map[string]bool)
+	addEdge := func(a, b string) {
+		if neighbors[a] == nil {
+			neighbors[a] = make(map[string]bool)
+		}
+		if neighbors[b] == nil {
+			neighbors[b] = make(map[string]bool)
+		}
+		neighbors[a][b] = true
+		neighbors[b][a] = true
+	}
+	for _, r := range scanRefs {
+		addEdge(r.FromSpec, r.ToSpec)
+	}
+	for _, l := range links {
+		addEdge(l.SpecID, l.MarkerID)
+	}
+
+	// Multi-source BFS from all changed specs simultaneously. For each
+	// visited node N (excluding the source nodes themselves), emit a todo
+	// for EACH changed source that reaches it — unless a covering ref
+	// resolution exists.
+	//
+	// We do per-source BFS rather than true multi-source because the todo
+	// needs to identify which source caused the drift (one todo per
+	// reviewed/source pair, mirroring how link drift works).
+	var todos []Todo
+	for sourceID := range changedSpecs {
+		sourceHash := scan.SpecHashes[sourceID]
+		visited := map[string]bool{sourceID: true}
+		queue := []string{sourceID}
+		for len(queue) > 0 {
+			curr := queue[0]
+			queue = queue[1:]
+			for n := range neighbors[curr] {
+				if visited[n] {
+					continue
+				}
+				visited[n] = true
+				queue = append(queue, n)
+
+				// Skip neighbor if it's also a changed source — those get
+				// their own todos as sources, not as chain drift.
+				if changedSpecs[n] {
+					continue
+				}
+
+				if isSpecID(n) {
+					// Check for covering ref resolution: "n reviewed against sourceID@currentSourceHash".
+					if res, ok := refResolutionsByEdge[n+"\x00"+sourceID]; ok {
+						if res.CurrentSourceHash == sourceHash {
+							continue
+						}
+					}
+					spec := specByID[n]
+					todos = append(todos, Todo{
+						Kind:           TodoRefChain,
+						SpecID:         n,
+						SpecFilepath:   spec.Filepath,
+						SourceSpecID:   sourceID,
+						SourceFilepath: specByID[sourceID].Filepath,
+					})
+				} else {
+					// Marker — cascade drift. Derived: not independently
+					// resolvable; clears when the upstream ref chain is
+					// resolved.
+					marker := markerByID[n]
+					todos = append(todos, Todo{
+						Kind:             TodoCascade,
+						MarkerID:         n,
+						MarkerFilepath:   marker.Filepath,
+						MarkerLineNumber: marker.LineNumber,
+						SourceSpecID:     sourceID,
+						SourceFilepath:   specByID[sourceID].Filepath,
+					})
+				}
+			}
+		}
+	}
+
+	return todos
+}
+
+// isSpecID reports whether id looks like a module-qualified spec ID (contains
+// exactly one dot) rather than a marker shortcode (no dots). Used by the
+// rhizomatic closure walk to discriminate node kind via the ID-format rule.
+func isSpecID(id string) bool {
+	first := strings.Index(id, ".")
+	if first < 0 {
+		return false
+	}
+	return strings.Index(id[first+1:], ".") < 0
+}
+

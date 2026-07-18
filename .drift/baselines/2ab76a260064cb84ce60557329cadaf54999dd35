@@ -1,0 +1,1 @@
+Plain mode is the byte-identical continuation of pre-output-layer output. PlainPresenter migrates the existing format* functions (formatTodo, formatList, formatShow*, formatDiff*, unlinkedMarkerWarning) verbatim. Plain output NEVER emits ANSI sequences. Plain output is the baseline for the <ref spec="output.guardrail_property">guardrail property</ref>.

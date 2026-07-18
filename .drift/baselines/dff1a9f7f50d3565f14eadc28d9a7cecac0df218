@@ -1,0 +1,16 @@
+func (p PlainPresenter) DiffAll(r DiffAllResult) string {
+	if len(r.Edges) == 0 {
+		return "No drift detected."
+	}
+
+	var sb strings.Builder
+	for i, edge := range r.Edges {
+		if i > 0 {
+			sb.WriteString("\n\n===\n\n")
+		}
+		out := p.DiffEdge(DiffEdgeResult{Result: edge})
+		sb.WriteString(out)
+	}
+	return strings.TrimRight(sb.String(), "\n")
+}
+

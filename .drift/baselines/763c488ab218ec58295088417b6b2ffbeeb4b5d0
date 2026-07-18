@@ -1,0 +1,47 @@
+CONCEPTUAL SPEC — the main idea of the product. Lives above all implementation specs; changes here have far-reaching consequences.
+
+PROBLEM STATEMENT. Drift detects divergence between specifications and code. Specifications ("specs") declare intended behavior; code markers wrap the lines that implement each spec. Each spec and each marker has a content hash. When a hash changes on either side, the (spec, marker) edge is "drifted" and a human or LLM agent must review before the baseline is re-established. This much is the pre-refs model: it tracks a bipartite graph of specs and markers joined by user-declared "links".
+
+The bipartite model alone is insufficient because specs themselves cite other specs. A spec S may declare "See spec T for the rule this derives from"; that citation is meaningful — if T's content changes, S's continued alignment with T is no longer guaranteed. Without tracking these citations, drift on T silently propagates: agents editing T cannot see which downstream specs need re-verification. Tracking citations as first-class edges turns the bipartite graph into a unified one in which drift propagates correctly.
+
+NOTATION. We adopt a uniform notation for nodes and edges:
+  $ — a spec. $1, $2, $3 are distinct specs.
+  # — a marker. #A, #B are distinct markers.
+  &lt; , &gt; — directed storage edges. "X &gt; Y" reads: X stores an edge that points to Y. "X &lt; Y" is the same edge mirrored — Y stores the edge to X.
+Two edge kinds exist, distinguished by node type at each endpoint:
+  Ref  — a spec↔spec edge declared by &lt;ref spec="…"&gt; inside a spec's content. The spec containing the tag is the source; the referenced spec is the target.
+  Link — a spec↔marker edge declared by `drift link`. The marker stores the edge to the spec.
+Worked examples:
+  $1 &lt; $2                 — $2 stores a ref to $1. ($2 contains &lt;ref spec="$1"&gt;.)
+  $1 &lt; $2 &lt; #A           — equivalent to ($1 &lt; $2)($2 &lt; #A): $2 refs $1; #A links to $2.
+  ($1 &lt; $2)($2 &lt; #A)($2 &lt; $300)($300 &lt; $400) — a rhizomatic cluster: $2 has one outbound ref, two inbound edges (#A via link, $300 via ref); $300 is itself ref'd by $400. The leaves are specs ($1, $400); markers are not privileged endpoints.
+
+AXIOMS.
+  (A1) DAG. The directed storage graph contains no directed cycles: $1 &gt; $2 &gt; $1 is forbidden. Cycles would make the "chain" notion ambiguous and break topological reasoning. (Undirected cycles — paths that return to the start via different edges — are fine and expected in any non-trivial graph.)
+  (A2) Storage asymmetry. Markers never have inbound edges. A marker #A may store a link to a spec (#A &gt; $S) but nothing stores an edge to a marker. Markers are sources only.
+  (A3) Rhizomatic edge semantics. Although each individual edge has a storage direction (X &gt; Y means X declared the edge), the SEMANTICS of drift propagation treat the edge as undirected. The graph is rhizomatic, not arborescent: there is no privileged root, no "upstream" or "downstream" orientation, no hierarchy implied by edge direction. A change at any node propagates along edges regardless of which endpoint declared them.
+  (A4) Source-of-truth asymmetry. Specs define behavior; code implements. When code changes (marker hash drifts) the spec might still be correct — only the code is suspect, and the review prompt asks "is the code still aligned with the spec?". When a spec changes, every transitively-connected node's alignment is suspect. Concretely: marker hash-drift does NOT propagate; spec hash-drift propagates rhizomatically.
+
+ALGORITHM. Given baseline state B (hashes + edge sets at last review) and scan S (hashes + edge sets now):
+  (i) Edge-set drift. Compare B's ref set to S's ref set:
+       - in S only  → TodoRefAdded     (a new &lt;ref&gt; was declared)
+       - in B only  → TodoRefRemoved    (a &lt;ref&gt; was deleted)
+  (ii) Broken refs. For each ref (X &gt; Y) in S, if Y does not exist as a spec → TodoBrokenRef. (Cyphers and typos surface here. Not a fatal scan error — a reviewable todo.)
+  (iii) Hash-drift closure. Let C = { specs whose hash differs between B and S }. For each source spec c ∈ C, perform BFS over the undirected ref graph (refs only — markers are not graph nodes for this walk). For every visited spec n ≠ c:
+          - if no ref resolution (n reviewed-against c at S's hash of c) covers the pair → emit TodoRefChain(n, c).
+          - for each marker m linked to n → emit TodoCascade(m, c). Cascade todos are DERIVED: not independently resettable. They clear automatically when the upstream ref-chain todo is resolved.
+        Markers linked directly to c are NOT given cascade todos — they are already covered by TodoLinkEdge on the (c, m) link, and emitting a second todo for the same (marker, source) pair would be redundant.
+  (iv) Link-edge drift. Existing pre-refs algorithm: for each link (m, s), if either hash differs between B and S and no resolution entry covers the current pair → TodoLinkEdge(m, s).
+  (v)  Marker hash-drift. (Existing.) A marker whose own hash changed produces TodoLinkEdge on each of its links. It does NOT enter step (iii) — source-of-truth asymmetry.
+  (vi) Cycle safety. The BFS uses a visited set; the ref graph is a DAG by (A1), but the walk is over the undirected projection and could in principle loop through multi-edge cycles if (A1) were violated. The visited set is the safety net.
+
+RESOLUTION. Each todo resolves with `drift reset`:
+  - TodoLinkEdge(m, s)        → `drift reset m s`           (stamps a ResolutionState at current hashes; collapses when the edge's endpoints are both re-baselined)
+  - TodoRefChain(n, c)        → `drift reset n c`           (stamps a RefResolutionState at current source hash)
+  - TodoRefAdded(X, Y)        → `drift reset X Y`           (adds the edge to baseline refs)
+  - TodoRefRemoved(X, Y)      → `drift reset X Y`           (drops the edge from baseline refs)
+  - TodoBrokenRef(X, Y)       → not resettable; fix spec text or restore the missing spec
+  - TodoCascade(m, c)         → not independently resettable; clears when upstream TodoRefChain(n, c) resolves
+The dispatch form is unambiguous: marker shortcodes contain no dots; spec IDs contain exactly one. Two-arg reset with dots in BOTH args is a ref reset; two-arg reset with a dot only in the second is a link reset; one-arg reset is orphan pruning.
+
+This spec is the contract. Implementation specs (core.ref_validate, core.ref_todo_algorithm, scanner.ref_parsing, orch.reset_ref, cli.reset_ref_dispatch, pinstore.baselines) describe how the contract is realized; they may be refactored freely as long as the behavior here is preserved.

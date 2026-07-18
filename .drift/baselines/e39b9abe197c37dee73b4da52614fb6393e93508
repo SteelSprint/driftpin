@@ -1,0 +1,31 @@
+// edgeIsUnchecked reports whether the edge is drifted (an endpoint hash
+// differs from baseline) and not covered by a resolution entry. Resolutions
+// are looked up in either direction — a (From, To) resolution covers a
+// baseline (To, From) edge declaration.
+func edgeIsUnchecked(
+	edge Edge,
+	specsByID map[string]*Spec,
+	markersByID map[string]*Marker,
+	resolutionsByEdge map[string]EdgeResolution,
+	scan Scan,
+) bool {
+	fromCurrent := nodeScanHash(edge.From, scan, specsByID, markersByID)
+	toCurrent := nodeScanHash(edge.To, scan, specsByID, markersByID)
+	fromBaseline := nodeBaselineHash(edge.From, specsByID, markersByID)
+	toBaseline := nodeBaselineHash(edge.To, specsByID, markersByID)
+	if fromBaseline == fromCurrent && toBaseline == toCurrent {
+		return false
+	}
+	if res, ok := resolutionsByEdge[edge.From+"\x00"+edge.To]; ok {
+		if res.CurrentFromHash == fromCurrent && res.CurrentToHash == toCurrent {
+			return false
+		}
+	}
+	if res, ok := resolutionsByEdge[edge.To+"\x00"+edge.From]; ok {
+		if res.CurrentFromHash == toCurrent && res.CurrentToHash == fromCurrent {
+			return false
+		}
+	}
+	return true
+}
+

@@ -1,0 +1,147 @@
+// ResetRef resolves a ref-edge todo. It dispatches on the current drift
+// state between the baseline refs (state.xml) and the scanned refs:
+//
+//   - TodoRefAdded (scan has the edge, baseline does not): the edge is
+//     added to baseline refs so it stops firing as new.
+//   - TodoRefRemoved (baseline has the edge, scan does not): the edge is
+//     removed from baseline refs so it stops firing as removed.
+//   - TodoRefChain (source spec hash-drifted, reviewed spec transitively
+//     connected): a ref resolution is stamped at the current source hash.
+//   - TodoBrokenRef (scan has the edge, target spec does not exist):
+//     returns ErrBrokenRefNotResettable — the user must fix the spec text.
+//
+// Reviewed and source are interpreted as the rhizomatic model requires:
+// either direction of a declared ref edge is a valid (reviewed, source)
+// pair. The CLI uses this method when both reset args contain dots.
+func (o *Orchestrator) ResetRef(reviewedSpec, sourceSpec string) error {
+	unlock, err := o.stateStore.Lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	state, err := o.stateStore.Load()
+	if err != nil {
+		return err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return err
+	}
+
+	// Validate both specs exist on disk.
+	specIDs := make(map[string]bool, len(scanResult.Specs))
+	for _, s := range scanResult.Specs {
+		specIDs[s.ID] = true
+	}
+	if !specIDs[reviewedSpec] {
+		return fmt.Errorf("%w: %q", ErrLinkSpecNotFound, reviewedSpec)
+	}
+	if !specIDs[sourceSpec] {
+		// Broken ref case — target spec missing. Refuse.
+		return fmt.Errorf("%w: reviewed=%q source=%q", ErrBrokenRefNotResettable, reviewedSpec, sourceSpec)
+	}
+
+	// Locate the declared ref edge in either direction.
+	scanHasRef := false
+	for _, r := range scanResult.Refs {
+		if (r.FromSpec == reviewedSpec && r.ToSpec == sourceSpec) ||
+			(r.FromSpec == sourceSpec && r.ToSpec == reviewedSpec) {
+			scanHasRef = true
+			break
+		}
+	}
+	baselineHasRef := false
+	for _, r := range state.Refs {
+		if (r.FromSpec == reviewedSpec && r.ToSpec == sourceSpec) ||
+			(r.FromSpec == sourceSpec && r.ToSpec == reviewedSpec) {
+			baselineHasRef = true
+			break
+		}
+	}
+
+	// Compute new baseline refs and new ref resolutions.
+	newRefs := state.Refs
+	pruneResolutionsFor := ""
+	if scanHasRef && !baselineHasRef {
+		// TodoRefAdded: add the edge to baseline in the declared direction.
+		// Find the declared direction from the scan.
+		for _, r := range scanResult.Refs {
+			if (r.FromSpec == reviewedSpec && r.ToSpec == sourceSpec) ||
+				(r.FromSpec == sourceSpec && r.ToSpec == reviewedSpec) {
+				newRefs = append(newRefs, r)
+				break
+			}
+		}
+	} else if !scanHasRef && baselineHasRef {
+		// TodoRefRemoved: drop the edge from baseline. Also prune any
+		// ref resolutions referencing this edge — Validate would otherwise
+		// reject the next Load (ref resolution references edge that no
+		// longer exists).
+		newRefs = make([]core.Ref, 0, len(state.Refs))
+		for _, r := range state.Refs {
+			if (r.FromSpec == reviewedSpec && r.ToSpec == sourceSpec) ||
+				(r.FromSpec == sourceSpec && r.ToSpec == reviewedSpec) {
+				continue
+			}
+			newRefs = append(newRefs, r)
+		}
+		pruneResolutionsFor = "both"
+	}
+
+	// Stamp a ref resolution (covers chain-drift case). Idempotent: if a
+	// matching resolution already exists, it is updated. Skipped entirely
+	// when removing an edge — there is no edge left to resolve against.
+	sourceHash := ""
+	for _, s := range scanResult.Specs {
+		if s.ID == sourceSpec {
+			sourceHash = s.Hash
+			break
+		}
+	}
+	newRefResolutions := state.RefResolutions
+	if pruneResolutionsFor != "both" {
+		newRefResolutions = make([]core.RefResolutionState, 0, len(state.RefResolutions))
+		stamped := false
+		for _, r := range state.RefResolutions {
+			if r.ReviewedSpec == reviewedSpec && r.SourceSpec == sourceSpec {
+				newRefResolutions = append(newRefResolutions, core.RefResolutionState{
+					ReviewedSpec:      reviewedSpec,
+					SourceSpec:        sourceSpec,
+					CurrentSourceHash: sourceHash,
+				})
+				stamped = true
+				continue
+			}
+			newRefResolutions = append(newRefResolutions, r)
+		}
+		if !stamped {
+			newRefResolutions = append(newRefResolutions, core.RefResolutionState{
+				ReviewedSpec:      reviewedSpec,
+				SourceSpec:        sourceSpec,
+				CurrentSourceHash: sourceHash,
+			})
+		}
+	} else {
+		// Edge was removed: prune resolutions in either direction.
+		newRefResolutions = make([]core.RefResolutionState, 0, len(state.RefResolutions))
+		for _, r := range state.RefResolutions {
+			if (r.ReviewedSpec == reviewedSpec && r.SourceSpec == sourceSpec) ||
+				(r.ReviewedSpec == sourceSpec && r.SourceSpec == reviewedSpec) {
+				continue
+			}
+			newRefResolutions = append(newRefResolutions, r)
+		}
+	}
+
+	return o.stateStore.Save(statestore.State{
+		Specs:            state.Specs,
+		Markers:          state.Markers,
+		Links:            state.Links,
+		ResolutionState:  state.ResolutionState,
+		Refs:             newRefs,
+		RefResolutions:   newRefResolutions,
+	})
+}
+

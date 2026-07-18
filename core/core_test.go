@@ -51,18 +51,18 @@ func findMarkerByID(t *testing.T, evaluatedState core.EvaluatedState, markerID s
 	return core.Marker{}
 }
 
-func findResolutionStateByEdge(evaluatedState core.EvaluatedState, markerID string, specID string) (core.ResolutionState, bool) {
-	for _, res := range evaluatedState.ResolutionState {
-		if res.MarkerID == markerID && res.SpecID == specID {
+func findResolutionStateByEdge(evaluatedState core.EvaluatedState, markerID string, specID string) (core.EdgeResolution, bool) {
+	for _, res := range evaluatedState.Resolutions {
+		if res.From == markerID && res.To == specID {
 			return res, true
 		}
 	}
-	return core.ResolutionState{}, false
+	return core.EdgeResolution{}, false
 }
 
 func findTodoByEdge(evaluatedState core.EvaluatedState, markerID string, specID string) (core.Todo, bool) {
 	for _, todo := range evaluatedState.Todos {
-		if todo.MarkerID == markerID && todo.SpecID == specID {
+		if todo.From == markerID && todo.To == specID {
 			return todo, true
 		}
 	}
@@ -92,15 +92,15 @@ func TestArityShapes(t *testing.T) {
 		name    string
 		specs   []core.Spec
 		markers []core.Marker
-		links   []core.Link
+		links   []core.Edge
 	}{
 		{"0_specs_0_markers", nil, nil, nil},
 		{"1_spec_0_markers", []core.Spec{testutil.NewSpec("s1", "b1")}, nil, nil},
 		{"0_specs_1_marker", nil, []core.Marker{testutil.NewMarker("m1", "b1")}, nil},
-		{"1_spec_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Link{testutil.NewLink("s1", "m1")}},
-		{"many_specs_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}},
-		{"1_spec_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1")}},
-		{"many_specs_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")}},
+		{"1_spec_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Edge{testutil.NewLink("s1", "m1")}},
+		{"many_specs_1_marker", []core.Spec{testutil.NewSpec("s1", "b1")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}},
+		{"1_spec_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1")}, []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1")}},
+		{"many_specs_many_markers", []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}, []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}, []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")}},
 	}
 	for _, shape := range shapes {
 		t.Run(shape.name, func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestArityShapes(t *testing.T) {
 			todoCtx := core.CoreAlgorithmContext{
 				Specs:   shape.specs,
 				Markers: shape.markers,
-				Links:   shape.links,
+				Edges:   shape.links,
 				Action:  core.TodoAction{Scan: baselineScan},
 			}
 			evaluatedState := evaluateTodoActionExpectingSuccess(t, todoCtx)
@@ -118,8 +118,8 @@ func TestArityShapes(t *testing.T) {
 			resetCtx := core.CoreAlgorithmContext{
 				Specs:   shape.specs,
 				Markers: shape.markers,
-				Links:   shape.links,
-				Action:  core.ResetAction{SpecID: "nonexistent_spec", MarkerID: "nonexistent_marker", Scan: baselineScan},
+				Edges:   shape.links,
+				Action:  core.ResetAction{From: "nonexistent_marker", To: "nonexistent_spec"},
 			}
 			_, err := core.NewCoreAlgorithm().EvaluateState(resetCtx)
 			if err == nil {
@@ -140,7 +140,7 @@ func TestIsolatedNodeWithDriftStillReportsZeroTodos(t *testing.T) {
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: nil,
-			Links:   nil,
+			Edges:   nil,
 			Action:  core.TodoAction{Scan: core.Scan{SpecHashes: driftedScan.SpecHashes, MarkerHashes: map[string]string{}}},
 		})
 		testutil.AssertTodoCount(t, evaluatedState, 0)
@@ -149,7 +149,7 @@ func TestIsolatedNodeWithDriftStillReportsZeroTodos(t *testing.T) {
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   nil,
 			Markers: markers,
-			Links:   nil,
+			Edges:   nil,
 			Action:  core.TodoAction{Scan: core.Scan{SpecHashes: map[string]string{}, MarkerHashes: driftedScan.MarkerHashes}},
 		})
 		testutil.AssertTodoCount(t, evaluatedState, 0)
@@ -158,7 +158,7 @@ func TestIsolatedNodeWithDriftStillReportsZeroTodos(t *testing.T) {
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   nil,
+			Edges:   nil,
 			Action:  core.TodoAction{Scan: driftedScan},
 		})
 		testutil.AssertTodoCount(t, evaluatedState, 0)
@@ -168,7 +168,7 @@ func TestIsolatedNodeWithDriftStillReportsZeroTodos(t *testing.T) {
 func TestTodoFieldsRoundTrip(t *testing.T) {
 	specs := []core.Spec{testutil.NewSpecWithLocation("spec_auth", "old_hash", "/project/specs/auth.xml", 42)}
 	markers := []core.Marker{testutil.NewMarkerWithLocation("marker_auth", "old_hash", "/project/src/auth.go", 88)}
-	links := []core.Link{testutil.NewLink("spec_auth", "marker_auth")}
+	links := []core.Edge{testutil.NewLink("spec_auth", "marker_auth")}
 	scan := newScanFromBaselines(specs, markers,
 		map[string]string{"spec_auth": "new_hash"},
 		map[string]string{"marker_auth": "new_hash"})
@@ -176,7 +176,7 @@ func TestTodoFieldsRoundTrip(t *testing.T) {
 	evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
 		Specs:   specs,
 		Markers: markers,
-		Links:   links,
+		Edges:   links,
 		Action:  core.TodoAction{Scan: scan},
 	})
 	testutil.AssertTodoCount(t, evaluatedState, 1)
@@ -184,17 +184,17 @@ func TestTodoFieldsRoundTrip(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected todo for marker_auth:spec_auth")
 	}
-	if todo.SpecFilepath != "/project/specs/auth.xml" {
-		t.Fatalf("todo.SpecFilepath = %q, want %q", todo.SpecFilepath, "/project/specs/auth.xml")
+	if todo.ToFilepath != "/project/specs/auth.xml" {
+		t.Fatalf("todo.ToFilepath = %q, want %q", todo.ToFilepath, "/project/specs/auth.xml")
 	}
-	if todo.SpecLineNumber != 42 {
-		t.Fatalf("todo.SpecLineNumber = %d, want %d", todo.SpecLineNumber, 42)
+	if todo.ToLineNumber != 42 {
+		t.Fatalf("todo.ToLineNumber = %d, want %d", todo.ToLineNumber, 42)
 	}
-	if todo.MarkerFilepath != "/project/src/auth.go" {
-		t.Fatalf("todo.MarkerFilepath = %q, want %q", todo.MarkerFilepath, "/project/src/auth.go")
+	if todo.FromFilepath != "/project/src/auth.go" {
+		t.Fatalf("todo.FromFilepath = %q, want %q", todo.FromFilepath, "/project/src/auth.go")
 	}
-	if todo.MarkerLineNumber != 88 {
-		t.Fatalf("todo.MarkerLineNumber = %d, want %d", todo.MarkerLineNumber, 88)
+	if todo.FromLineNumber != 88 {
+		t.Fatalf("todo.FromLineNumber = %d, want %d", todo.FromLineNumber, 88)
 	}
 	testutil.AssertTodoDriftFlags(t, todo, true, true)
 }
@@ -208,7 +208,7 @@ func TestEdgeDriftCombos(t *testing.T) {
 	)
 	specs := []core.Spec{testutil.NewSpec("s1", baselineSpecHash)}
 	markers := []core.Marker{testutil.NewMarker("m1", baselineMarkerHash)}
-	links := []core.Link{testutil.NewLink("s1", "m1")}
+	links := []core.Edge{testutil.NewLink("s1", "m1")}
 
 	type driftScenario struct {
 		name          string
@@ -228,12 +228,12 @@ func TestEdgeDriftCombos(t *testing.T) {
 		anySideChanged := drift.specChanged || drift.markerChanged
 		resolutionVariants := []struct {
 			name       string
-			res        []core.ResolutionState
+			res        []core.EdgeResolution
 			suppresses bool
 		}{
 			{"no_resolution", nil, false},
-			{"resolution_matches_current", []core.ResolutionState{testutil.NewResolutionState("s1", "m1", drift.specCurrent, drift.markerCurrent)}, true},
-			{"resolution_stale", []core.ResolutionState{testutil.NewResolutionState("s1", "m1", "OLD_SPEC", "OLD_MARKER")}, false},
+			{"resolution_matches_current", []core.EdgeResolution{testutil.NewResolutionState("s1", "m1", drift.specCurrent, drift.markerCurrent)}, true},
+			{"resolution_stale", []core.EdgeResolution{testutil.NewResolutionState("s1", "m1", "OLD_SPEC", "OLD_MARKER")}, false},
 		}
 		for _, variant := range resolutionVariants {
 			t.Run("todo/"+drift.name+"/"+variant.name, func(t *testing.T) {
@@ -243,8 +243,8 @@ func TestEdgeDriftCombos(t *testing.T) {
 				ctx := core.CoreAlgorithmContext{
 					Specs:           specs,
 					Markers:         markers,
-					Links:           links,
-					ResolutionState: variant.res,
+					Edges:           links,
+					Resolutions: variant.res,
 					Action:          core.TodoAction{Scan: scan},
 				}
 				evaluatedState := evaluateTodoActionExpectingSuccess(t, ctx)
@@ -274,8 +274,8 @@ func TestEdgeDriftCombos(t *testing.T) {
 			ctx := core.CoreAlgorithmContext{
 				Specs:   specs,
 				Markers: markers,
-				Links:   links,
-				Action:  core.ResetAction{SpecID: "s1", MarkerID: "m1", Scan: scan},
+				Edges:   links,
+				Action:  core.ResetAction{Scan: scan, From: "m1", To: "s1"},
 			}
 			evaluatedState := evaluateResetActionExpectingSuccess(t, ctx)
 			testutil.AssertBaselineHashes(t, evaluatedState, "s1", drift.specCurrent, "m1", drift.markerCurrent)
@@ -290,9 +290,9 @@ func TestEdgeDriftCombos(t *testing.T) {
 		ctx := core.CoreAlgorithmContext{
 			Specs:           specs,
 			Markers:         markers,
-			Links:           links,
-			ResolutionState: []core.ResolutionState{testutil.NewResolutionState("s1", "m1", "STALE_SPEC", "STALE_MARKER")},
-			Action:          core.ResetAction{SpecID: "s1", MarkerID: "m1", Scan: scan},
+			Edges:           links,
+			Resolutions: []core.EdgeResolution{testutil.NewResolutionState("s1", "m1", "STALE_SPEC", "STALE_MARKER")},
+			Action:          core.ResetAction{Scan: scan, From: "m1", To: "s1"},
 		}
 		evaluatedState := evaluateResetActionExpectingSuccess(t, ctx)
 		testutil.AssertResolutionStateCount(t, evaluatedState, 0)
@@ -305,18 +305,18 @@ func TestEdgeDriftCombos(t *testing.T) {
 		ctxAfterSpecChange := core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
+			Edges:   links,
 			Action:  core.TodoAction{Scan: scanAfterSpecChange},
 		}
 		evaluatedStateAfterSpecChange := evaluateTodoActionExpectingSuccess(t, ctxAfterSpecChange)
 		testutil.AssertTodoCount(t, evaluatedStateAfterSpecChange, 1)
 
-		resolvedResolutionState := []core.ResolutionState{testutil.NewResolutionState("s1", "m1", currentSpecHash, baselineMarkerHash)}
+		resolvedResolutionState := []core.EdgeResolution{testutil.NewResolutionState("s1", "m1", currentSpecHash, baselineMarkerHash)}
 		ctxWithResolution := core.CoreAlgorithmContext{
 			Specs:           specs,
 			Markers:         markers,
-			Links:           links,
-			ResolutionState: resolvedResolutionState,
+			Edges:           links,
+			Resolutions: resolvedResolutionState,
 			Action:          core.TodoAction{Scan: scanAfterSpecChange},
 		}
 		evaluatedStateWithResolution := evaluateTodoActionExpectingSuccess(t, ctxWithResolution)
@@ -327,8 +327,8 @@ func TestEdgeDriftCombos(t *testing.T) {
 		ctxAfterFurtherChange := core.CoreAlgorithmContext{
 			Specs:           specs,
 			Markers:         markers,
-			Links:           links,
-			ResolutionState: resolvedResolutionState,
+			Edges:           links,
+			Resolutions: resolvedResolutionState,
 			Action:          core.TodoAction{Scan: scanAfterFurtherChange},
 		}
 		evaluatedStateAfterFurtherChange := evaluateTodoActionExpectingSuccess(t, ctxAfterFurtherChange)
@@ -342,35 +342,35 @@ func TestTopologyCollapse(t *testing.T) {
 	t.Run("many_specs_1_marker_all_changed_progressive_collapse", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "bs")}
 		markers := []core.Marker{testutil.NewMarker("m1", "bm1"), testutil.NewMarker("m2", "bm2")}
-		links := []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}
+		links := []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2")}
 		scan := newScanFromBaselines(specs, markers,
 			map[string]string{"s1": "cs"},
 			map[string]string{"m1": "cm1", "m2": "cm2"})
 
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: specs, Markers: markers, Links: links, Action: core.TodoAction{Scan: scan}})
+			Specs: specs, Markers: markers, Edges: links, Action: core.TodoAction{Scan: scan}})
 		testutil.AssertTodoCount(t, evaluatedState, 2)
 
 		evaluatedState = evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: specs, Markers: markers, Links: links,
-			Action: core.ResetAction{SpecID: "s1", MarkerID: "m1", Scan: scan}})
+			Specs: specs, Markers: markers, Edges: links,
+			Action: core.ResetAction{Scan: scan, From: "m1", To: "s1"}})
 		testutil.AssertBaselineHashes(t, evaluatedState, "s1", "bs", "m1", "cm1")
 		testutil.AssertBaselineHashes(t, evaluatedState, "", "", "m2", "bm2")
 		testutil.AssertResolutionStateEntry(t, evaluatedState, "m1", "s1", "cs", "cm1")
 		testutil.AssertResolutionStateCount(t, evaluatedState, 1)
 
 		evaluatedStateTodo := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Links: links,
-			ResolutionState: evaluatedState.ResolutionState, Action: core.TodoAction{Scan: scan}})
+			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Edges: links,
+			Resolutions: evaluatedState.Resolutions, Action: core.TodoAction{Scan: scan}})
 		testutil.AssertTodoCount(t, evaluatedStateTodo, 1)
 		if _, ok := findTodoByEdge(evaluatedStateTodo, "m2", "s1"); !ok {
 			t.Fatalf("expected remaining todo for m2:s1")
 		}
 
 		evaluatedState = evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Links: links,
-			ResolutionState: evaluatedState.ResolutionState,
-			Action:          core.ResetAction{SpecID: "s1", MarkerID: "m2", Scan: scan}})
+			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Edges: links,
+			Resolutions: evaluatedState.Resolutions,
+			Action:          core.ResetAction{Scan: scan, From: "m2", To: "s1"}})
 		testutil.AssertBaselineHashes(t, evaluatedState, "s1", "cs", "m1", "cm1")
 		testutil.AssertBaselineHashes(t, evaluatedState, "", "", "m2", "cm2")
 		testutil.AssertResolutionStateCount(t, evaluatedState, 0)
@@ -379,27 +379,27 @@ func TestTopologyCollapse(t *testing.T) {
 	t.Run("1_spec_many_markers_all_changed_progressive_collapse", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "bs1"), testutil.NewSpec("s2", "bs2")}
 		markers := []core.Marker{testutil.NewMarker("m1", "bm")}
-		links := []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1")}
+		links := []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1")}
 		scan := newScanFromBaselines(specs, markers,
 			map[string]string{"s1": "cs1", "s2": "cs2"},
 			map[string]string{"m1": "cm"})
 
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: specs, Markers: markers, Links: links, Action: core.TodoAction{Scan: scan}})
+			Specs: specs, Markers: markers, Edges: links, Action: core.TodoAction{Scan: scan}})
 		testutil.AssertTodoCount(t, evaluatedState, 2)
 
 		evaluatedState = evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: specs, Markers: markers, Links: links,
-			Action: core.ResetAction{SpecID: "s1", MarkerID: "m1", Scan: scan}})
+			Specs: specs, Markers: markers, Edges: links,
+			Action: core.ResetAction{Scan: scan, From: "m1", To: "s1"}})
 		testutil.AssertBaselineHashes(t, evaluatedState, "s1", "cs1", "m1", "bm")
 		testutil.AssertBaselineHashes(t, evaluatedState, "s2", "bs2", "", "")
 		testutil.AssertResolutionStateEntry(t, evaluatedState, "m1", "s1", "cs1", "cm")
 		testutil.AssertResolutionStateCount(t, evaluatedState, 1)
 
 		evaluatedState = evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Links: links,
-			ResolutionState: evaluatedState.ResolutionState,
-			Action:          core.ResetAction{SpecID: "s2", MarkerID: "m1", Scan: scan}})
+			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Edges: links,
+			Resolutions: evaluatedState.Resolutions,
+			Action:          core.ResetAction{Scan: scan, From: "m1", To: "s2"}})
 		testutil.AssertBaselineHashes(t, evaluatedState, "s1", "cs1", "m1", "cm")
 		testutil.AssertBaselineHashes(t, evaluatedState, "s2", "cs2", "", "")
 		testutil.AssertResolutionStateCount(t, evaluatedState, 0)
@@ -416,7 +416,7 @@ func TestTopologyCollapse(t *testing.T) {
 		for _, id := range markerIDs {
 			markers = append(markers, testutil.NewMarker(id, "old_"+id))
 		}
-		links := []core.Link{}
+		links := []core.Edge{}
 		for _, markerID := range markerIDs {
 			for _, specID := range specIDs {
 				links = append(links, testutil.NewLink(specID, markerID))
@@ -433,17 +433,17 @@ func TestTopologyCollapse(t *testing.T) {
 		scan := newScanFromBaselines(specs, markers, specHashOverrides, markerHashOverrides)
 
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: specs, Markers: markers, Links: links, Action: core.TodoAction{Scan: scan}})
+			Specs: specs, Markers: markers, Edges: links, Action: core.TodoAction{Scan: scan}})
 		testutil.AssertTodoCount(t, evaluatedState, 9)
 
-		currentContext := core.CoreAlgorithmContext{Specs: specs, Markers: markers, Links: links}
-		currentContext.Action = core.ResetAction{SpecID: "validate_amount", MarkerID: "a1", Scan: scan}
+		currentContext := core.CoreAlgorithmContext{Specs: specs, Markers: markers, Edges: links}
+		currentContext.Action = core.ResetAction{Scan: scan, From: "a1", To: "validate_amount"}
 		evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
-		currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
+		currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
 
-		currentContext.Action = core.ResetAction{SpecID: "check_fraud_rules", MarkerID: "e5", Scan: scan}
+		currentContext.Action = core.ResetAction{Scan: scan, From: "e5", To: "check_fraud_rules"}
 		evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
-		currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
+		currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
 
 		testutil.AssertResolutionStateCount(t, evaluatedState, 2)
 		testutil.AssertResolutionStateEntry(t, evaluatedState, "a1", "validate_amount", "new_validate_amount", "new_a1")
@@ -455,14 +455,14 @@ func TestTopologyCollapse(t *testing.T) {
 			testutil.AssertBaselineHashes(t, evaluatedState, "", "", markerID, "old_"+markerID)
 		}
 		evaluatedStateTodo := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Links: links,
-			ResolutionState: evaluatedState.ResolutionState, Action: core.TodoAction{Scan: scan}})
+			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Edges: links,
+			Resolutions: evaluatedState.Resolutions, Action: core.TodoAction{Scan: scan}})
 		testutil.AssertTodoCount(t, evaluatedStateTodo, 7)
 
 		for _, link := range links {
-			currentContext.Action = core.ResetAction{SpecID: link.SpecID, MarkerID: link.MarkerID, Scan: scan}
+			currentContext.Action = core.ResetAction{Scan: scan, From: link.From, To: link.To}
 			evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
-			currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
+			currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
 		}
 		testutil.AssertResolutionStateCount(t, evaluatedState, 0)
 		for _, specID := range specIDs {
@@ -476,19 +476,19 @@ func TestTopologyCollapse(t *testing.T) {
 	t.Run("partial_collapse_marker_only", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "bs1"), testutil.NewSpec("s2", "bs2")}
 		markers := []core.Marker{testutil.NewMarker("m1", "bm1"), testutil.NewMarker("m2", "bm2")}
-		links := []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m2")}
+		links := []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m2")}
 		scan := newScanFromBaselines(specs, markers,
 			map[string]string{"s1": "cs1", "s2": "cs2"},
 			map[string]string{"m1": "cm1", "m2": "cm2"})
 
-		currentContext := core.CoreAlgorithmContext{Specs: specs, Markers: markers, Links: links}
-		currentContext.Action = core.ResetAction{SpecID: "s1", MarkerID: "m1", Scan: scan}
+		currentContext := core.CoreAlgorithmContext{Specs: specs, Markers: markers, Edges: links}
+		currentContext.Action = core.ResetAction{Scan: scan, From: "m1", To: "s1"}
 		evaluatedState := evaluateResetActionExpectingSuccess(t, currentContext)
-		currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
+		currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
 
-		currentContext.Action = core.ResetAction{SpecID: "s2", MarkerID: "m1", Scan: scan}
+		currentContext.Action = core.ResetAction{Scan: scan, From: "m1", To: "s2"}
 		evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
-		currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
+		currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
 
 		testutil.AssertBaselineHashes(t, evaluatedState, "", "", "m1", "cm1")
 		testutil.AssertBaselineHashes(t, evaluatedState, "", "", "m2", "bm2")
@@ -499,8 +499,8 @@ func TestTopologyCollapse(t *testing.T) {
 		testutil.AssertResolutionStateEntry(t, evaluatedState, "m1", "s2", "cs2", "cm1")
 
 		evaluatedStateTodo := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Links: links,
-			ResolutionState: evaluatedState.ResolutionState, Action: core.TodoAction{Scan: scan}})
+			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Edges: links,
+			Resolutions: evaluatedState.Resolutions, Action: core.TodoAction{Scan: scan}})
 		testutil.AssertTodoCount(t, evaluatedStateTodo, 2)
 		if _, ok := findTodoByEdge(evaluatedStateTodo, "m2", "s1"); !ok {
 			t.Fatalf("expected todo for m2:s1")
@@ -509,10 +509,10 @@ func TestTopologyCollapse(t *testing.T) {
 			t.Fatalf("expected todo for m2:s2")
 		}
 
-		currentContext.Action = core.ResetAction{SpecID: "s1", MarkerID: "m2", Scan: scan}
+		currentContext.Action = core.ResetAction{Scan: scan, From: "m2", To: "s1"}
 		evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
-		currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
-		currentContext.Action = core.ResetAction{SpecID: "s2", MarkerID: "m2", Scan: scan}
+		currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
+		currentContext.Action = core.ResetAction{Scan: scan, From: "m2", To: "s2"}
 		evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
 
 		testutil.AssertResolutionStateCount(t, evaluatedState, 0)
@@ -523,12 +523,12 @@ func TestTopologyCollapse(t *testing.T) {
 	t.Run("reset_idempotent_when_unchanged", func(t *testing.T) {
 		specs := []core.Spec{testutil.NewSpec("s1", "bs")}
 		markers := []core.Marker{testutil.NewMarker("m1", "bm")}
-		links := []core.Link{testutil.NewLink("s1", "m1")}
+		links := []core.Edge{testutil.NewLink("s1", "m1")}
 		scan := newBaselineScan(specs, markers)
 
 		evaluatedState := evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: specs, Markers: markers, Links: links,
-			Action: core.ResetAction{SpecID: "s1", MarkerID: "m1", Scan: scan}})
+			Specs: specs, Markers: markers, Edges: links,
+			Action: core.ResetAction{Scan: scan, From: "m1", To: "s1"}})
 		testutil.AssertResolutionStateCount(t, evaluatedState, 0)
 		testutil.AssertBaselineHashes(t, evaluatedState, "s1", "bs", "m1", "bm")
 	})
@@ -537,30 +537,30 @@ func TestTopologyCollapse(t *testing.T) {
 func TestRedriftAfterCollapse(t *testing.T) {
 	specs := []core.Spec{testutil.NewSpec("s1", "bs1"), testutil.NewSpec("s2", "bs2")}
 	markers := []core.Marker{testutil.NewMarker("m1", "bm1"), testutil.NewMarker("m2", "bm2")}
-	links := []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")}
+	links := []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")}
 	scanAllChanged := newScanFromBaselines(specs, markers,
 		map[string]string{"s1": "cs1", "s2": "cs2"},
 		map[string]string{"m1": "cm1", "m2": "cm2"})
 
-	currentContext := core.CoreAlgorithmContext{Specs: specs, Markers: markers, Links: links}
-	currentContext.Action = core.ResetAction{SpecID: "s1", MarkerID: "m1", Scan: scanAllChanged}
+	currentContext := core.CoreAlgorithmContext{Specs: specs, Markers: markers, Edges: links}
+	currentContext.Action = core.ResetAction{Scan: scanAllChanged, From: "m1", To: "s1"}
 	evaluatedState := evaluateResetActionExpectingSuccess(t, currentContext)
-	currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
+	currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
 
-	currentContext.Action = core.ResetAction{SpecID: "s2", MarkerID: "m1", Scan: scanAllChanged}
+	currentContext.Action = core.ResetAction{Scan: scanAllChanged, From: "m1", To: "s2"}
 	evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
-	currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
+	currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
 
 	testutil.AssertBaselineHashes(t, evaluatedState, "", "", "m1", "cm1")
 	testutil.AssertResolutionStateCount(t, evaluatedState, 2)
 
-	currentContext.Action = core.ResetAction{SpecID: "s1", MarkerID: "m2", Scan: scanAllChanged}
+	currentContext.Action = core.ResetAction{Scan: scanAllChanged, From: "m2", To: "s1"}
 	evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
-	currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
+	currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
 
-	currentContext.Action = core.ResetAction{SpecID: "s2", MarkerID: "m2", Scan: scanAllChanged}
+	currentContext.Action = core.ResetAction{Scan: scanAllChanged, From: "m2", To: "s2"}
 	evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
-	currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
+	currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
 
 	testutil.AssertResolutionStateCount(t, evaluatedState, 0)
 	testutil.AssertBaselineHashes(t, evaluatedState, "s1", "cs1", "m1", "cm1")
@@ -571,8 +571,8 @@ func TestRedriftAfterCollapse(t *testing.T) {
 		map[string]string{"m1": "cm1_v2"})
 
 	evaluatedStateTodo := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
-		Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Links: links,
-		ResolutionState: evaluatedState.ResolutionState,
+		Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Edges: links,
+		Resolutions: evaluatedState.Resolutions,
 		Action:          core.TodoAction{Scan: scanAfterMarkerM1Rechanges}})
 	testutil.AssertTodoCount(t, evaluatedStateTodo, 2)
 	if _, ok := findTodoByEdge(evaluatedStateTodo, "m1", "s1"); !ok {
@@ -589,14 +589,14 @@ func TestRedriftAfterCollapse(t *testing.T) {
 func TestMixedChangedAndUnchangedEdgesCollapseImmediately(t *testing.T) {
 	specs := []core.Spec{testutil.NewSpec("s1", "baseline_s1"), testutil.NewSpec("s2", "baseline_s2")}
 	markers := []core.Marker{testutil.NewMarker("m1", "baseline_m1"), testutil.NewMarker("m2", "baseline_m2")}
-	links := []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")}
+	links := []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")}
 	scan := newScanFromBaselines(specs, markers,
 		map[string]string{"s1": "current_s1"},
 		map[string]string{"m1": "current_m1"})
 
 	t.Run("initial_todos_count_only_drifted_edges", func(t *testing.T) {
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: specs, Markers: markers, Links: links, Action: core.TodoAction{Scan: scan}})
+			Specs: specs, Markers: markers, Edges: links, Action: core.TodoAction{Scan: scan}})
 		testutil.AssertTodoCount(t, evaluatedState, 3)
 		for _, edge := range []struct{ markerID, specID string }{{"m1", "s1"}, {"m1", "s2"}, {"m2", "s1"}} {
 			if _, ok := findTodoByEdge(evaluatedState, edge.markerID, edge.specID); !ok {
@@ -609,8 +609,8 @@ func TestMixedChangedAndUnchangedEdgesCollapseImmediately(t *testing.T) {
 	})
 
 	t.Run("unchanged_node_collapses_via_consistent_edge_branch", func(t *testing.T) {
-		currentContext := core.CoreAlgorithmContext{Specs: specs, Markers: markers, Links: links}
-		currentContext.Action = core.ResetAction{SpecID: "s2", MarkerID: "m1", Scan: scan}
+		currentContext := core.CoreAlgorithmContext{Specs: specs, Markers: markers, Edges: links}
+		currentContext.Action = core.ResetAction{Scan: scan, From: "m1", To: "s2"}
 		evaluatedState := evaluateResetActionExpectingSuccess(t, currentContext)
 
 		testutil.AssertBaselineHashes(t, evaluatedState, "s2", "baseline_s2", "m2", "baseline_m2")
@@ -618,8 +618,8 @@ func TestMixedChangedAndUnchangedEdgesCollapseImmediately(t *testing.T) {
 		testutil.AssertResolutionStateEntry(t, evaluatedState, "m1", "s2", "baseline_s2", "current_m1")
 		testutil.AssertResolutionStateCount(t, evaluatedState, 1)
 
-		currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
-		currentContext.Action = core.ResetAction{SpecID: "s1", MarkerID: "m1", Scan: scan}
+		currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
+		currentContext.Action = core.ResetAction{Scan: scan, From: "m1", To: "s1"}
 		evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
 
 		testutil.AssertBaselineHashes(t, evaluatedState, "s1", "baseline_s1", "m1", "current_m1")
@@ -627,8 +627,8 @@ func TestMixedChangedAndUnchangedEdgesCollapseImmediately(t *testing.T) {
 		testutil.AssertResolutionStateEntry(t, evaluatedState, "m1", "s1", "current_s1", "current_m1")
 		testutil.AssertResolutionStateCount(t, evaluatedState, 1)
 
-		currentContext.Specs, currentContext.Markers, currentContext.ResolutionState = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.ResolutionState
-		currentContext.Action = core.ResetAction{SpecID: "s1", MarkerID: "m2", Scan: scan}
+		currentContext.Specs, currentContext.Markers, currentContext.Resolutions = evaluatedState.Specs, evaluatedState.Markers, evaluatedState.Resolutions
+		currentContext.Action = core.ResetAction{Scan: scan, From: "m2", To: "s1"}
 		evaluatedState = evaluateResetActionExpectingSuccess(t, currentContext)
 
 		testutil.AssertResolutionStateCount(t, evaluatedState, 0)
@@ -636,8 +636,8 @@ func TestMixedChangedAndUnchangedEdgesCollapseImmediately(t *testing.T) {
 		testutil.AssertBaselineHashes(t, evaluatedState, "s2", "baseline_s2", "m2", "baseline_m2")
 
 		evaluatedStateTodo := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
-			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Links: links,
-			ResolutionState: evaluatedState.ResolutionState, Action: core.TodoAction{Scan: scan}})
+			Specs: evaluatedState.Specs, Markers: evaluatedState.Markers, Edges: links,
+			Resolutions: evaluatedState.Resolutions, Action: core.TodoAction{Scan: scan}})
 		testutil.AssertTodoCount(t, evaluatedStateTodo, 0)
 	})
 }
@@ -645,7 +645,7 @@ func TestMixedChangedAndUnchangedEdgesCollapseImmediately(t *testing.T) {
 func TestCoreDeletionDrift(t *testing.T) {
 	specs := []core.Spec{testutil.NewSpec("spec1", "abc")}
 	markers := []core.Marker{testutil.NewMarker("marker1", "def")}
-	links := []core.Link{testutil.NewLink("spec1", "marker1")}
+	links := []core.Edge{testutil.NewLink("spec1", "marker1")}
 
 	t.Run("spec_deleted_marks_spec_deleted", func(t *testing.T) {
 		scan := newScanFromBaselines(specs, markers,
@@ -654,7 +654,7 @@ func TestCoreDeletionDrift(t *testing.T) {
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
+			Edges:   links,
 			Action:  core.TodoAction{Scan: scan},
 		})
 		testutil.AssertTodoCount(t, evaluatedState, 1)
@@ -662,10 +662,10 @@ func TestCoreDeletionDrift(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected todo for marker1:spec1")
 		}
-		if !todo.SpecDeleted {
+		if !todo.ToDeleted {
 			t.Fatalf("expected SpecDeleted=true, got false")
 		}
-		if todo.MarkerDeleted {
+		if todo.FromDeleted {
 			t.Fatalf("expected MarkerDeleted=false, got true")
 		}
 	})
@@ -677,7 +677,7 @@ func TestCoreDeletionDrift(t *testing.T) {
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
+			Edges:   links,
 			Action:  core.TodoAction{Scan: scan},
 		})
 		testutil.AssertTodoCount(t, evaluatedState, 1)
@@ -685,10 +685,10 @@ func TestCoreDeletionDrift(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected todo for marker1:spec1")
 		}
-		if todo.SpecDeleted {
+		if todo.ToDeleted {
 			t.Fatalf("expected SpecDeleted=false, got true")
 		}
-		if !todo.MarkerDeleted {
+		if !todo.FromDeleted {
 			t.Fatalf("expected MarkerDeleted=true, got false")
 		}
 	})
@@ -700,7 +700,7 @@ func TestCoreDeletionDrift(t *testing.T) {
 		evaluatedState := evaluateTodoActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
+			Edges:   links,
 			Action:  core.TodoAction{Scan: scan},
 		})
 		testutil.AssertTodoCount(t, evaluatedState, 1)
@@ -708,10 +708,10 @@ func TestCoreDeletionDrift(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected todo for marker1:spec1")
 		}
-		if !todo.SpecDeleted {
+		if !todo.ToDeleted {
 			t.Fatalf("expected SpecDeleted=true, got false")
 		}
-		if !todo.MarkerDeleted {
+		if !todo.FromDeleted {
 			t.Fatalf("expected MarkerDeleted=true, got false")
 		}
 	})
@@ -723,14 +723,14 @@ func TestCoreDeletionDrift(t *testing.T) {
 		evaluatedState := evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
-			Action:  core.ResetAction{SpecID: "spec1", MarkerID: "marker1", Scan: scan},
+			Edges:   links,
+			Action:  core.ResetAction{Scan: scan, From: "marker1", To: "spec1"},
 		})
 		if len(evaluatedState.Markers) != 0 {
 			t.Fatalf("expected markers pruned, got %d", len(evaluatedState.Markers))
 		}
-		if len(evaluatedState.Links) != 0 {
-			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Links))
+		if len(evaluatedState.Edges) != 0 {
+			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Edges))
 		}
 	})
 
@@ -741,14 +741,14 @@ func TestCoreDeletionDrift(t *testing.T) {
 		evaluatedState := evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
-			Action:  core.ResetAction{SpecID: "spec1", MarkerID: "marker1", Scan: scan},
+			Edges:   links,
+			Action:  core.ResetAction{Scan: scan, From: "marker1", To: "spec1"},
 		})
 		if len(evaluatedState.Specs) != 0 {
 			t.Fatalf("expected specs pruned, got %d", len(evaluatedState.Specs))
 		}
-		if len(evaluatedState.Links) != 0 {
-			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Links))
+		if len(evaluatedState.Edges) != 0 {
+			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Edges))
 		}
 	})
 
@@ -759,8 +759,8 @@ func TestCoreDeletionDrift(t *testing.T) {
 		evaluatedState := evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
-			Action:  core.ResetAction{SpecID: "spec1", MarkerID: "marker1", Scan: scan},
+			Edges:   links,
+			Action:  core.ResetAction{Scan: scan, From: "marker1", To: "spec1"},
 		})
 		if len(evaluatedState.Specs) != 0 {
 			t.Fatalf("expected specs pruned, got %d", len(evaluatedState.Specs))
@@ -768,8 +768,8 @@ func TestCoreDeletionDrift(t *testing.T) {
 		if len(evaluatedState.Markers) != 0 {
 			t.Fatalf("expected markers pruned, got %d", len(evaluatedState.Markers))
 		}
-		if len(evaluatedState.Links) != 0 {
-			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Links))
+		if len(evaluatedState.Edges) != 0 {
+			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Edges))
 		}
 	})
 
@@ -780,17 +780,17 @@ func TestCoreDeletionDrift(t *testing.T) {
 		evaluatedState := evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
-			Action:  core.ResetAction{SpecID: "spec1", MarkerID: "marker1", Scan: scan},
+			Edges:   links,
+			Action:  core.ResetAction{Scan: scan, From: "marker1", To: "spec1"},
 		})
 		if len(evaluatedState.Markers) != 0 {
 			t.Fatalf("expected markers pruned, got %d", len(evaluatedState.Markers))
 		}
-		if len(evaluatedState.Links) != 0 {
-			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Links))
+		if len(evaluatedState.Edges) != 0 {
+			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Edges))
 		}
-		if len(evaluatedState.ResolutionState) != 0 {
-			t.Fatalf("expected resolution state pruned for deleted marker, got %d", len(evaluatedState.ResolutionState))
+		if len(evaluatedState.Resolutions) != 0 {
+			t.Fatalf("expected resolution state pruned for deleted marker, got %d", len(evaluatedState.Resolutions))
 		}
 	})
 
@@ -801,17 +801,17 @@ func TestCoreDeletionDrift(t *testing.T) {
 		evaluatedState := evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
-			Action:  core.ResetAction{SpecID: "spec1", MarkerID: "marker1", Scan: scan},
+			Edges:   links,
+			Action:  core.ResetAction{Scan: scan, From: "marker1", To: "spec1"},
 		})
 		if len(evaluatedState.Specs) != 0 {
 			t.Fatalf("expected specs pruned, got %d", len(evaluatedState.Specs))
 		}
-		if len(evaluatedState.Links) != 0 {
-			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Links))
+		if len(evaluatedState.Edges) != 0 {
+			t.Fatalf("expected links pruned, got %d", len(evaluatedState.Edges))
 		}
-		if len(evaluatedState.ResolutionState) != 0 {
-			t.Fatalf("expected resolution state pruned for deleted spec, got %d", len(evaluatedState.ResolutionState))
+		if len(evaluatedState.Resolutions) != 0 {
+			t.Fatalf("expected resolution state pruned for deleted spec, got %d", len(evaluatedState.Resolutions))
 		}
 	})
 
@@ -822,8 +822,8 @@ func TestCoreDeletionDrift(t *testing.T) {
 		resetState := evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
-			Action:  core.ResetAction{SpecID: "spec1", MarkerID: "marker1", Scan: scan},
+			Edges:   links,
+			Action:  core.ResetAction{Scan: scan, From: "marker1", To: "spec1"},
 		})
 
 		todoScan := core.Scan{
@@ -833,8 +833,8 @@ func TestCoreDeletionDrift(t *testing.T) {
 		_, err := core.NewCoreAlgorithm().EvaluateState(core.CoreAlgorithmContext{
 			Specs:           resetState.Specs,
 			Markers:         resetState.Markers,
-			Links:           resetState.Links,
-			ResolutionState: resetState.ResolutionState,
+			Edges:           resetState.Edges,
+			Resolutions: resetState.Resolutions,
 			Action:          core.TodoAction{Scan: todoScan},
 		})
 		if err != nil {
@@ -849,8 +849,8 @@ func TestCoreDeletionDrift(t *testing.T) {
 		resetState := evaluateResetActionExpectingSuccess(t, core.CoreAlgorithmContext{
 			Specs:   specs,
 			Markers: markers,
-			Links:   links,
-			Action:  core.ResetAction{SpecID: "spec1", MarkerID: "marker1", Scan: scan},
+			Edges:   links,
+			Action:  core.ResetAction{Scan: scan, From: "marker1", To: "spec1"},
 		})
 
 		todoScan := core.Scan{
@@ -860,8 +860,8 @@ func TestCoreDeletionDrift(t *testing.T) {
 		_, err := core.NewCoreAlgorithm().EvaluateState(core.CoreAlgorithmContext{
 			Specs:           resetState.Specs,
 			Markers:         resetState.Markers,
-			Links:           resetState.Links,
-			ResolutionState: resetState.ResolutionState,
+			Edges:           resetState.Edges,
+			Resolutions: resetState.Resolutions,
 			Action:          core.TodoAction{Scan: todoScan},
 		})
 		if err != nil {
@@ -872,36 +872,36 @@ func TestCoreDeletionDrift(t *testing.T) {
 	t.Run("deleted_marker_multi_edge_prunes_all_resolutions", func(t *testing.T) {
 		multiSpecs := []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}
 		multiMarkers := []core.Marker{testutil.NewMarker("m1", "bm1")}
-		multiLinks := []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1")}
+		multiLinks := []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m1")}
 		scan := newScanFromBaselines(multiSpecs, multiMarkers,
 			map[string]string{"s1": "cs1", "s2": "cs2"},
 			map[string]string{"m1": ""})
 
 		ctx := core.CoreAlgorithmContext{
-			Specs: multiSpecs, Markers: multiMarkers, Links: multiLinks,
-			Action: core.ResetAction{SpecID: "s1", MarkerID: "m1", Scan: scan},
+			Specs: multiSpecs, Markers: multiMarkers, Edges: multiLinks,
+			Action: core.ResetAction{Scan: scan, From: "m1", To: "s1"},
 		}
 		state := evaluateResetActionExpectingSuccess(t, ctx)
 
-		if len(state.ResolutionState) != 1 {
-			t.Fatalf("expected 1 resolution after first reset (s2 still unchecked), got %d", len(state.ResolutionState))
+		if len(state.Resolutions) != 1 {
+			t.Fatalf("expected 1 resolution after first reset (s2 still unchecked), got %d", len(state.Resolutions))
 		}
 
 		ctx = core.CoreAlgorithmContext{
-			Specs: state.Specs, Markers: state.Markers, Links: state.Links,
-			ResolutionState: state.ResolutionState,
-			Action:          core.ResetAction{SpecID: "s2", MarkerID: "m1", Scan: scan},
+			Specs: state.Specs, Markers: state.Markers, Edges: state.Edges,
+			Resolutions: state.Resolutions,
+			Action:          core.ResetAction{Scan: scan, From: "m1", To: "s2"},
 		}
 		state = evaluateResetActionExpectingSuccess(t, ctx)
 
 		if len(state.Markers) != 0 {
 			t.Fatalf("expected marker pruned, got %d", len(state.Markers))
 		}
-		if len(state.Links) != 0 {
-			t.Fatalf("expected links pruned, got %d", len(state.Links))
+		if len(state.Edges) != 0 {
+			t.Fatalf("expected links pruned, got %d", len(state.Edges))
 		}
-		if len(state.ResolutionState) != 0 {
-			t.Fatalf("expected all resolutions pruned for deleted marker, got %d", len(state.ResolutionState))
+		if len(state.Resolutions) != 0 {
+			t.Fatalf("expected all resolutions pruned for deleted marker, got %d", len(state.Resolutions))
 		}
 	})
 }
@@ -909,7 +909,7 @@ func TestCoreDeletionDrift(t *testing.T) {
 func TestValidate(t *testing.T) {
 	baseSpecs := []core.Spec{testutil.NewSpec("s1", "b1"), testutil.NewSpec("s2", "b2")}
 	baseMarkers := []core.Marker{testutil.NewMarker("m1", "b1"), testutil.NewMarker("m2", "b2")}
-	baseLinks := []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m2")}
+	baseLinks := []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m2")}
 
 	cases := []struct {
 		name    string
@@ -929,46 +929,46 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			name:   "duplicate_link",
-			ctx:    core.CoreAlgorithmContext{Specs: baseSpecs, Markers: baseMarkers, Links: []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m1")}},
-			target: core.ErrDuplicateLink,
+			ctx:    core.CoreAlgorithmContext{Specs: baseSpecs, Markers: baseMarkers, Edges: []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m1")}},
+			target: core.ErrDuplicateEdge,
 		},
 		{
 			name:   "link_unknown_spec",
-			ctx:    core.CoreAlgorithmContext{Markers: baseMarkers, Links: []core.Link{testutil.NewLink("sX", "m1")}},
-			target: core.ErrLinkUnknownSpec,
+			ctx:    core.CoreAlgorithmContext{Markers: baseMarkers, Edges: []core.Edge{testutil.NewLink("sX", "m1")}},
+			target: core.ErrEdgeUnknownTo,
 		},
 		{
 			name:   "link_unknown_marker",
-			ctx:    core.CoreAlgorithmContext{Specs: baseSpecs, Links: []core.Link{testutil.NewLink("s1", "mX")}},
-			target: core.ErrLinkUnknownMarker,
+			ctx:    core.CoreAlgorithmContext{Specs: baseSpecs, Edges: []core.Edge{testutil.NewLink("s1", "mX")}},
+			target: core.ErrEdgeUnknownFrom,
 		},
 		{
 			name:   "resolution_unknown_spec",
-			ctx:    core.CoreAlgorithmContext{Specs: baseSpecs, Markers: baseMarkers, Links: baseLinks, ResolutionState: []core.ResolutionState{testutil.NewResolutionState("sX", "m1", "x", "y")}},
-			target: core.ErrResolutionUnknownSpec,
+			ctx:    core.CoreAlgorithmContext{Specs: baseSpecs, Markers: baseMarkers, Edges: baseLinks, Resolutions: []core.EdgeResolution{testutil.NewResolutionState("sX", "m1", "x", "y")}},
+			target: core.ErrResolutionEdgeMissing,
 		},
 		{
 			name:   "resolution_unknown_marker",
-			ctx:    core.CoreAlgorithmContext{Specs: baseSpecs, Markers: baseMarkers, Links: baseLinks, ResolutionState: []core.ResolutionState{testutil.NewResolutionState("s1", "mX", "x", "y")}},
-			target: core.ErrResolutionUnknownMarker,
+			ctx:    core.CoreAlgorithmContext{Specs: baseSpecs, Markers: baseMarkers, Edges: baseLinks, Resolutions: []core.EdgeResolution{testutil.NewResolutionState("s1", "mX", "x", "y")}},
+			target: core.ErrResolutionEdgeMissing,
 		},
 		{
 			name: "resolution_edge_not_linked",
 			ctx: core.CoreAlgorithmContext{
 				Specs:           []core.Spec{testutil.NewSpec("s1", "b"), testutil.NewSpec("s2", "b")},
 				Markers:         []core.Marker{testutil.NewMarker("m1", "b"), testutil.NewMarker("m2", "b")},
-				Links:           []core.Link{testutil.NewLink("s1", "m1")},
-				ResolutionState: []core.ResolutionState{testutil.NewResolutionState("s2", "m2", "x", "y")},
+				Edges:           []core.Edge{testutil.NewLink("s1", "m1")},
+				Resolutions: []core.EdgeResolution{testutil.NewResolutionState("s2", "m2", "x", "y")},
 			},
-			target: core.ErrResolutionEdgeNotLinked,
+			target: core.ErrResolutionEdgeMissing,
 		},
 		{
 			name: "duplicate_resolution",
 			ctx: core.CoreAlgorithmContext{
 				Specs:           baseSpecs,
 				Markers:         baseMarkers,
-				Links:           baseLinks,
-				ResolutionState: []core.ResolutionState{testutil.NewResolutionState("s1", "m1", "x", "y"), testutil.NewResolutionState("s1", "m1", "z", "w")},
+				Edges:           baseLinks,
+				Resolutions: []core.EdgeResolution{testutil.NewResolutionState("s1", "m1", "x", "y"), testutil.NewResolutionState("s1", "m1", "z", "w")},
 			},
 			target: core.ErrDuplicateResolution,
 		},
@@ -977,7 +977,7 @@ func TestValidate(t *testing.T) {
 			ctx: core.CoreAlgorithmContext{
 				Specs:   baseSpecs,
 				Markers: baseMarkers,
-				Links:   baseLinks,
+				Edges:   baseLinks,
 				Action:  core.TodoAction{Scan: core.Scan{SpecHashes: map[string]string{"s1": "b"}, MarkerHashes: map[string]string{"m1": "b", "m2": "b"}}},
 			},
 			viaEval: true,
@@ -988,7 +988,7 @@ func TestValidate(t *testing.T) {
 			ctx: core.CoreAlgorithmContext{
 				Specs:   baseSpecs,
 				Markers: baseMarkers,
-				Links:   baseLinks,
+				Edges:   baseLinks,
 				Action:  core.TodoAction{Scan: core.Scan{SpecHashes: map[string]string{"s1": "b", "s2": "b"}, MarkerHashes: map[string]string{"m1": "b"}}},
 			},
 			viaEval: true,
@@ -999,7 +999,7 @@ func TestValidate(t *testing.T) {
 			ctx: core.CoreAlgorithmContext{
 				Specs:   baseSpecs,
 				Markers: baseMarkers,
-				Links:   baseLinks,
+				Edges:   baseLinks,
 				Action:  core.TodoAction{Scan: core.Scan{SpecHashes: map[string]string{"s1": "b", "s2": "b", "sX": "b"}, MarkerHashes: map[string]string{"m1": "b", "m2": "b"}}},
 			},
 			viaEval: true,
@@ -1010,7 +1010,7 @@ func TestValidate(t *testing.T) {
 			ctx: core.CoreAlgorithmContext{
 				Specs:   baseSpecs,
 				Markers: baseMarkers,
-				Links:   baseLinks,
+				Edges:   baseLinks,
 				Action:  core.TodoAction{Scan: core.Scan{SpecHashes: map[string]string{"s1": "b", "s2": "b"}, MarkerHashes: map[string]string{"m1": "b", "m2": "b", "mX": "b"}}},
 			},
 			viaEval: true,
@@ -1021,7 +1021,7 @@ func TestValidate(t *testing.T) {
 			ctx: core.CoreAlgorithmContext{
 				Specs:   baseSpecs,
 				Markers: baseMarkers,
-				Links:   baseLinks,
+				Edges:   baseLinks,
 				Action:  nil,
 			},
 			viaEval: true,
@@ -1032,22 +1032,19 @@ func TestValidate(t *testing.T) {
 			ctx: core.CoreAlgorithmContext{
 				Specs:   baseSpecs,
 				Markers: baseMarkers,
-				Links:   baseLinks,
-				Action:  core.ResetAction{SpecID: "s1", MarkerID: "m2", Scan: newBaselineScan(baseSpecs, baseMarkers)},
+				Edges:   baseLinks,
+				Action:  core.ResetAction{From: "m2", To: "s1", Scan: core.Scan{SpecHashes: map[string]string{"s1": "b", "s2": "b"}, MarkerHashes: map[string]string{"m1": "b", "m2": "b"}}},
 			},
 			viaEval: true,
-			target:  core.ErrResetEdgeNotLinked,
+			target:  core.ErrResetEdgeNotInBaseline,
 		},
 		{
 			name: "reset_scan_missing_spec_hash",
 			ctx: core.CoreAlgorithmContext{
 				Specs:   baseSpecs,
 				Markers: baseMarkers,
-				Links:   baseLinks,
-				Action: core.ResetAction{
-					SpecID: "s1", MarkerID: "m1",
-					Scan: core.Scan{SpecHashes: map[string]string{"s2": "b"}, MarkerHashes: map[string]string{"m1": "b", "m2": "b"}},
-				},
+				Edges:   baseLinks,
+				Action:  core.ResetAction{From: "m1", To: "s1", Scan: core.Scan{SpecHashes: map[string]string{"s1": "b"}, MarkerHashes: map[string]string{"m1": "b", "m2": "b"}}},
 			},
 			viaEval: true,
 			target:  core.ErrScanMissingSpecHash,
@@ -1070,8 +1067,8 @@ func TestValidate(t *testing.T) {
 		ctx := core.CoreAlgorithmContext{
 			Specs:           baseSpecs,
 			Markers:         baseMarkers,
-			Links:           baseLinks,
-			ResolutionState: []core.ResolutionState{testutil.NewResolutionState("s1", "m1", "x", "y")},
+			Edges:           baseLinks,
+			Resolutions: []core.EdgeResolution{testutil.NewResolutionState("s1", "m1", "x", "y")},
 		}
 		testutil.AssertNoError(t, ctx.Validate())
 	})

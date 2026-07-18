@@ -1,0 +1,1 @@
+The help text is currently still embedded as cli/help.txt (embedded via go:embed in cli.go). The HelpCommand returns it as a TextResult. In a future landing, the help text will be generated from the Registry (static prose from fragments.go + command table from Registry enumeration). See <ref spec="output_impl.registry">registry</ref>.

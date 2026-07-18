@@ -39,7 +39,7 @@ func TestGuardrailProperty(t *testing.T) {
 			return p.Todo(TodoResult{State: core.EvaluatedState{
 				Specs:   []core.Spec{{ID: "main.s1", Hash: "abc", Filepath: "main.drift.xml"}},
 				Markers: []core.Marker{{ID: "m1", Hash: "def", Filepath: "code.go", LineNumber: 1, EndLineNumber: 3}},
-				Links:   []core.Link{{SpecID: "main.s1", MarkerID: "m1"}},
+				Edges:   []core.Edge{{From: "m1", To: "main.s1"}},
 			}})
 		}},
 		// --- TodoResult: drifted ---
@@ -47,8 +47,8 @@ func TestGuardrailProperty(t *testing.T) {
 			return p.Todo(TodoResult{State: core.EvaluatedState{
 				Specs:   []core.Spec{{ID: "main.s1", Hash: "abc", Filepath: "main.drift.xml", LineNumber: 5}},
 				Markers: []core.Marker{{ID: "m1", Hash: "def", Filepath: "code.go", LineNumber: 10, EndLineNumber: 20}},
-				Links:   []core.Link{{SpecID: "main.s1", MarkerID: "m1"}},
-				Todos:   []core.Todo{{SpecID: "main.s1", MarkerID: "m1", MarkerChanged: true, SpecFilepath: "main.drift.xml", SpecLineNumber: 5, MarkerFilepath: "code.go", MarkerLineNumber: 10}},
+				Edges:   []core.Edge{{From: "m1", To: "main.s1"}},
+				Todos:   []core.Todo{{To: "main.s1", From: "m1", FromChanged: true, ToFilepath: "main.drift.xml", ToLineNumber: 5, FromFilepath: "code.go", FromLineNumber: 10}},
 			}})
 		}},
 		// --- TodoResult: deleted spec ---
@@ -56,8 +56,8 @@ func TestGuardrailProperty(t *testing.T) {
 			return p.Todo(TodoResult{State: core.EvaluatedState{
 				Specs:   []core.Spec{{ID: "main.s1", Hash: "abc", Filepath: "main.drift.xml", LineNumber: 5}},
 				Markers: []core.Marker{{ID: "m1", Hash: "def", Filepath: "code.go", LineNumber: 10, EndLineNumber: 20}},
-				Links:   []core.Link{{SpecID: "main.s1", MarkerID: "m1"}},
-				Todos:   []core.Todo{{SpecID: "main.s1", MarkerID: "m1", SpecDeleted: true, SpecFilepath: "main.drift.xml", SpecLineNumber: 5, MarkerFilepath: "code.go", MarkerLineNumber: 10}},
+				Edges:   []core.Edge{{From: "m1", To: "main.s1"}},
+				Todos:   []core.Todo{{To: "main.s1", From: "m1", ToDeleted: true, ToFilepath: "main.drift.xml", ToLineNumber: 5, FromFilepath: "code.go", FromLineNumber: 10}},
 			}})
 		}},
 		// --- TodoResult: unlinked markers ---
@@ -65,7 +65,7 @@ func TestGuardrailProperty(t *testing.T) {
 			return p.Todo(TodoResult{State: core.EvaluatedState{
 				Specs:   []core.Spec{{ID: "main.s1", Hash: "abc", Filepath: "main.drift.xml"}},
 				Markers: []core.Marker{{ID: "m1", Hash: "def", Filepath: "code.go", LineNumber: 1, EndLineNumber: 3}, {ID: "orphan", Hash: "xyz", Filepath: "other.go", LineNumber: 1, EndLineNumber: 3}},
-				Links:   []core.Link{{SpecID: "main.s1", MarkerID: "m1"}},
+				Edges:   []core.Edge{{From: "m1", To: "main.s1"}},
 			}})
 		}},
 		// --- ListResult: basic ---
@@ -73,7 +73,7 @@ func TestGuardrailProperty(t *testing.T) {
 			return p.List(ListResult{State: core.EvaluatedState{
 				Specs:   []core.Spec{{ID: "main.s1", Hash: "abc", Filepath: "main.drift.xml"}},
 				Markers: []core.Marker{{ID: "m1", Hash: "def", Filepath: "code.go", LineNumber: 1, EndLineNumber: 3}},
-				Links:   []core.Link{{SpecID: "main.s1", MarkerID: "m1"}},
+				Edges:   []core.Edge{{From: "m1", To: "main.s1"}},
 			}})
 		}},
 		// --- ListResult: empty ---
@@ -85,8 +85,8 @@ func TestGuardrailProperty(t *testing.T) {
 			return p.List(ListResult{State: core.EvaluatedState{
 				Specs:   []core.Spec{{ID: "main.s1", Hash: "abc", Filepath: "main.drift.xml", LineNumber: 5}},
 				Markers: []core.Marker{{ID: "m1", Hash: "def", Filepath: "code.go", LineNumber: 1, EndLineNumber: 3}},
-				Links:   []core.Link{{SpecID: "main.s1", MarkerID: "m1"}},
-				Todos:   []core.Todo{{SpecID: "main.s1", MarkerID: "m1", MarkerChanged: true, SpecFilepath: "main.drift.xml", SpecLineNumber: 5, MarkerFilepath: "code.go", MarkerLineNumber: 1}},
+				Edges:   []core.Edge{{From: "m1", To: "main.s1"}},
+				Todos:   []core.Todo{{To: "main.s1", From: "m1", FromChanged: true, ToFilepath: "main.drift.xml", ToLineNumber: 5, FromFilepath: "code.go", FromLineNumber: 1}},
 			}})
 		}},
 		// --- ShowResult: spec not found ---

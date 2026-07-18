@@ -99,6 +99,7 @@ var markerPattern = regexp.MustCompile(`D!\s+id=([A-Za-z][A-Za-z0-9_]*)\s+(range
 type ScanResult struct {
 	Specs   []core.Spec
 	Markers []core.Marker
+	Edges   []core.Edge
 }
 
 type Scanner interface {
@@ -123,7 +124,7 @@ func (s *FileScanner) Scan() (ScanResult, error) {
 	if err != nil {
 		return ScanResult{}, err
 	}
-	specs, err := s.scanSpecs()
+	specs, edges, err := s.scanSpecs()
 	if err != nil {
 		return ScanResult{}, err
 	}
@@ -131,7 +132,7 @@ func (s *FileScanner) Scan() (ScanResult, error) {
 	if err != nil {
 		return ScanResult{}, err
 	}
-	return ScanResult{Specs: specs, Markers: markers}, nil
+	return ScanResult{Specs: specs, Markers: markers, Edges: edges}, nil
 }
 
 type specFileXML struct {
@@ -154,10 +155,10 @@ type specElem struct {
 }
 
 // D! id=sspec range-start
-func (s *FileScanner) scanSpecs() ([]core.Spec, error) {
+func (s *FileScanner) scanSpecs() ([]core.Spec, []core.Edge, error) {
 	mainPath := filepath.Join(s.dir, "main.drift.xml")
 	if _, err := os.Stat(mainPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("main.drift.xml not found in %s", s.dir)
+		return nil, nil, fmt.Errorf("main.drift.xml not found in %s", s.dir)
 	}
 
 	loader := &importLoader{
@@ -168,7 +169,7 @@ func (s *FileScanner) scanSpecs() ([]core.Spec, error) {
 	}
 	absRoot, err := filepath.Abs(s.dir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	loader.rootDir = absRoot
 	return loader.load(mainPath)
@@ -184,10 +185,10 @@ type importLoader struct {
 	rootDir    string
 }
 
-func (l *importLoader) load(absPath string) ([]core.Spec, error) {
+func (l *importLoader) load(absPath string) ([]core.Spec, []core.Edge, error) {
 	absPath, err := filepath.Abs(absPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, visited := range l.visitStack {
@@ -197,12 +198,12 @@ func (l *importLoader) load(absPath string) ([]core.Spec, error) {
 				parts = append(parts, filepath.Base(p))
 			}
 			parts = append(parts, filepath.Base(absPath))
-			return nil, fmt.Errorf("cycle detected: %s", strings.Join(parts, " → "))
+			return nil, nil, fmt.Errorf("cycle detected: %s", strings.Join(parts, " → "))
 		}
 	}
 
 	if l.seenFiles[absPath] {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	l.visitStack = append(l.visitStack, absPath)
@@ -214,24 +215,24 @@ func (l *importLoader) load(absPath string) ([]core.Spec, error) {
 
 	data, err := os.ReadFile(absPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var file specFileXML
 	if err := xml.Unmarshal(data, &file); err != nil {
-		return nil, fmt.Errorf("%s: %w", absPath, err)
+		return nil, nil, fmt.Errorf("%s: %w", absPath, err)
 	}
 
 	isMain := file.XMLName.Local == "main"
 	isModule := file.XMLName.Local == "module"
 
 	if !isMain && !isModule {
-		return nil, fmt.Errorf("%s: expected <main> or <module> root element, got <%s>", absPath, file.XMLName.Local)
+		return nil, nil, fmt.Errorf("%s: expected <main> or <module> root element, got <%s>", absPath, file.XMLName.Local)
 	}
 
 	// D! id=swrap range-start
 	if len(file.Wrapped) > 0 {
-		return nil, fmt.Errorf("%s: found <spec> elements nested inside a <specs> wrapper — specs must be direct children of <%s>, not inside <specs>", absPath, file.XMLName.Local)
+		return nil, nil, fmt.Errorf("%s: found <spec> elements nested inside a <specs> wrapper — specs must be direct children of <%s>, not inside <specs>", absPath, file.XMLName.Local)
 	}
 	// D! id=swrap range-end
 
@@ -242,13 +243,13 @@ func (l *importLoader) load(absPath string) ([]core.Spec, error) {
 		moduleName = file.Name
 		// D! id=smname range-start
 		if moduleName == "" {
-			return nil, fmt.Errorf("%s: module element missing name attribute", absPath)
+			return nil, nil, fmt.Errorf("%s: module element missing name attribute", absPath)
 		}
 		// D! id=smname range-end
 	}
 
 	if existingPath, ok := l.seenNames[moduleName]; ok {
-		return nil, fmt.Errorf("duplicate module name %q (defined in %s and %s)", moduleName, filepath.Base(existingPath), filepath.Base(absPath))
+		return nil, nil, fmt.Errorf("duplicate module name %q (defined in %s and %s)", moduleName, filepath.Base(existingPath), filepath.Base(absPath))
 	}
 	l.seenNames[moduleName] = absPath
 	l.seenFiles[absPath] = true
@@ -256,6 +257,7 @@ func (l *importLoader) load(absPath string) ([]core.Spec, error) {
 	dir := filepath.Dir(absPath)
 
 	var specs []core.Spec
+	var edges []core.Edge
 	for _, elem := range file.Specs {
 		var id string
 		for _, attr := range elem.Attr {
@@ -266,23 +268,26 @@ func (l *importLoader) load(absPath string) ([]core.Spec, error) {
 		}
 		// D! id=smiss range-start
 		if id == "" {
-			return nil, fmt.Errorf("%s: spec element missing id attribute", absPath)
+			return nil, nil, fmt.Errorf("%s: spec element missing id attribute", absPath)
 		}
 		// D! id=smiss range-end
 		// D! id=sidfmt range-start
 		if strings.Contains(id, ".") {
-			return nil, fmt.Errorf("%s: spec id %q must not contain a dot (dots are reserved for module qualification)", absPath, id)
+			return nil, nil, fmt.Errorf("%s: spec id %q must not contain a dot (dots are reserved for module qualification)", absPath, id)
 		}
 		// D! id=sidfmt range-end
 		qualifiedID := moduleName + "." + id
 		// D! id=sdups range-start
 		if l.seenIDs[qualifiedID] {
-			return nil, fmt.Errorf("duplicate spec id %q", qualifiedID)
+			return nil, nil, fmt.Errorf("duplicate spec id %q", qualifiedID)
 		}
 		// D! id=sdups range-end
 		l.seenIDs[qualifiedID] = true
-		content := strings.TrimSpace(elem.Content)
-		hash := sha1Hex(content)
+		canonical, refTargets, err := processSpecContent(elem.Content)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s: spec %q: %w", absPath, qualifiedID, err)
+		}
+		hash := sha1Hex(canonical)
 		specs = append(specs, core.Spec{
 			ID:         qualifiedID,
 			Module:     moduleName,
@@ -290,21 +295,36 @@ func (l *importLoader) load(absPath string) ([]core.Spec, error) {
 			Filepath:   relPath(l.rootDir, absPath),
 			LineNumber: 0,
 		})
+		// Emit spec-spec edges in source order. Duplicate (from, to) pairs
+		// within the same spec are deduped here so validation never sees
+		// them.
+		seenTargets := make(map[string]bool)
+		for _, target := range refTargets {
+			if seenTargets[target] {
+				continue
+			}
+			seenTargets[target] = true
+			edges = append(edges, core.Edge{
+				From: qualifiedID,
+				To:   target,
+			})
+		}
 	}
 
 	for _, imp := range file.Imports {
 		importPath := filepath.Join(dir, imp.Path)
 		if _, err := os.Stat(importPath); os.IsNotExist(err) {
-			return nil, fmt.Errorf("import path not found: %s", imp.Path)
+			return nil, nil, fmt.Errorf("import path not found: %s", imp.Path)
 		}
-		importedSpecs, err := l.load(importPath)
+		importedSpecs, importedEdges, err := l.load(importPath)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		specs = append(specs, importedSpecs...)
+		edges = append(edges, importedEdges...)
 	}
 
-	return specs, nil
+	return specs, edges, nil
 }
 
 // D! id=smark range-start

@@ -1,0 +1,98 @@
+// detectEdgeCycle runs DFS over the directed edge graph (edges whose both
+// endpoints are specs — marker endpoints cannot form cycles because markers
+// are always sources) and returns ErrEdgeCycle listing all cycles found.
+func detectEdgeCycle(edges []Edge) error {
+	cycles := findAllEdgeCycles(edges)
+	if len(cycles) == 0 {
+		return nil
+	}
+	var parts []string
+	for i, c := range cycles {
+		if i > 0 {
+			parts = append(parts, "; ")
+		}
+		parts = append(parts, joinPath(c))
+	}
+	return fmt.Errorf("%w: %s", ErrEdgeCycle, strings.Join(parts, ""))
+}
+
+// findAllEdgeCycles enumerates ALL directed cycles among spec-spec edges.
+// Marker endpoints are excluded — markers are always sources and cannot
+// participate in cycles.
+func findAllEdgeCycles(edges []Edge) [][]string {
+	adj := make(map[string][]string)
+	for _, e := range edges {
+		// Skip edges involving markers — markers can't be cycle members.
+		if !isSpecID(e.From) || !isSpecID(e.To) {
+			continue
+		}
+		adj[e.From] = append(adj[e.From], e.To)
+	}
+	var cycles [][]string
+	const (
+		white = 0
+		gray  = 1
+		black = 2
+	)
+	color := make(map[string]int)
+	var stack []string
+	var visit func(node string)
+	visit = func(node string) {
+		color[node] = gray
+		stack = append(stack, node)
+		nexts := append([]string(nil), adj[node]...)
+		sort.Strings(nexts)
+		for _, next := range nexts {
+			switch color[next] {
+			case gray:
+				start := 0
+				for i, n := range stack {
+					if n == next {
+						start = i
+						break
+					}
+				}
+				path := append(append([]string{}, stack[start:]...), next)
+				cycles = append(cycles, path)
+			case white:
+				visit(next)
+			}
+		}
+		stack = stack[:len(stack)-1]
+		color[node] = black
+	}
+	var nodes []string
+	for n := range adj {
+		nodes = append(nodes, n)
+	}
+	sort.Strings(nodes)
+	for _, n := range nodes {
+		if color[n] == white {
+			visit(n)
+		}
+	}
+	return cycles
+}
+
+func joinPath(nodes []string) string {
+	out := ""
+	for i, n := range nodes {
+		if i > 0 {
+			out += " → "
+		}
+		out += n
+	}
+	return out
+}
+
+// isSpecID reports whether id looks like a module-qualified spec ID (contains
+// exactly one dot) rather than a marker shortcode (no dots). The edge graph
+// uses this to discriminate node kind via the ID-format rule.
+func isSpecID(id string) bool {
+	first := strings.Index(id, ".")
+	if first < 0 {
+		return false
+	}
+	return strings.Index(id[first+1:], ".") < 0
+}
+

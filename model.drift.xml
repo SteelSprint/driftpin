@@ -1,0 +1,51 @@
+<module name="model">
+<spec id="rhizomatic">CONCEPTUAL SPEC — the main idea of the product. Lives above all implementation specs; changes here have far-reaching consequences.
+
+PROBLEM STATEMENT. Drift detects divergence between specifications and code. Specifications ("specs") declare intended behavior; code markers wrap the lines that implement each spec. Each spec and each marker has a content hash. When a hash changes on either side, the edge between them is "drifted" and a human or LLM agent must review before the baseline is re-established.
+
+Specs themselves cite other specs ("See spec T for the rule this derives from"). Those citations are meaningful: if T's content changes, every spec that cites T may need re-verification. Tracking citations as first-class edges lets drift propagate correctly through the spec graph — without them, edits to a foundational spec silently invalidate every downstream spec without any signal.
+
+THE UNIFIED EDGE. The post-collapse model has ONE edge type. An Edge is a directed relationship between two nodes (specs and/or markers). The From endpoint declares/stores the edge; the To endpoint is the target. Two establishment kinds are encoded by endpoint types:
+  - marker → spec (created by `drift link`): the marker stores the edge to the spec it implements.
+  - spec → spec (auto-parsed from &lt;ref spec="…"&gt; in spec text): the source spec stores the edge to the spec it references.
+The establishment ceremony differs (explicit command vs ambient parse), but the storage and the drift semantics are identical. There is no separate "link" or "ref" type — they are unified under Edge.
+
+NOTATION. We adopt a uniform notation for nodes and edges:
+  $ — a spec. $1, $2, $3 are distinct specs.
+  # — a marker. #A, #B are distinct markers.
+  &lt; , &gt; — directed storage edges. "X &gt; Y" reads: X stores an edge pointing to Y. "X &lt; Y" is the same edge mirrored — Y stores the edge to X.
+Worked examples:
+  $1 &lt; $2                 — $2 stores an edge to $1. ($2 contains &lt;ref spec="$1"&gt;.)
+  $1 &lt; $2 &lt; #A           — equivalent to ($1 &lt; $2)($2 &lt; #A): $2 has an edge to $1; #A has an edge to $2.
+  ($1 &lt; $2)($2 &lt; #A)($2 &lt; $300)($300 &lt; $400) — a rhizomatic cluster: $2 has one outbound edge, two inbound edges (#A via link, $300 via ref); $300 is itself pointed at by $400. The leaves are specs ($1, $400); markers are not privileged endpoints.
+
+AXIOMS.
+  (A1) DAG over spec-spec edges. The directed graph contains no directed cycles among spec-spec edges: $1 &gt; $2 &gt; $1 is forbidden. Cycles would make the "chain" notion ambiguous and break topological reasoning. (Undirected cycles — paths that return to the start via different edges — are fine and expected in any non-trivial graph.) Marker endpoints cannot participate in cycles because markers are always sources (axiom A2).
+  (A2) Storage asymmetry. Markers never have inbound edges. A marker #A may store an edge to a spec (#A &gt; $S) but nothing stores an edge to a marker. Markers are sources only.
+  (A3) Rhizomatic edge semantics. Although each individual edge has a storage direction (X &gt; Y means X declared the edge), the SEMANTICS of drift propagation treat the edge as undirected. The graph is rhizomatic, not arborescent: there is no privileged root, no "upstream" or "downstream" orientation, no hierarchy implied by edge direction. A change at any node propagates along edges regardless of which endpoint declared them.
+  (A4) Source-of-truth asymmetry. Specs define behavior; code implements. When code changes (marker hash drifts) the spec might still be correct — only the code is suspect, and the review prompt asks "is the code still aligned with the spec?". When a spec changes, every transitively-connected node's alignment is suspect. Concretely: marker hash-drift does NOT propagate; spec hash-drift propagates rhizomatically.
+
+ALGORITHM. Given baseline state B (hashes + edge set at last review) and scan S (hashes + edge set now):
+  (i) Edge-set drift. Compare B's spec-spec edges to S's spec-spec edges:
+       - in S only  → TodoEdgeAdded     (a new &lt;ref&gt; was declared)
+       - in B only  → TodoEdgeRemoved    (a &lt;ref&gt; was deleted)
+       Link-style edges (marker → spec) are user-curated and never appear in the scan; their structure drift is handled by the link/unlink commands.
+  (ii) Broken edges. For each scan edge (X &gt; Y) where Y does not exist as a node → TodoBrokenEdge. (Typos and dangling refs surface here. Not a fatal scan error — a reviewable todo.)
+  (iii) Hash-drift closure. Let C = { specs whose hash differs between B and S }. For each source spec c ∈ C, perform BFS over the undirected spec-spec edge graph. For every visited spec n ≠ c:
+          - if no edge resolution covers the (n, c) pair at S's hash of c → emit TodoEdgeDrift{From: n, To: c, SourceSpecID: c}.
+          - for each marker m linked to n → emit TodoCascade{From: m, SourceSpecID: c}. Cascade todos are DERIVED: not independently resettable. They clear automatically when the upstream TodoEdgeDrift is resolved.
+        Markers linked directly to c are NOT given cascade todos — they are already covered by TodoEdgeDrift on their direct (m, c) edge, and emitting a second todo for the same (marker, source) pair would be redundant.
+  (iv) Direct edge drift. Existing pre-collapse algorithm: for each baseline edge, if either endpoint's hash differs between B and S and no edge resolution entry covers the current hashes → TodoEdgeDrift.
+  (v)  Marker hash-drift. A marker whose own hash changed produces TodoEdgeDrift on each of its touching edges. It does NOT enter step (iii) — source-of-truth asymmetry.
+  (vi) Cycle safety. The BFS uses a visited set; the spec-spec edge graph is a DAG by (A1), but the walk is over the undirected projection and could in principle loop through multi-edge cycles if (A1) were violated. The visited set is the safety net.
+
+RESOLUTION. Each todo resolves with `drift reset`:
+  - TodoEdgeDrift(from, to)     → `drift reset from to`           (stamps an EdgeResolution at current hashes; collapses when the edge's endpoints are both re-baselined)
+  - TodoEdgeAdded(X, Y)         → `drift reset X Y`               (adds the edge to baseline)
+  - TodoEdgeRemoved(X, Y)       → `drift reset X Y`               (drops the edge from baseline and prunes dangling resolutions)
+  - TodoBrokenEdge(X, Y)        → not resettable; fix spec text or restore the missing spec
+  - TodoCascade(m, c)           → not independently resettable; clears when upstream TodoEdgeDrift(n, c) resolves
+The dispatch form is unambiguous: marker shortcodes contain no dots; spec IDs contain exactly one. Two-arg reset with dots in BOTH args is a spec-spec reset; two-arg reset with a dot only in the second is a marker-spec reset; one-arg reset is orphan pruning.
+
+This spec is the contract. Implementation specs (core.validate, core.edge_todo_algorithm, core.rhizomatic_closure, scanner.ref_parsing, orch.reset, pinstore.baselines) describe how the contract is realized; they may be refactored freely as long as the behavior here is preserved.</spec>
+</module>

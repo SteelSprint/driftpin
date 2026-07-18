@@ -19,13 +19,14 @@ func NewBaselineStore(dir string) *BaselineStore {
 	return &BaselineStore{dir: dir}
 }
 
-// Write stores content at .drift/baselines/<hash> if absent.
-// Verifies sha1(content) == hash defensively; mismatches produce ErrBaselineHashMismatch.
-// If a file already exists for hash, Write is a no-op (dedup).
+// Write stores content at .drift/baselines/<hash> if absent. The hash is the
+// canonical hash (refs stripped for specs); the content is the raw text the
+// user sees in the spec file (including <ref> tags) so that `drift diff` and
+// `drift show` display faithful spec text. The legacy sha1(content)==hash
+// integrity check is therefore not enforced — drift's own scanner produces
+// matching pairs, and the display concern outweighs the integrity net for
+// spec baselines. If a file already exists for hash, Write is a no-op (dedup).
 func (b *BaselineStore) Write(hash, content string) error {
-	if actual := sha1Hex(content); actual != hash {
-		return fmt.Errorf("%w: declared %q, actual %q", ErrBaselineHashMismatch, hash, actual)
-	}
 	if err := os.MkdirAll(b.dir, 0755); err != nil {
 		return err
 	}

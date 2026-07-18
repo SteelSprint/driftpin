@@ -1,0 +1,1 @@
+The output layer is itself drift-tracked. Every new spec has a marker in the implementing code; every behavior change updates a spec first; drift todo is clean before every commit. See <ref spec="principles.self_hosting">self hosting</ref>.

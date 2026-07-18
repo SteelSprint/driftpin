@@ -105,12 +105,16 @@ func buildShowSpecResult(state core.EvaluatedState, dir, specID string) (ShowRes
 		return ShowResult{}, fmt.Errorf("error reading spec content: %s", err)
 	}
 	var linkedMarkers []LinkedMarker
-	for _, link := range state.Links {
-		if link.SpecID != specID {
+	for _, e := range state.Edges {
+		// Link-style edge: From is marker (no dot), To is spec.
+		if isSpecID(e.From) {
+			continue
+		}
+		if e.To != specID {
 			continue
 		}
 		for i := range state.Markers {
-			if state.Markers[i].ID == link.MarkerID {
+			if state.Markers[i].ID == e.From {
 				m := state.Markers[i]
 				markerContent, err := readMarkerContent(dir, m.Filepath, m.LineNumber, m.EndLineNumber)
 				if err != nil {
@@ -121,12 +125,31 @@ func buildShowSpecResult(state core.EvaluatedState, dir, specID string) (ShowRes
 			}
 		}
 	}
+	// Compute inbound/outbound ref sets from baseline spec-spec edges.
+	var outbound, inbound []string
+	seenOut := make(map[string]bool)
+	seenIn := make(map[string]bool)
+	for _, e := range state.Edges {
+		if !isSpecID(e.From) || !isSpecID(e.To) {
+			continue
+		}
+		if e.From == specID && !seenOut[e.To] {
+			outbound = append(outbound, e.To)
+			seenOut[e.To] = true
+		}
+		if e.To == specID && !seenIn[e.From] {
+			inbound = append(inbound, e.From)
+			seenIn[e.From] = true
+		}
+	}
 	return ShowResult{
 		IsSpec:        true,
 		ID:            specID,
 		Spec:          spec,
 		Content:       content,
 		LinkedMarkers: linkedMarkers,
+		OutboundRefs:  outbound,
+		InboundRefs:   inbound,
 	}, nil
 }
 
@@ -142,12 +165,16 @@ func buildShowMarkerResult(state core.EvaluatedState, dir, markerID string) (Sho
 		return ShowResult{IsSpec: false, ID: markerID}, nil
 	}
 	var linkedSpecs []LinkedSpec
-	for _, link := range state.Links {
-		if link.MarkerID != markerID {
+	for _, e := range state.Edges {
+		// Link-style edge: From is marker.
+		if isSpecID(e.From) {
+			continue
+		}
+		if e.From != markerID {
 			continue
 		}
 		for i := range state.Specs {
-			if state.Specs[i].ID == link.SpecID {
+			if state.Specs[i].ID == e.To {
 				s := state.Specs[i]
 				content, err := readSpecContent(dir, s.Filepath, s.ID)
 				if err != nil {

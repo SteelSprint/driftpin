@@ -381,7 +381,7 @@ func a() { changed() }
 		if code != 1 {
 			t.Fatalf("exit code = %d, want 1, output: %s", code, output)
 		}
-		if !strings.Contains(output, "Both the marker and the spec term have changed") {
+		if !strings.Contains(output, "Both endpoints have changed") {
 			t.Fatalf("output should mention both changed, got: %s", output)
 		}
 	})
@@ -479,8 +479,8 @@ func assertPinResolutionCount(t *testing.T, dir string, want int) {
 	store := statestore.NewFileStateStore(dir)
 	state, err := store.Load()
 	testutil.AssertNoError(t, err)
-	if len(state.ResolutionState) != want {
-		t.Fatalf("resolution state count = %d, want %d", len(state.ResolutionState), want)
+	if len(state.Resolutions) != want {
+		t.Fatalf("resolution state count = %d, want %d", len(state.Resolutions), want)
 	}
 }
 
@@ -826,11 +826,11 @@ func walletHandler() {
 		store := statestore.NewFileStateStore(dir)
 		state, err := store.Load()
 		testutil.AssertNoError(t, err)
-		if len(state.Links) != 9 {
-			t.Fatalf("expected 9 links in state, got %d", len(state.Links))
+		if len(state.Edges) != 9 {
+			t.Fatalf("expected 9 links in state, got %d", len(state.Edges))
 		}
-		if len(state.ResolutionState) != 0 {
-			t.Fatalf("expected 0 resolutions after full collapse, got %d", len(state.ResolutionState))
+		if len(state.Resolutions) != 0 {
+			t.Fatalf("expected 0 resolutions after full collapse, got %d", len(state.Resolutions))
 		}
 	})
 }
@@ -864,8 +864,8 @@ func handleRequest() {
 		store := statestore.NewFileStateStore(dir)
 		state, err := store.Load()
 		testutil.AssertNoError(t, err)
-		if len(state.Links) != 0 {
-			t.Fatalf("expected 0 links after unlink, got %d", len(state.Links))
+		if len(state.Edges) != 0 {
+			t.Fatalf("expected 0 links after unlink, got %d", len(state.Edges))
 		}
 	})
 
@@ -941,8 +941,8 @@ func a() { doSomethingElse() }
 
 		store := statestore.NewFileStateStore(dir)
 		state, _ := store.Load()
-		if len(state.ResolutionState) != 0 {
-			t.Fatalf("expected 0 resolutions after reset-collapse, got %d", len(state.ResolutionState))
+		if len(state.Resolutions) != 0 {
+			t.Fatalf("expected 0 resolutions after reset-collapse, got %d", len(state.Resolutions))
 		}
 
 		cli.Run([]string{"link", "m1", "main.s1"}, dir)
@@ -962,11 +962,11 @@ func a() { anotherChange() }
 
 		store = statestore.NewFileStateStore(dir)
 		state, _ = store.Load()
-		if len(state.Links) != 0 {
-			t.Fatalf("expected 0 links after unlink, got %d", len(state.Links))
+		if len(state.Edges) != 0 {
+			t.Fatalf("expected 0 links after unlink, got %d", len(state.Edges))
 		}
-		if len(state.ResolutionState) != 0 {
-			t.Fatalf("expected 0 resolutions after unlink, got %d", len(state.ResolutionState))
+		if len(state.Resolutions) != 0 {
+			t.Fatalf("expected 0 resolutions after unlink, got %d", len(state.Resolutions))
 		}
 	})
 }
@@ -1023,8 +1023,8 @@ func handleRequest() {
 		if !strings.Contains(output, "Markers (1):") {
 			t.Fatalf("output should show 1 marker, got: %s", output)
 		}
-		if !strings.Contains(output, "Links (1):") {
-			t.Fatalf("output should show 1 link, got: %s", output)
+		if !strings.Contains(output, "Edges (1):") {
+			t.Fatalf("output should show 1 edge, got: %s", output)
 		}
 		if !strings.Contains(output, "main.validate_input") {
 			t.Fatalf("output should contain spec ID, got: %s", output)
@@ -1745,8 +1745,8 @@ func a() { doSomething() }
 				t.Fatalf("deleted spec main.s1 should have been pruned from .drift/state.xml")
 			}
 		}
-		for _, l := range state.Links {
-			if l.SpecID == "main.s1" {
+		for _, l := range state.Edges {
+			if l.To == "main.s1" {
 				t.Fatalf("link to deleted spec should have been pruned")
 			}
 		}
@@ -1913,8 +1913,8 @@ func a() { doSomething() }
 		if code == 0 {
 			t.Fatalf("expected non-zero exit code for spec with links, got 0, output: %s", output)
 		}
-		if !strings.Contains(strings.ToLower(output), "link") {
-			t.Fatalf("error should mention links, got: %s", output)
+		if !strings.Contains(strings.ToLower(output), "edge") {
+			t.Fatalf("error should mention edges, got: %s", output)
 		}
 	})
 

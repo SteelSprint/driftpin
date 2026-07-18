@@ -1,0 +1,1 @@
+STUB. CI/automation pipelines consuming drift as a quality gate: invoke `drift todo` for its exit code (0=clean, 1=drift, 2=error), parse output, integrate with build systems. Needs reliable exit codes, stable output format, pipe-safe behavior (no ANSI escapes when redirected). See <ref spec="open_source_tools_drift.purpose">drift's purpose</ref>.

@@ -1,0 +1,1 @@
+The output layer adds no external dependencies. ANSI codes, TTY detection, JSON serialization all use Go stdlib only. This protects drift's zero-dependency commitment. See <ref spec="principles.zero_dependency_portable">zero dependency portable</ref>.

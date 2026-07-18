@@ -1,0 +1,148 @@
+func validateRefs(specs []Spec, refs []Ref) error {
+	seenSpecIDs := make(map[string]bool, len(specs))
+	for _, s := range specs {
+		seenSpecIDs[s.ID] = true
+	}
+	seenRefKeys := make(map[string]bool, len(refs))
+	for _, ref := range refs {
+		// Broken refs (target spec does not exist) are NOT a validation
+		// error — they surface as TodoBrokenRef drift items so the user
+		// can fix the spec text or restore the missing spec. We only
+		// require that the FROM spec exists (the ref was declared inside
+		// it; a missing FromSpec would be a state.xml/spec-scan mismatch
+		// that the reconciler should have caught).
+		if !seenSpecIDs[ref.FromSpec] {
+			return fmt.Errorf("%w: %q", ErrRefUnknownSpec, ref.FromSpec)
+		}
+		if ref.FromSpec == ref.ToSpec {
+			return fmt.Errorf("%w: %q", ErrRefSelfReference, ref.FromSpec)
+		}
+		// Dedup on the declared (from, to) pair. The mirror (to, from) is a
+		// distinct declared edge — but if both exist they trivially form a
+		// 2-cycle and are rejected by cycle detection below.
+		key := ref.FromSpec + "\x00" + ref.ToSpec
+		if seenRefKeys[key] {
+			return fmt.Errorf("%w: from=%q to=%q", ErrDuplicateRef, ref.FromSpec, ref.ToSpec)
+		}
+		seenRefKeys[key] = true
+	}
+	if err := detectRefCycle(refs); err != nil {
+		return err
+	}
+	return nil
+}
+
+// detectRefCycle runs DFS over the directed ref graph and returns ErrRefCycle
+// (with the offending path) on the first back-edge encountered.
+func detectRefCycle(refs []Ref) error {
+	cycles := findAllRefCycles(refs)
+	if len(cycles) == 0 {
+		return nil
+	}
+	var parts []string
+	for i, c := range cycles {
+		if i > 0 {
+			parts = append(parts, "; ")
+		}
+		parts = append(parts, joinPath(c))
+	}
+	return fmt.Errorf("%w: %s", ErrRefCycle, strings.Join(parts, ""))
+}
+
+// findAllRefCycle enumerates ALL directed cycles in the ref graph (not just
+// the first). Used to clean up an existing cycle-laden corpus.
+func findAllRefCycles(refs []Ref) [][]string {
+	adj := make(map[string][]string)
+	for _, r := range refs {
+		adj[r.FromSpec] = append(adj[r.FromSpec], r.ToSpec)
+	}
+	var cycles [][]string
+	const (
+		white = 0
+		gray  = 1
+		black = 2
+	)
+	color := make(map[string]int)
+	var stack []string
+	var visit func(node string)
+	visit = func(node string) {
+		color[node] = gray
+		stack = append(stack, node)
+		// Iterate in sorted order for deterministic cycle enumeration.
+		nexts := append([]string(nil), adj[node]...)
+		sort.Strings(nexts)
+		for _, next := range nexts {
+			switch color[next] {
+			case gray:
+				// Found a back-edge: extract the cycle from the stack.
+				start := 0
+				for i, n := range stack {
+					if n == next {
+						start = i
+						break
+					}
+				}
+				path := append(append([]string{}, stack[start:]...), next)
+				cycles = append(cycles, path)
+			case white:
+				visit(next)
+			}
+		}
+		stack = stack[:len(stack)-1]
+		color[node] = black
+	}
+	var nodes []string
+	for n := range adj {
+		nodes = append(nodes, n)
+	}
+	sort.Strings(nodes)
+	for _, n := range nodes {
+		if color[n] == white {
+			visit(n)
+		}
+	}
+	return cycles
+}
+
+func joinPath(nodes []string) string {
+	out := ""
+	for i, n := range nodes {
+		if i > 0 {
+			out += " → "
+		}
+		out += n
+	}
+	return out
+}
+
+func validateRefResolutions(specs []Spec, refs []Ref, resolutions []RefResolutionState) error {
+	seenSpecIDs := make(map[string]bool, len(specs))
+	for _, s := range specs {
+		seenSpecIDs[s.ID] = true
+	}
+	// Index ref edges by undirected key. A ref resolution may reference an
+	// edge in either direction. Broken refs (target spec missing) still
+	// count as declared edges for resolution purposes — the user can fix
+	// the ref text without losing the resolution history.
+	edgeKeys := make(map[string]bool, len(refs))
+	for _, r := range refs {
+		edgeKeys[r.FromSpec+"\x00"+r.ToSpec] = true
+		edgeKeys[r.ToSpec+"\x00"+r.FromSpec] = true
+	}
+	seenResKeys := make(map[string]bool, len(resolutions))
+	for _, res := range resolutions {
+		// Stale resolutions referencing deleted specs are tolerated — they
+		// get pruned by the orchestrator when specs are deleted.
+		_ = seenSpecIDs
+		if !edgeKeys[res.ReviewedSpec+"\x00"+res.SourceSpec] {
+			return fmt.Errorf("%w: reviewed=%q source=%q", ErrRefResolutionEdgeMissing, res.ReviewedSpec, res.SourceSpec)
+		}
+		key := res.ReviewedSpec + "\x00" + res.SourceSpec
+		if seenResKeys[key] {
+			return fmt.Errorf("%w: reviewed=%q source=%q", ErrDuplicateRefResolution, res.ReviewedSpec, res.SourceSpec)
+		}
+		seenResKeys[key] = true
+	}
+	return nil
+}
+

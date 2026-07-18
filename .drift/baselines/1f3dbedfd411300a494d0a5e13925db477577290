@@ -1,0 +1,58 @@
+func (s *FileStateStore) Load() (State, error) {
+	data, err := os.ReadFile(s.statePath())
+	if err != nil {
+		if os.IsNotExist(err) {
+			return State{}, ErrStateNotFound
+		}
+		return State{}, err
+	}
+
+	var file stateFileXML
+	if err := xml.Unmarshal(data, &file); err != nil {
+		return State{}, err
+	}
+
+	specs := make([]core.Spec, len(file.Specs))
+	for i, sp := range file.Specs {
+		specs[i] = core.Spec{
+			ID:         sp.ID,
+			Hash:       sp.Hash,
+			Filepath:   sp.Filepath,
+			LineNumber: sp.LineNumber,
+		}
+	}
+
+	markers := make([]core.Marker, len(file.Markers))
+	for i, m := range file.Markers {
+		markers[i] = core.Marker{
+			ID:            m.ID,
+			Hash:          m.Hash,
+			Filepath:      m.Filepath,
+			LineNumber:    m.LineNumber,
+			EndLineNumber: m.EndLineNumber,
+		}
+	}
+
+	edges := make([]core.Edge, len(file.Edges))
+	for i, e := range file.Edges {
+		edges[i] = core.Edge{From: e.From, To: e.To}
+	}
+
+	resolutions := make([]core.EdgeResolution, len(file.Resolutions))
+	for i, r := range file.Resolutions {
+		resolutions[i] = core.EdgeResolution{
+			From:            r.From,
+			To:              r.To,
+			CurrentFromHash: r.CurrentFromHash,
+			CurrentToHash:   r.CurrentToHash,
+		}
+	}
+
+	return State{
+		Specs:       specs,
+		Markers:     markers,
+		Edges:       edges,
+		Resolutions: resolutions,
+	}, nil
+}
+

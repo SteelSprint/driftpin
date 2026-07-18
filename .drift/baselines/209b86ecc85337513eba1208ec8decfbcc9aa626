@@ -1,0 +1,40 @@
+func reconcileMarkers(baselined []core.Marker, scanned []core.Marker) ([]core.Marker, error) {
+	baselinedByID := make(map[string]core.Marker, len(baselined))
+	for _, m := range baselined {
+		baselinedByID[m.ID] = m
+	}
+
+	scannedByID := make(map[string]bool, len(scanned))
+	for _, m := range scanned {
+		scannedByID[m.ID] = true
+	}
+
+	result := make([]core.Marker, 0, len(scanned)+len(baselined))
+	for _, m := range scanned {
+		if b, ok := baselinedByID[m.ID]; ok {
+			result = append(result, core.Marker{
+				ID:            m.ID,
+				Hash:          b.Hash,
+				Filepath:      m.Filepath,
+				LineNumber:    m.LineNumber,
+				EndLineNumber: m.EndLineNumber,
+			})
+		} else {
+			result = append(result, m)
+		}
+	}
+	for id, p := range baselinedByID {
+		if !scannedByID[id] {
+			result = append(result, core.Marker{
+				ID:            p.ID,
+				Hash:          p.Hash,
+				Filepath:      p.Filepath,
+				LineNumber:    p.LineNumber,
+				EndLineNumber: p.EndLineNumber,
+				Deleted:       true,
+			})
+		}
+	}
+	return result, nil
+}
+

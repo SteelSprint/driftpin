@@ -1,0 +1,1 @@
+The global flag pre-pass scans args[1:] for the three global flags and removes them from the slice that the dispatched command sees. The pre-pass does NOT validate combinations (e.g. --json + --no-color is allowed; precedence is resolved later by SelectPresenter). The pre-pass handles both --color=VALUE and standalone --no-color / --json forms.

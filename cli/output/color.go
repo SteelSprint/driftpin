@@ -88,66 +88,70 @@ func (p ColorPresenter) Todo(r TodoResult) string {
 	var sb strings.Builder
 
 	if len(state.Todos) == 0 {
-		sb.WriteString(t.StatusOK.Apply(fmt.Sprintf("No changes detected. %d specs, %d markers, %d links in sync.", len(state.Specs), len(state.Markers), len(state.Links))))
+		sb.WriteString(t.StatusOK.Apply(fmt.Sprintf("No changes detected. %d specs, %d markers, %d edges in sync.", len(state.Specs), len(state.Markers), len(state.Edges))))
 	} else {
+		// Mirror Plain's kind-bucketed summary so the guardrail property holds.
+		edgeDrift, cascade, edgeAdded, edgeRemoved, broken := 0, 0, 0, 0, 0
 		changedMarkers := make(map[string]bool)
 		changedSpecs := make(map[string]bool)
 		for _, todo := range state.Todos {
-			if todo.MarkerChanged {
-				changedMarkers[todo.MarkerID] = true
-			}
-			if todo.SpecChanged {
-				changedSpecs[todo.SpecID] = true
+			switch todo.Kind {
+			case core.TodoEdgeDrift:
+				edgeDrift++
+				if todo.FromChanged {
+					changedMarkers[todo.From] = true
+				}
+				if todo.ToChanged {
+					changedSpecs[todo.To] = true
+				}
+			case core.TodoCascade:
+				cascade++
+			case core.TodoEdgeAdded:
+				edgeAdded++
+			case core.TodoEdgeRemoved:
+				edgeRemoved++
+			case core.TodoBrokenEdge:
+				broken++
 			}
 		}
 
-		if n := len(changedMarkers); n > 0 {
-			if n == 1 {
-				sb.WriteString(t.StatusWarn.Apply("1 marker has unchecked changes.") + "\n")
-			} else {
-				sb.WriteString(t.StatusWarn.Apply(fmt.Sprintf("%d markers have unchecked changes.", n)) + "\n")
+		var parts []string
+		if edgeDrift > 0 {
+			if n := len(changedMarkers); n > 0 {
+				if n == 1 {
+					parts = append(parts, "1 marker has unchecked changes")
+				} else {
+					parts = append(parts, fmt.Sprintf("%d markers have unchecked changes", n))
+				}
+			}
+			if n := len(changedSpecs); n > 0 {
+				if n == 1 {
+					parts = append(parts, "1 spec item has unchecked changes")
+				} else {
+					parts = append(parts, fmt.Sprintf("%d spec items have unchecked changes", n))
+				}
 			}
 		}
-		if n := len(changedSpecs); n > 0 {
-			if n == 1 {
-				sb.WriteString(t.StatusWarn.Apply("1 spec item has unchecked changes.") + "\n")
-			} else {
-				sb.WriteString(t.StatusWarn.Apply(fmt.Sprintf("%d spec items have unchecked changes.", n)) + "\n")
-			}
+		if cascade > 0 {
+			parts = append(parts, fmt.Sprintf("%d cascade drift item(s)", cascade))
+		}
+		if edgeAdded > 0 {
+			parts = append(parts, fmt.Sprintf("%d new edge(s)", edgeAdded))
+		}
+		if edgeRemoved > 0 {
+			parts = append(parts, fmt.Sprintf("%d removed edge(s)", edgeRemoved))
+		}
+		if broken > 0 {
+			parts = append(parts, fmt.Sprintf("%d broken edge(s)", broken))
+		}
+		if len(parts) > 0 {
+			sb.WriteString(t.StatusWarn.Apply(strings.Join(parts, ", ") + ".") + "\n")
 		}
 
 		sb.WriteString("\n")
 
 		for i, todo := range state.Todos {
-			var driftDescription string
-			switch {
-			case todo.SpecDeleted:
-				driftDescription = "The spec term has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
-			case todo.MarkerDeleted:
-				driftDescription = "The marker has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
-			case todo.MarkerChanged && todo.SpecChanged:
-				driftDescription = "Both the marker and the spec term have changed. Please check whether the changed code still complies with the new version of the spec term and make any modifications necessary on either side."
-			case todo.MarkerChanged:
-				driftDescription = "The marker has changed but not the spec term. Please check whether the changed code still complies with the spec term and make any modifications necessary."
-			default:
-				driftDescription = "The spec term has changed but not the marker. Please check whether the new version of the spec term is still reflected in the code and make any modifications necessary."
-			}
-
-			markerLocation := todo.MarkerFilepath + ":" + strconv.Itoa(todo.MarkerLineNumber)
-			specLocation := todo.SpecFilepath + ":" + strconv.Itoa(todo.SpecLineNumber)
-
-			sb.WriteString(fmt.Sprintf("%d. %s Edge between marker %s in %s and spec term %s in %s. %s Once you are satisfied, run %s to mark this todo item as complete.\n",
-				i+1,
-				t.StatusWarn.Apply("[TODO]"),
-				t.MarkerID.Apply(fmt.Sprintf("%q", todo.MarkerID)),
-				t.Filepath.Apply(fmt.Sprintf("%q", markerLocation)),
-				t.SpecID.Apply(fmt.Sprintf("%q", todo.SpecID)),
-				t.Filepath.Apply(fmt.Sprintf("%q", specLocation)),
-				driftDescription,
-				t.Command.Apply(fmt.Sprintf("`drift reset %s %s`", todo.MarkerID, todo.SpecID)),
-			))
-			hint := fmt.Sprintf("→ Run 'drift diff %s %s' to see what changed.", todo.MarkerID, todo.SpecID)
-			sb.WriteString(fmt.Sprintf("  %s\n", t.Hint.Apply(hint)))
+			sb.WriteString(p.formatTodoColor(i+1, todo))
 		}
 	}
 
@@ -157,6 +161,120 @@ func (p ColorPresenter) Todo(r TodoResult) string {
 	}
 
 	return strings.TrimRight(sb.String(), "\n")
+}
+
+// formatTodoColor mirrors PlainPresenter.formatTodo with theme styling.
+func (p ColorPresenter) formatTodoColor(n int, todo core.Todo) string {
+	t := p.Theme
+	var sb strings.Builder
+	switch todo.Kind {
+	case core.TodoEdgeDrift:
+		if todo.SourceSpecID != "" {
+			sb.WriteString(fmt.Sprintf("%d. %s Spec %s in %s drifted because transitively-connected spec %s in %s changed. Review whether this spec still aligns with the new upstream. Once satisfied, run %s.\n",
+				n,
+				t.StatusWarn.Apply("[EDGE-DRIFT]"),
+				t.SpecID.Apply(fmt.Sprintf("%q", todo.From)),
+				t.Filepath.Apply(fmt.Sprintf("%q", todo.FromFilepath)),
+				t.SpecID.Apply(fmt.Sprintf("%q", todo.To)),
+				t.Filepath.Apply(fmt.Sprintf("%q", todo.ToFilepath)),
+				t.Command.Apply(fmt.Sprintf("`drift reset %s %s`", todo.From, todo.To)),
+			))
+		} else {
+			sb.WriteString(p.formatDirectEdgeTodoColor(n, todo))
+		}
+	case core.TodoCascade:
+		markLoc := todo.FromFilepath + ":" + strconv.Itoa(todo.FromLineNumber)
+		sb.WriteString(fmt.Sprintf("%d. %s Marker %s in %s drifted because transitively-connected spec %s in %s changed. Resolve the upstream edge drift to clear this; cascade drift is derived, not independently resettable. (Upstream reset: %s.)\n",
+			n,
+			t.StatusWarn.Apply("[CASCADE]"),
+			t.MarkerID.Apply(fmt.Sprintf("%q", todo.From)),
+			t.Filepath.Apply(fmt.Sprintf("%q", markLoc)),
+			t.SpecID.Apply(fmt.Sprintf("%q", todo.SourceSpecID)),
+			t.Filepath.Apply(fmt.Sprintf("%q", todo.SourceFilepath)),
+			t.Command.Apply(fmt.Sprintf("`drift reset <spec> %s`", todo.SourceSpecID)),
+		))
+	case core.TodoEdgeAdded:
+		sb.WriteString(fmt.Sprintf("%d. %s New edge declared: %s → %s. Confirm the new edge is intentional. Once satisfied, run %s.\n",
+			n,
+			t.StatusWarn.Apply("[EDGE-ADDED]"),
+			t.SpecID.Apply(fmt.Sprintf("%q", todo.From)),
+			t.SpecID.Apply(fmt.Sprintf("%q", todo.To)),
+			t.Command.Apply(fmt.Sprintf("`drift reset %s %s`", todo.From, todo.To)),
+		))
+	case core.TodoEdgeRemoved:
+		sb.WriteString(fmt.Sprintf("%d. %s Edge removed: %s no longer points to %s. Confirm the removal is intentional. Once satisfied, run %s.\n",
+			n,
+			t.StatusWarn.Apply("[EDGE-REMOVED]"),
+			t.SpecID.Apply(fmt.Sprintf("%q", todo.From)),
+			t.SpecID.Apply(fmt.Sprintf("%q", todo.To)),
+			t.Command.Apply(fmt.Sprintf("`drift reset %s %s`", todo.From, todo.To)),
+		))
+	case core.TodoBrokenEdge:
+		sb.WriteString(fmt.Sprintf("%d. %s Spec %s refs %s, but no node with that ID exists. Fix the target in the spec text, or restore the missing spec. Once fixed, run %s.\n",
+			n,
+			t.StatusError.Apply("[BROKEN-EDGE]"),
+			t.SpecID.Apply(fmt.Sprintf("%q", todo.From)),
+			t.SpecID.Apply(fmt.Sprintf("%q", todo.To)),
+			t.Command.Apply(fmt.Sprintf("`drift reset %s %s`", todo.From, todo.To)),
+		))
+	default:
+		sb.WriteString(fmt.Sprintf("%d. %s Unrecognized todo kind %v.\n", n, t.StatusError.Apply("[UNKNOWN]"), todo.Kind))
+	}
+	return sb.String()
+}
+
+func (p ColorPresenter) formatDirectEdgeTodoColor(n int, todo core.Todo) string {
+	t := p.Theme
+	var driftDescription string
+	switch {
+	case todo.ToDeleted:
+		driftDescription = "The spec term has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
+	case todo.FromDeleted:
+		driftDescription = "The marker has been deleted from disk. If this was intentional, run the reset command below to acknowledge the removal."
+	case todo.FromChanged && todo.ToChanged:
+		driftDescription = "Both endpoints have changed. Please check whether the two sides still align and make any modifications necessary on either side."
+	case todo.FromChanged:
+		driftDescription = "The From endpoint has changed but not the To endpoint. Please check whether the changed side still aligns with the other."
+	default:
+		driftDescription = "The To endpoint has changed but not the From endpoint. Please check whether the new version is still reflected on the other side."
+	}
+
+	fromLocation := todo.FromFilepath + ":" + strconv.Itoa(todo.FromLineNumber)
+	toLocation := todo.ToFilepath + ":" + strconv.Itoa(todo.ToLineNumber)
+
+	fromStyled := t.MarkerID.Apply(fmt.Sprintf("%q", todo.From))
+	if isSpecIDOutput(todo.From) {
+		fromStyled = t.SpecID.Apply(fmt.Sprintf("%q", todo.From))
+	}
+	toStyled := t.SpecID.Apply(fmt.Sprintf("%q", todo.To))
+	if !isSpecIDOutput(todo.To) {
+		toStyled = t.MarkerID.Apply(fmt.Sprintf("%q", todo.To))
+	}
+
+	fromLabel, toLabel := "marker", "spec term"
+	if isSpecIDOutput(todo.From) {
+		fromLabel = "spec"
+	}
+	if !isSpecIDOutput(todo.To) {
+		toLabel = "marker"
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%d. %s Edge between %s %s in %s and %s %s in %s. %s Once you are satisfied, run %s to mark this todo item as complete.\n",
+		n,
+		t.StatusWarn.Apply("[TODO]"),
+		fromLabel,
+		fromStyled,
+		t.Filepath.Apply(fmt.Sprintf("%q", fromLocation)),
+		toLabel,
+		toStyled,
+		t.Filepath.Apply(fmt.Sprintf("%q", toLocation)),
+		driftDescription,
+		t.Command.Apply(fmt.Sprintf("`drift reset %s %s`", todo.From, todo.To)),
+	))
+	hint := fmt.Sprintf("→ Run 'drift diff %s %s' to see what changed.", todo.From, todo.To)
+	sb.WriteString(fmt.Sprintf("  %s\n", t.Hint.Apply(hint)))
+	return sb.String()
 }
 
 // --- List ---
@@ -170,14 +288,19 @@ func (p ColorPresenter) List(r ListResult) string {
 
 	driftedEdges := make(map[string]bool)
 	for _, todo := range state.Todos {
-		driftedEdges[todo.MarkerID+"\x00"+todo.SpecID] = true
+		if todo.Kind == core.TodoEdgeDrift && todo.SourceSpecID == "" {
+			driftedEdges[todo.From+"\x00"+todo.To] = true
+		}
 	}
 
 	linkedSpecs := make(map[string]bool)
 	linkedMarkers := make(map[string]bool)
-	for _, link := range state.Links {
-		linkedSpecs[link.SpecID] = true
-		linkedMarkers[link.MarkerID] = true
+	for _, e := range state.Edges {
+		if isSpecID(e.From) {
+			continue
+		}
+		linkedMarkers[e.From] = true
+		linkedSpecs[e.To] = true
 	}
 
 	var sb strings.Builder
@@ -233,16 +356,21 @@ func (p ColorPresenter) List(r ListResult) string {
 		}
 	}
 
-	if len(state.Links) > 0 {
-		sb.WriteString("\n" + t.SectionHeader.Apply(fmt.Sprintf("Links (%d):", len(state.Links))) + "\n")
-		for _, link := range state.Links {
+	if len(state.Edges) > 0 {
+		sb.WriteString("\n" + t.SectionHeader.Apply(fmt.Sprintf("Edges (%d):", len(state.Edges))) + "\n")
+		for _, e := range state.Edges {
 			var status string
-			if driftedEdges[link.MarkerID+"\x00"+link.SpecID] {
+			if driftedEdges[e.From+"\x00"+e.To] || driftedEdges[e.To+"\x00"+e.From] {
 				status = t.StatusError.Apply("[DRIFTED]")
 			} else {
 				status = t.StatusOK.Apply("[synced]")
 			}
-			sb.WriteString(fmt.Sprintf("  %s → %s %s\n", t.MarkerID.Apply(fmt.Sprintf("%-15s", link.MarkerID)), t.SpecID.Apply(fmt.Sprintf("%-30s", link.SpecID)), status))
+			fromStyled := t.MarkerID.Apply(fmt.Sprintf("%-30s", e.From))
+			if isSpecID(e.From) {
+				fromStyled = t.SpecID.Apply(fmt.Sprintf("%-30s", e.From))
+			}
+			toStyled := t.SpecID.Apply(fmt.Sprintf("%-30s", e.To))
+			sb.WriteString(fmt.Sprintf("  %s → %s %s\n", fromStyled, toStyled, status))
 		}
 	}
 
@@ -274,6 +402,16 @@ func (p ColorPresenter) showSpec(r ShowResult) string {
 	sb.WriteString(fmt.Sprintf("Hash: %s\n\n", t.Hash.Apply(r.Spec.Hash)))
 	sb.WriteString(p.colorizeCodeBlock(r.Content))
 	sb.WriteString("\n")
+
+	if len(r.OutboundRefs) > 0 || len(r.InboundRefs) > 0 {
+		sb.WriteString("\n")
+		if len(r.OutboundRefs) > 0 {
+			sb.WriteString(fmt.Sprintf("Outbound refs (%d): %s\n", len(r.OutboundRefs), t.SpecID.Apply(strings.Join(r.OutboundRefs, ", "))))
+		}
+		if len(r.InboundRefs) > 0 {
+			sb.WriteString(fmt.Sprintf("Inbound refs (%d): %s\n", len(r.InboundRefs), t.SpecID.Apply(strings.Join(r.InboundRefs, ", "))))
+		}
+	}
 
 	for _, m := range r.LinkedMarkers {
 		sb.WriteString("\n" + t.SectionHeader.Apply(fmt.Sprintf("=== Marker: %s ===", t.MarkerID.Apply(m.Marker.ID))) + "\n")

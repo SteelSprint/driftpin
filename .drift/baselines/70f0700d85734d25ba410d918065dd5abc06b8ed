@@ -1,0 +1,1 @@
+PlainPresenter in cli/output/plain.go. Methods are byte-identical migrations of the format* functions from the pre-refactor cli/cli.go. No I/O, no color, no JSON. Plain_test.go asserts golden-string equivalence to pre-refactor behavior. See <ref spec="output.plain_mode">plain mode</ref>.

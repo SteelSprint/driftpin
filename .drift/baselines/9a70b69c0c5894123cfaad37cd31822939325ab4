@@ -1,0 +1,1 @@
+Command metadata (name, usage, recognized flags) must live in exactly one place. Three sources of truth (help.txt, subcommandHelpTexts, recognizedFlags) was three opportunities to drift. The Registry collapses them: every command declares its own metadata; help text and flag validation are derived. See <ref spec="output_impl.registry">the Registry</ref>.

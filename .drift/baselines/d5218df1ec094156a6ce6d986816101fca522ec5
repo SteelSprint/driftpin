@@ -1,0 +1,1 @@
+STUB. The interactive human developer using drift at a terminal: writes specs, places markers, runs `drift todo`, reads `drift diff` output, resolves edges one at a time with `drift reset`. Needs legible, scannable terminal output — color-coded status, clear diff presentation, low-friction review. See <ref spec="open_source_tools_drift.purpose">drift's purpose</ref>.

@@ -1,0 +1,1 @@
+Every error path produces an ErrorResult. There are no bare return err.Error() sites in the command pipeline. ErrorResult carries Command, Message, Hint, and Exit. Plain reproduces today's error text byte-identically; JSON emits {ok:false,error,hint?,exit}. See <ref spec="output_intent.error_uniformity">error uniformity</ref>.

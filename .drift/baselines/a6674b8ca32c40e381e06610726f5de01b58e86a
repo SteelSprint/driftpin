@@ -1,0 +1,40 @@
+func reconcileSpecs(baselined []core.Spec, scanned []core.Spec) ([]core.Spec, error) {
+	baselinedByID := make(map[string]core.Spec, len(baselined))
+	for _, s := range baselined {
+		baselinedByID[s.ID] = s
+	}
+
+	scannedByID := make(map[string]bool, len(scanned))
+	for _, s := range scanned {
+		scannedByID[s.ID] = true
+	}
+
+	result := make([]core.Spec, 0, len(scanned)+len(baselined))
+	for _, s := range scanned {
+		if b, ok := baselinedByID[s.ID]; ok {
+			result = append(result, core.Spec{
+				ID:         s.ID,
+				Hash:       b.Hash,
+				Filepath:   s.Filepath,
+				LineNumber: s.LineNumber,
+				Module:     s.Module,
+			})
+		} else {
+			result = append(result, s)
+		}
+	}
+	for id, p := range baselinedByID {
+		if !scannedByID[id] {
+			result = append(result, core.Spec{
+				ID:         p.ID,
+				Hash:       p.Hash,
+				Filepath:   p.Filepath,
+				LineNumber: p.LineNumber,
+				Module:     p.Module,
+				Deleted:    true,
+			})
+		}
+	}
+	return result, nil
+}
+

@@ -1,0 +1,1 @@
+RunWithRender returns a (Result, int) tuple where Result is a sealed interface implemented by exactly: TodoResult, ListResult, ShowResult, DiffEdgeResult, DiffExpandedResult, DiffAllResult, OkResult, ErrorResult, TextResult, VersionResult. Each Result type is a thin wrapper around orchestrator/core data. See <ref spec="output_impl.result_types">result types impl</ref>.

@@ -1,0 +1,1 @@
+The default mode is Color when (stdout is a TTY) AND (NO_COLOR env var is unset). In all other cases the default mode is Plain. The user can force Color with --color=always (overrides non-TTY and NO_COLOR) or force Plain with --no-color / --color=never. See <ref spec="output.tty_detection">TTY detection</ref> and <ref spec="output.flag_precedence">flag precedence</ref>.

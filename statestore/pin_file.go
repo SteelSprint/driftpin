@@ -14,11 +14,14 @@ var ErrStateNotFound = errors.New(".drift/state.xml not found, run 'drift init' 
 
 // D! id=pnope range-end
 
+// State is the in-memory shape of .drift/state.xml. Edges is the unified
+// list of both link-style (marker→spec) and ref-style (spec→spec) edges;
+// Resolutions is the unified list of edge resolutions covering either kind.
 type State struct {
-	Specs           []core.Spec
-	Markers         []core.Marker
-	Links           []core.Link
-	ResolutionState []core.ResolutionState
+	Specs       []core.Spec
+	Markers     []core.Marker
+	Edges       []core.Edge
+	Resolutions []core.EdgeResolution
 }
 
 type StateStore interface {
@@ -70,12 +73,16 @@ func (s *FileStateStore) baselinesDir() string {
 	return filepath.Join(s.dir, ".drift", "baselines")
 }
 
+// stateFileXML serializes .drift/state.xml. version=3 is the post-collapse
+// format with unified <edges> and <edgeResolutions> sections. Earlier
+// versions used separate <links>+<refs> and <resolutions>+<refResolutions>.
 type stateFileXML struct {
-	XMLName     xml.Name        `xml:"drift"`
-	Specs       []specXML       `xml:"specs>spec"`
-	Markers     []markerXML     `xml:"markers>marker"`
-	Links       []linkXML       `xml:"links>link"`
-	Resolutions []resolutionXML `xml:"resolutions>resolution"`
+	XMLName       xml.Name            `xml:"drift"`
+	Version       int                 `xml:"version,attr,omitempty"`
+	Specs         []specXML           `xml:"specs>spec"`
+	Markers       []markerXML         `xml:"markers>marker"`
+	Edges         []edgeXML           `xml:"edges>edge"`
+	Resolutions   []edgeResolutionXML `xml:"edgeResolutions>edgeResolution"`
 }
 
 type specXML struct {
@@ -93,16 +100,16 @@ type markerXML struct {
 	EndLineNumber int    `xml:"endline,attr"`
 }
 
-type linkXML struct {
-	SpecID   string `xml:"specId,attr"`
-	MarkerID string `xml:"markerId,attr"`
+type edgeXML struct {
+	From string `xml:"from,attr"`
+	To   string `xml:"to,attr"`
 }
 
-type resolutionXML struct {
-	SpecID            string `xml:"specId,attr"`
-	MarkerID          string `xml:"markerId,attr"`
-	CurrentSpecHash   string `xml:"currentSpecHash,attr"`
-	CurrentMarkerHash string `xml:"currentMarkerHash,attr"`
+type edgeResolutionXML struct {
+	From            string `xml:"from,attr"`
+	To              string `xml:"to,attr"`
+	CurrentFromHash string `xml:"currentFromHash,attr"`
+	CurrentToHash   string `xml:"currentToHash,attr"`
 }
 
 // D! id=pload range-start
@@ -121,12 +128,12 @@ func (s *FileStateStore) Load() (State, error) {
 	}
 
 	specs := make([]core.Spec, len(file.Specs))
-	for i, s := range file.Specs {
+	for i, sp := range file.Specs {
 		specs[i] = core.Spec{
-			ID:         s.ID,
-			Hash:       s.Hash,
-			Filepath:   s.Filepath,
-			LineNumber: s.LineNumber,
+			ID:         sp.ID,
+			Hash:       sp.Hash,
+			Filepath:   sp.Filepath,
+			LineNumber: sp.LineNumber,
 		}
 	}
 
@@ -141,29 +148,26 @@ func (s *FileStateStore) Load() (State, error) {
 		}
 	}
 
-	links := make([]core.Link, len(file.Links))
-	for i, l := range file.Links {
-		links[i] = core.Link{
-			SpecID:   l.SpecID,
-			MarkerID: l.MarkerID,
-		}
+	edges := make([]core.Edge, len(file.Edges))
+	for i, e := range file.Edges {
+		edges[i] = core.Edge{From: e.From, To: e.To}
 	}
 
-	resolutions := make([]core.ResolutionState, len(file.Resolutions))
+	resolutions := make([]core.EdgeResolution, len(file.Resolutions))
 	for i, r := range file.Resolutions {
-		resolutions[i] = core.ResolutionState{
-			SpecID:            r.SpecID,
-			MarkerID:          r.MarkerID,
-			CurrentSpecHash:   r.CurrentSpecHash,
-			CurrentMarkerHash: r.CurrentMarkerHash,
+		resolutions[i] = core.EdgeResolution{
+			From:            r.From,
+			To:              r.To,
+			CurrentFromHash: r.CurrentFromHash,
+			CurrentToHash:   r.CurrentToHash,
 		}
 	}
 
 	return State{
-		Specs:           specs,
-		Markers:         markers,
-		Links:           links,
-		ResolutionState: resolutions,
+		Specs:       specs,
+		Markers:     markers,
+		Edges:       edges,
+		Resolutions: resolutions,
 	}, nil
 }
 
@@ -175,10 +179,11 @@ func (s *FileStateStore) Save(state State) error {
 		return err
 	}
 	file := stateFileXML{
+		Version:     3,
 		Specs:       make([]specXML, len(state.Specs)),
 		Markers:     make([]markerXML, len(state.Markers)),
-		Links:       make([]linkXML, len(state.Links)),
-		Resolutions: make([]resolutionXML, len(state.ResolutionState)),
+		Edges:       make([]edgeXML, len(state.Edges)),
+		Resolutions: make([]edgeResolutionXML, len(state.Resolutions)),
 	}
 
 	for i, spec := range state.Specs {
@@ -200,19 +205,16 @@ func (s *FileStateStore) Save(state State) error {
 		}
 	}
 
-	for i, link := range state.Links {
-		file.Links[i] = linkXML{
-			SpecID:   link.SpecID,
-			MarkerID: link.MarkerID,
-		}
+	for i, e := range state.Edges {
+		file.Edges[i] = edgeXML{From: e.From, To: e.To}
 	}
 
-	for i, res := range state.ResolutionState {
-		file.Resolutions[i] = resolutionXML{
-			SpecID:            res.SpecID,
-			MarkerID:          res.MarkerID,
-			CurrentSpecHash:   res.CurrentSpecHash,
-			CurrentMarkerHash: res.CurrentMarkerHash,
+	for i, r := range state.Resolutions {
+		file.Resolutions[i] = edgeResolutionXML{
+			From:            r.From,
+			To:              r.To,
+			CurrentFromHash: r.CurrentFromHash,
+			CurrentToHash:   r.CurrentToHash,
 		}
 	}
 

@@ -1,0 +1,1 @@
+When a spec or marker is deleted from disk but still in .drift/state.xml, the reconciler keeps it with a sentinel empty-string scan hash. This triggers drift on all touching edges. The Todo struct records the corresponding Deleted flag. After reset, collapse prunes the deleted node and its edges from the result. See principles.specs_are_truth.

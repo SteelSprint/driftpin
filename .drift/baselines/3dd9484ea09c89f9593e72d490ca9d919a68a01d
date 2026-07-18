@@ -1,0 +1,1 @@
+Users must be able to override drift's automatic mode selection. --no-color forces Plain; --json forces JSON; --color=always forces Color even when not a TTY. These overrides respect the precedence rules in <ref spec="output.flag_precedence">flag precedence</ref>.

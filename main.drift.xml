@@ -1,4 +1,5 @@
 <main>
+  <import path="./model.drift.xml" />
   <import path="./business/goals/goals.drift.xml" />
   <import path="./business/goals/build_open_source_tools/drift/open_source_tools.drift.xml" />
   <import path="./principles.drift.xml" />

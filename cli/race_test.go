@@ -57,9 +57,9 @@ func TestConcurrentLinkRace(t *testing.T) {
 		if err != nil {
 			t.Fatalf("iteration %d: failed to load state: %v", iter, err)
 		}
-		if len(state.Links) != numGoroutines {
+		if len(state.Edges) != numGoroutines {
 			t.Fatalf("iteration %d: expected %d links after concurrent link, got %d — race condition caused silent data loss",
-				iter, numGoroutines, len(state.Links))
+				iter, numGoroutines, len(state.Edges))
 		}
 	}
 }

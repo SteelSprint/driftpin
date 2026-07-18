@@ -1,0 +1,8 @@
+		err := ctx.Orch.ResetRef(args[1], args[2])
+		if err != nil {
+			return output.ErrorResult{Command: "reset", Message: err.Error(), Exit: 1}, 1
+		}
+		return output.OkResult{
+			Command: "reset",
+			Message: fmt.Sprintf("Resolved ref edge: %s reviewed against %s.", args[1], args[2]),
+		}, 0

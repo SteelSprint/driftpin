@@ -29,13 +29,13 @@ func TestFileStateStoreRoundTrip(t *testing.T) {
 		{"one_spec_one_marker_one_link", statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "h1")},
-			Links:   []core.Link{testutil.NewLink("s1", "m1")},
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1")},
 		}},
 		{"one_resolution", statestore.State{
 			Specs:           []core.Spec{testutil.NewSpec("s1", "h1")},
 			Markers:         []core.Marker{testutil.NewMarker("m1", "h1")},
-			Links:           []core.Link{testutil.NewLink("s1", "m1")},
-			ResolutionState: []core.ResolutionState{testutil.NewResolutionState("s1", "m1", "ch1", "ch2")},
+			Edges:           []core.Edge{testutil.NewLink("s1", "m1")},
+			Resolutions: []core.EdgeResolution{testutil.NewResolutionState("s1", "m1", "ch1", "ch2")},
 		}},
 		{"many_specs", statestore.State{
 			Specs: []core.Spec{testutil.NewSpec("s1", "h1"), testutil.NewSpec("s2", "h2"), testutil.NewSpec("s3", "h3")},
@@ -46,13 +46,13 @@ func TestFileStateStoreRoundTrip(t *testing.T) {
 		{"many_links_2x2", statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1"), testutil.NewSpec("s2", "h2")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "h1"), testutil.NewMarker("m2", "h2")},
-			Links:   []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")},
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2")},
 		}},
 		{"many_resolutions", statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1"), testutil.NewSpec("s2", "h2")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "h1"), testutil.NewMarker("m2", "h2")},
-			Links:   []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m2")},
-			ResolutionState: []core.ResolutionState{
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m2")},
+			Resolutions: []core.EdgeResolution{
 				testutil.NewResolutionState("s1", "m1", "ch1", "ch2"),
 				testutil.NewResolutionState("s2", "m2", "ch3", "ch4"),
 			},
@@ -60,12 +60,12 @@ func TestFileStateStoreRoundTrip(t *testing.T) {
 		{"full_graph_3x3", statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1"), testutil.NewSpec("s2", "h2"), testutil.NewSpec("s3", "h3")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "h1"), testutil.NewMarker("m2", "h2"), testutil.NewMarker("m3", "h3")},
-			Links: []core.Link{
+			Edges: []core.Edge{
 				testutil.NewLink("s1", "m1"), testutil.NewLink("s1", "m2"), testutil.NewLink("s1", "m3"),
 				testutil.NewLink("s2", "m1"), testutil.NewLink("s2", "m2"), testutil.NewLink("s2", "m3"),
 				testutil.NewLink("s3", "m1"), testutil.NewLink("s3", "m2"), testutil.NewLink("s3", "m3"),
 			},
-			ResolutionState: []core.ResolutionState{
+			Resolutions: []core.EdgeResolution{
 				testutil.NewResolutionState("s1", "m1", "ch1", "ch2"),
 				testutil.NewResolutionState("s2", "m2", "ch3", "ch4"),
 			},
@@ -79,7 +79,7 @@ func TestFileStateStoreRoundTrip(t *testing.T) {
 				testutil.NewMarkerWithLocation("m1", "h1", "/project/src/auth.go", 15),
 				testutil.NewMarkerWithLocation("m2", "h2", "/project/src/api.go", 200),
 			},
-			Links: []core.Link{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m2")},
+			Edges: []core.Edge{testutil.NewLink("s1", "m1"), testutil.NewLink("s2", "m2")},
 		}},
 	}
 
@@ -131,7 +131,7 @@ func TestFileStateStoreSaveOverwrite(t *testing.T) {
 		initial := statestore.State{
 			Specs:   []core.Spec{testutil.NewSpec("s1", "h1")},
 			Markers: []core.Marker{testutil.NewMarker("m1", "h1")},
-			Links:   []core.Link{testutil.NewLink("s1", "m1")},
+			Edges:   []core.Edge{testutil.NewLink("s1", "m1")},
 		}
 		err := store.Save(initial)
 		testutil.AssertNoError(t, err)

@@ -1,0 +1,126 @@
+func computeEdgeTodos(
+	specs []Spec,
+	markers []Marker,
+	edges []Edge,
+	resolutionsByEdge map[string]EdgeResolution,
+	scan Scan,
+) []Todo {
+	specByID := copySpecsToMutableMap(specs)
+	markerByID := copyMarkersToMutableMap(markers)
+	nodeExists := func(id string) bool {
+		if _, ok := scan.SpecHashes[id]; ok {
+			return scan.SpecHashes[id] != ""
+		}
+		if _, ok := scan.MarkerHashes[id]; ok {
+			return scan.MarkerHashes[id] != ""
+		}
+		return false
+	}
+
+	baselineEdgeSet := make(map[string]bool, len(edges))
+	for _, e := range edges {
+		baselineEdgeSet[e.From+"\x00"+e.To] = true
+	}
+	scanEdgeSet := make(map[string]bool, len(scan.Edges))
+	for _, e := range scan.Edges {
+		scanEdgeSet[e.From+"\x00"+e.To] = true
+	}
+
+	var todos []Todo
+
+	// (1) Direct edge drift.
+	for _, e := range edges {
+		fromCurrent := nodeScanHash(e.From, scan, specByID, markerByID)
+		toCurrent := nodeScanHash(e.To, scan, specByID, markerByID)
+		fromBaseline := nodeBaselineHash(e.From, specByID, markerByID)
+		toBaseline := nodeBaselineHash(e.To, specByID, markerByID)
+		fromChanged := fromBaseline != fromCurrent
+		toChanged := toBaseline != toCurrent
+		if !fromChanged && !toChanged {
+			continue
+		}
+		covered := false
+		if res, ok := resolutionsByEdge[e.From+"\x00"+e.To]; ok {
+			if res.CurrentFromHash == fromCurrent && res.CurrentToHash == toCurrent {
+				covered = true
+			}
+		}
+		if !covered {
+			if res, ok := resolutionsByEdge[e.To+"\x00"+e.From]; ok {
+				if res.CurrentFromHash == toCurrent && res.CurrentToHash == fromCurrent {
+					covered = true
+				}
+			}
+		}
+		if covered {
+			continue
+		}
+		todos = append(todos, Todo{
+			Kind:           TodoEdgeDrift,
+			From:           e.From,
+			To:             e.To,
+			FromFilepath:   nodeFilepath(e.From, specByID, markerByID),
+			FromLineNumber: nodeLineNumber(e.From, specByID, markerByID),
+			ToFilepath:     nodeFilepath(e.To, specByID, markerByID),
+			ToLineNumber:   nodeLineNumber(e.To, specByID, markerByID),
+			FromChanged:    fromChanged,
+			ToChanged:      toChanged,
+			FromDeleted:    fromCurrent == "" && fromChanged,
+			ToDeleted:      toCurrent == "" && toChanged,
+		})
+	}
+
+	// (2) Edge structure drift: spec-spec edges only. Link-style edges
+	// are user-curated and never appear in scan.
+	for _, e := range scan.Edges {
+		if !isSpecID(e.From) || !isSpecID(e.To) {
+			continue
+		}
+		if baselineEdgeSet[e.From+"\x00"+e.To] {
+			continue
+		}
+		todos = append(todos, Todo{
+			Kind:         TodoEdgeAdded,
+			From:         e.From,
+			To:           e.To,
+			FromFilepath: nodeFilepath(e.From, specByID, markerByID),
+		})
+	}
+	for _, e := range edges {
+		if !isSpecID(e.From) || !isSpecID(e.To) {
+			continue
+		}
+		if scanEdgeSet[e.From+"\x00"+e.To] {
+			continue
+		}
+		todos = append(todos, Todo{
+			Kind:         TodoEdgeRemoved,
+			From:         e.From,
+			To:           e.To,
+			FromFilepath: nodeFilepath(e.From, specByID, markerByID),
+		})
+	}
+
+	// (3) Broken edges: scan edge whose To does not exist as a node.
+	for _, e := range scan.Edges {
+		if nodeExists(e.To) {
+			continue
+		}
+		todos = append(todos, Todo{
+			Kind:         TodoBrokenEdge,
+			From:         e.From,
+			To:           e.To,
+			FromFilepath: nodeFilepath(e.From, specByID, markerByID),
+		})
+	}
+
+	// (4) Rhizomatic closure over spec-spec edges.
+	closureTodos := computeRhizomaticClosureTodos(
+		specs, markers, edges, scan.Edges, resolutionsByEdge, scan,
+		specByID, markerByID,
+	)
+	todos = append(todos, closureTodos...)
+
+	return todos
+}
+

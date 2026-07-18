@@ -32,7 +32,12 @@ func (c DiffCommand) Run(ctx Context) (output.Result, int) {
 		}
 		edges := make([]orchestrator.DiffResult, 0, len(state.Todos))
 		for _, todo := range state.Todos {
-			result, err := ctx.Orch.Diff(todo.MarkerID, todo.SpecID)
+			// Only direct link-edge drift todos have a meaningful diff.
+			// Skip chain drift (SourceSpecID set) and structural todos.
+			if todo.Kind != core.TodoEdgeDrift || todo.SourceSpecID != "" {
+				continue
+			}
+			result, err := ctx.Orch.Diff(todo.From, todo.To)
 			if err != nil {
 				return output.ErrorResult{Command: "diff", Message: err.Error(), Exit: 1}, 1
 			}
@@ -72,16 +77,18 @@ func (c DiffCommand) Meta() Meta {
 func expandDiffEdges(orch *orchestrator.Orchestrator, state core.EvaluatedState, id string) ([]orchestrator.DiffResult, error) {
 	isSpec := strings.Contains(id, ".")
 	var pairs []struct{ marker, spec string }
-	if isSpec {
-		for _, link := range state.Links {
-			if link.SpecID == id {
-				pairs = append(pairs, struct{ marker, spec string }{link.MarkerID, link.SpecID})
-			}
+	for _, e := range state.Edges {
+		// Only link-style edges: From is marker (no dot), To is spec.
+		if isSpecIDLocal(e.From) {
+			continue
 		}
-	} else {
-		for _, link := range state.Links {
-			if link.MarkerID == id {
-				pairs = append(pairs, struct{ marker, spec string }{link.MarkerID, link.SpecID})
+		if isSpec {
+			if e.To == id {
+				pairs = append(pairs, struct{ marker, spec string }{e.From, e.To})
+			}
+		} else {
+			if e.From == id {
+				pairs = append(pairs, struct{ marker, spec string }{e.From, e.To})
 			}
 		}
 	}
@@ -97,4 +104,12 @@ func expandDiffEdges(orch *orchestrator.Orchestrator, state core.EvaluatedState,
 		edges = append(edges, result)
 	}
 	return edges, nil
+}
+
+func isSpecIDLocal(id string) bool {
+	first := strings.Index(id, ".")
+	if first < 0 {
+		return false
+	}
+	return strings.Index(id[first+1:], ".") < 0
 }

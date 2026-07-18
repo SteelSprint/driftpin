@@ -29,23 +29,53 @@ func marshal(v interface{}) string {
 // --- Todo ---
 
 type jsonTodo struct {
-	Ok              bool          `json:"ok"`
-	Specs           int           `json:"specs"`
-	Markers         int           `json:"markers"`
-	Links           int           `json:"links"`
+	Ok              bool           `json:"ok"`
+	Specs           int            `json:"specs"`
+	Markers         int            `json:"markers"`
+	Edges           int            `json:"edges"`
 	Todos           []jsonTodoItem `json:"todos"`
-	UnlinkedMarkers int           `json:"unlinkedMarkers"`
+	UnlinkedMarkers int            `json:"unlinkedMarkers"`
 }
 
 type jsonTodoItem struct {
-	Marker         string `json:"marker"`
-	Spec           string `json:"spec"`
-	MarkerLocation string `json:"markerLocation"`
-	SpecLocation   string `json:"specLocation"`
-	MarkerChanged  bool   `json:"markerChanged"`
-	SpecChanged    bool   `json:"specChanged"`
-	MarkerDeleted  bool   `json:"markerDeleted"`
-	SpecDeleted    bool   `json:"specDeleted"`
+	Kind           string `json:"kind"`
+	From           string `json:"from,omitempty"`
+	To             string `json:"to,omitempty"`
+	SourceSpec     string `json:"sourceSpec,omitempty"`
+	FromLocation   string `json:"fromLocation,omitempty"`
+	ToLocation     string `json:"toLocation,omitempty"`
+	SourceLocation string `json:"sourceLocation,omitempty"`
+	FromChanged    bool   `json:"fromChanged,omitempty"`
+	ToChanged      bool   `json:"toChanged,omitempty"`
+	FromDeleted    bool   `json:"fromDeleted,omitempty"`
+	ToDeleted      bool   `json:"toDeleted,omitempty"`
+}
+
+func todoKindString(k core.TodoKind) string {
+	switch k {
+	case core.TodoEdgeDrift:
+		return "edgeDrift"
+	case core.TodoCascade:
+		return "cascade"
+	case core.TodoEdgeAdded:
+		return "edgeAdded"
+	case core.TodoEdgeRemoved:
+		return "edgeRemoved"
+	case core.TodoBrokenEdge:
+		return "brokenEdge"
+	default:
+		return "unknown"
+	}
+}
+
+func locationOrEmpty(filepath string, line int) string {
+	if filepath == "" && line == 0 {
+		return ""
+	}
+	if filepath == "" {
+		return ":" + strconv.Itoa(line)
+	}
+	return filepath + ":" + strconv.Itoa(line)
 }
 
 func (p JSONPresenter) Todo(r TodoResult) string {
@@ -53,21 +83,24 @@ func (p JSONPresenter) Todo(r TodoResult) string {
 	items := make([]jsonTodoItem, 0, len(state.Todos))
 	for _, t := range state.Todos {
 		items = append(items, jsonTodoItem{
-			Marker:         t.MarkerID,
-			Spec:           t.SpecID,
-			MarkerLocation: t.MarkerFilepath + ":" + strconv.Itoa(t.MarkerLineNumber),
-			SpecLocation:   t.SpecFilepath + ":" + strconv.Itoa(t.SpecLineNumber),
-			MarkerChanged:  t.MarkerChanged,
-			SpecChanged:    t.SpecChanged,
-			MarkerDeleted:  t.MarkerDeleted,
-			SpecDeleted:    t.SpecDeleted,
+			Kind:           todoKindString(t.Kind),
+			From:           t.From,
+			To:             t.To,
+			SourceSpec:     t.SourceSpecID,
+			FromLocation:   locationOrEmpty(t.FromFilepath, t.FromLineNumber),
+			ToLocation:     locationOrEmpty(t.ToFilepath, t.ToLineNumber),
+			SourceLocation: locationOrEmpty(t.SourceFilepath, 0),
+			FromChanged:    t.FromChanged,
+			ToChanged:      t.ToChanged,
+			FromDeleted:    t.FromDeleted,
+			ToDeleted:      t.ToDeleted,
 		})
 	}
 	out := jsonTodo{
 		Ok:              len(state.Todos) == 0 && (len(state.Specs) > 0 || len(state.Markers) > 0),
 		Specs:           len(state.Specs),
 		Markers:         len(state.Markers),
-		Links:           len(state.Links),
+		Edges:           len(state.Edges),
 		Todos:           items,
 		UnlinkedMarkers: countUnlinkedMarkers(state),
 	}
@@ -75,9 +108,12 @@ func (p JSONPresenter) Todo(r TodoResult) string {
 }
 
 func countUnlinkedMarkers(state core.EvaluatedState) int {
-	linked := make(map[string]bool, len(state.Links))
-	for _, l := range state.Links {
-		linked[l.MarkerID] = true
+	linked := make(map[string]bool)
+	for _, e := range state.Edges {
+		if isSpecID(e.From) {
+			continue
+		}
+		linked[e.From] = true
 	}
 	n := 0
 	for _, m := range state.Markers {
@@ -93,7 +129,7 @@ func countUnlinkedMarkers(state core.EvaluatedState) int {
 type jsonList struct {
 	Specs   []jsonListSpec   `json:"specs"`
 	Markers []jsonListMarker `json:"markers"`
-	Links   []jsonListLink   `json:"links"`
+	Edges   []jsonListEdge   `json:"edges"`
 }
 
 type jsonListSpec struct {
@@ -114,9 +150,9 @@ type jsonListMarker struct {
 	Preview  string `json:"preview,omitempty"`
 }
 
-type jsonListLink struct {
-	Marker string `json:"marker"`
-	Spec   string `json:"spec"`
+type jsonListEdge struct {
+	From   string `json:"from"`
+	To     string `json:"to"`
 	Status string `json:"status"`
 }
 
@@ -124,13 +160,18 @@ func (p JSONPresenter) List(r ListResult) string {
 	state := r.State
 	drifted := make(map[string]bool)
 	for _, t := range state.Todos {
-		drifted[t.MarkerID+"\x00"+t.SpecID] = true
+		if t.Kind == core.TodoEdgeDrift && t.SourceSpecID == "" {
+			drifted[t.From+"\x00"+t.To] = true
+		}
 	}
 	linkedSpecs := make(map[string]bool)
 	linkedMarkers := make(map[string]bool)
-	for _, l := range state.Links {
-		linkedSpecs[l.SpecID] = true
-		linkedMarkers[l.MarkerID] = true
+	for _, e := range state.Edges {
+		if isSpecID(e.From) {
+			continue
+		}
+		linkedMarkers[e.From] = true
+		linkedSpecs[e.To] = true
 	}
 
 	specs := make([]jsonListSpec, 0, len(state.Specs))
@@ -171,16 +212,16 @@ func (p JSONPresenter) List(r ListResult) string {
 		markers = append(markers, entry)
 	}
 
-	links := make([]jsonListLink, 0, len(state.Links))
-	for _, l := range state.Links {
+	edges := make([]jsonListEdge, 0, len(state.Edges))
+	for _, e := range state.Edges {
 		status := "synced"
-		if drifted[l.MarkerID+"\x00"+l.SpecID] {
+		if drifted[e.From+"\x00"+e.To] || drifted[e.To+"\x00"+e.From] {
 			status = "drifted"
 		}
-		links = append(links, jsonListLink{Marker: l.MarkerID, Spec: l.SpecID, Status: status})
+		edges = append(edges, jsonListEdge{From: e.From, To: e.To, Status: status})
 	}
 
-	return marshal(jsonList{Specs: specs, Markers: markers, Links: links})
+	return marshal(jsonList{Specs: specs, Markers: markers, Edges: edges})
 }
 
 // --- Show ---

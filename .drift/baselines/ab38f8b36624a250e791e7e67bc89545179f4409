@@ -1,0 +1,53 @@
+func (s *FileStateStore) Save(state State) error {
+	if err := os.MkdirAll(s.baselinesDir(), 0755); err != nil {
+		return err
+	}
+	file := stateFileXML{
+		Version:     3,
+		Specs:       make([]specXML, len(state.Specs)),
+		Markers:     make([]markerXML, len(state.Markers)),
+		Edges:       make([]edgeXML, len(state.Edges)),
+		Resolutions: make([]edgeResolutionXML, len(state.Resolutions)),
+	}
+
+	for i, spec := range state.Specs {
+		file.Specs[i] = specXML{
+			ID:         spec.ID,
+			Hash:       spec.Hash,
+			Filepath:   spec.Filepath,
+			LineNumber: spec.LineNumber,
+		}
+	}
+
+	for i, marker := range state.Markers {
+		file.Markers[i] = markerXML{
+			ID:            marker.ID,
+			Hash:          marker.Hash,
+			Filepath:      marker.Filepath,
+			LineNumber:    marker.LineNumber,
+			EndLineNumber: marker.EndLineNumber,
+		}
+	}
+
+	for i, e := range state.Edges {
+		file.Edges[i] = edgeXML{From: e.From, To: e.To}
+	}
+
+	for i, r := range state.Resolutions {
+		file.Resolutions[i] = edgeResolutionXML{
+			From:            r.From,
+			To:              r.To,
+			CurrentFromHash: r.CurrentFromHash,
+			CurrentToHash:   r.CurrentToHash,
+		}
+	}
+
+	data, err := xml.MarshalIndent(file, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	data = append(data, '\n')
+	return os.WriteFile(s.statePath(), data, 0644)
+}
+

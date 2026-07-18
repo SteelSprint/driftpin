@@ -1,0 +1,27 @@
+// computeRefTodos emits todos for ref-graph drift. Phase A stub: returns nil
+// so behavior is unchanged until the rhizomatic closure algorithm lands.
+//
+// When fully implemented, this function will emit:
+//   - TodoRefAdded / TodoRefRemoved for edges that appear in only one of
+//     {baseline refs, scan refs}.
+//   - TodoBrokenRef for refs whose target ID does not resolve to a spec.
+//   - TodoRefChain for specs transitively connected (via the undirected ref
+//     graph) to a changed spec, with no covering ref resolution.
+//   - TodoCascade for markers linked to a ref-chain-drifted spec.
+func computeRefTodos(
+	specs []Spec,
+	markers []Marker,
+	links []Link,
+	refs []Ref,
+	refResolutionsByEdge map[string]RefResolutionState,
+	scan Scan,
+) []Todo {
+	_ = specs
+	_ = markers
+	_ = links
+	_ = refs
+	_ = refResolutionsByEdge
+	_ = scan
+	return nil
+}
+

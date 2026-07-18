@@ -1,0 +1,1 @@
+Color mode is an independent presenter implementation that renders from Result data using shared prose constants. Color is NOT a wrapper over Plain; it formats each method's output from the Result independently. Color emits ANSI sequences per the palette. See <ref spec="output.color_palette">color palette</ref> and <ref spec="output_impl.color_presenter">ColorPresenter</ref>.

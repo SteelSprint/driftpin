@@ -1,0 +1,56 @@
+func (ctx CoreAlgorithmContext) Validate() error {
+	seenSpecIDs := make(map[string]bool, len(ctx.Specs))
+	for _, spec := range ctx.Specs {
+		if seenSpecIDs[spec.ID] {
+			return fmt.Errorf("%w: %q", ErrDuplicateSpecID, spec.ID)
+		}
+		seenSpecIDs[spec.ID] = true
+	}
+	seenMarkerIDs := make(map[string]bool, len(ctx.Markers))
+	for _, marker := range ctx.Markers {
+		if seenMarkerIDs[marker.ID] {
+			return fmt.Errorf("%w: %q", ErrDuplicateMarkerID, marker.ID)
+		}
+		seenMarkerIDs[marker.ID] = true
+	}
+	seenLinkKeys := make(map[string]bool, len(ctx.Links))
+	for _, link := range ctx.Links {
+		if !seenSpecIDs[link.SpecID] {
+			return fmt.Errorf("%w: %q", ErrLinkUnknownSpec, link.SpecID)
+		}
+		if !seenMarkerIDs[link.MarkerID] {
+			return fmt.Errorf("%w: %q", ErrLinkUnknownMarker, link.MarkerID)
+		}
+		linkKey := link.SpecID + "\x00" + link.MarkerID
+		if seenLinkKeys[linkKey] {
+			return fmt.Errorf("%w: spec=%q marker=%q", ErrDuplicateLink, link.SpecID, link.MarkerID)
+		}
+		seenLinkKeys[linkKey] = true
+	}
+	seenResolutionKeys := make(map[string]bool, len(ctx.ResolutionState))
+	for _, res := range ctx.ResolutionState {
+		if !seenSpecIDs[res.SpecID] {
+			return fmt.Errorf("%w: %q", ErrResolutionUnknownSpec, res.SpecID)
+		}
+		if !seenMarkerIDs[res.MarkerID] {
+			return fmt.Errorf("%w: %q", ErrResolutionUnknownMarker, res.MarkerID)
+		}
+		linkKey := res.SpecID + "\x00" + res.MarkerID
+		if !seenLinkKeys[linkKey] {
+			return fmt.Errorf("%w: spec=%q marker=%q", ErrResolutionEdgeNotLinked, res.SpecID, res.MarkerID)
+		}
+		resolutionKey := resolutionEdgeKey(res.MarkerID, res.SpecID)
+		if seenResolutionKeys[resolutionKey] {
+			return fmt.Errorf("%w: spec=%q marker=%q", ErrDuplicateResolution, res.SpecID, res.MarkerID)
+		}
+		seenResolutionKeys[resolutionKey] = true
+	}
+	if err := validateRefs(ctx.Specs, ctx.Refs); err != nil {
+		return err
+	}
+	if err := validateRefResolutions(ctx.Specs, ctx.Refs, ctx.RefResolutions); err != nil {
+		return err
+	}
+	return nil
+}
+

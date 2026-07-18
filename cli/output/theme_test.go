@@ -86,6 +86,6 @@ func TestThemeZeroValue(t *testing.T) {
 		t.Error("zero-value Theme.StatusOK should not modify text")
 	}
 	if theme.MarkerID.Apply("cdisp") != "cdisp" {
-		t.Error("zero-value Theme.MarkerID should not modify text")
+		t.Error("zero-value Theme.From should not modify text")
 	}
 }

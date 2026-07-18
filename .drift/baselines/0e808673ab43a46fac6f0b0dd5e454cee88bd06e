@@ -1,0 +1,59 @@
+
+// refPattern matches a <ref> element with a required spec="…" attribute in
+// either self-closing form (<ref spec="X" />) or paired form
+// (<ref spec="X">label</ref>). Group 1 captures the spec ID; group 2 captures
+// the label text (empty for self-closing).
+//
+// The grammar is intentionally strict: the spec attribute must use double
+// quotes and must be the first attribute. Refs with single-quoted attrs,
+// reordered attrs, or additional attrs are rejected by the malformed-tag
+// check in processSpecContent. This keeps parsing deterministic and the
+// canonicalization rules easy to reason about.
+var refPattern = regexp.MustCompile(`<ref\s+spec="([^"]+)"\s*(?:/>|>([^<]*)</ref\s*>)`)
+
+// anyRefOpenPattern matches any opening <ref or self-closing <ref …/> tag,
+// including malformed ones. Used to detect refs the strict refPattern
+// refused to parse (typos like <ref sprc="X"> or <red spec="X">).
+var anyRefOpenPattern = regexp.MustCompile(`<ref[\s/>]`)
+
+// processSpecContent extracts <ref spec="…"> edges from a spec's innerxml
+// and returns the canonical content (refs replaced by their label text, or
+// removed entirely for self-closing refs) plus the list of referenced spec
+// IDs in the order they appear. The canonical content is what gets hashed:
+// renaming a referenced spec ID (and updating the <ref spec="…"> to match)
+// leaves the hash unchanged, so ID renames stay localized instead of
+// invalidating every transitively-ref'ing spec.
+//
+// Returns an error if any <ref-looking tag is malformed (does not match
+// refPattern). Refs pointing to nonexistent specs are NOT an error here —
+// those surface as TodoBrokenRef drift items at todo time, per the
+// rhizomatic-model design.
+func processSpecContent(innerxml string) (canonical string, targets []string, err error) {
+	matches := refPattern.FindAllStringSubmatchIndex(innerxml, -1)
+	openCount := len(anyRefOpenPattern.FindAllStringIndex(innerxml, -1))
+	if openCount != len(matches) {
+		return "", nil, fmt.Errorf("malformed <ref> tag in spec content: %d opening tag(s) but only %d matched the strict grammar (spec=\"…\" required, double-quoted, first attribute)", openCount, len(matches))
+	}
+
+	if len(matches) == 0 {
+		return strings.TrimSpace(innerxml), nil, nil
+	}
+
+	var buf strings.Builder
+	buf.Grow(len(innerxml))
+	prev := 0
+	for _, m := range matches {
+		// m[0]:m[1] = full match
+		// m[2]:m[3] = spec ID (group 1)
+		// m[4]:m[5] = label (group 2); -1:-1 if self-closing
+		buf.WriteString(innerxml[prev:m[0]])
+		if m[4] != -1 {
+			buf.WriteString(innerxml[m[4]:m[5]])
+		}
+		targets = append(targets, innerxml[m[2]:m[3]])
+		prev = m[1]
+	}
+	buf.WriteString(innerxml[prev:])
+	return strings.TrimSpace(buf.String()), targets, nil
+}
+

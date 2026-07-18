@@ -1,0 +1,1 @@
+JSON mode serializes a per-command structured object via encoding/json. Output is a single JSON object with no trailing newline (main.go adds the newline). Field order is deterministic (struct-defined, not map[string]interface{}). JSON output NEVER contains ANSI sequences. See <ref spec="output.json_schema">JSON schema</ref>.

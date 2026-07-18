@@ -1,0 +1,52 @@
+func (ctx CoreAlgorithmContext) Validate() error {
+	seenSpecIDs := make(map[string]bool, len(ctx.Specs))
+	for _, spec := range ctx.Specs {
+		if seenSpecIDs[spec.ID] {
+			return fmt.Errorf("%w: %q", ErrDuplicateSpecID, spec.ID)
+		}
+		seenSpecIDs[spec.ID] = true
+	}
+	seenMarkerIDs := make(map[string]bool, len(ctx.Markers))
+	for _, marker := range ctx.Markers {
+		if seenMarkerIDs[marker.ID] {
+			return fmt.Errorf("%w: %q", ErrDuplicateMarkerID, marker.ID)
+		}
+		seenMarkerIDs[marker.ID] = true
+	}
+	knownNode := func(id string) bool {
+		return seenSpecIDs[id] || seenMarkerIDs[id]
+	}
+	seenEdgeKeys := make(map[string]bool, len(ctx.Edges))
+	for _, edge := range ctx.Edges {
+		if !knownNode(edge.From) {
+			return fmt.Errorf("%w: %q", ErrEdgeUnknownFrom, edge.From)
+		}
+		if !knownNode(edge.To) {
+			return fmt.Errorf("%w: %q", ErrEdgeUnknownTo, edge.To)
+		}
+		if edge.From == edge.To {
+			return fmt.Errorf("%w: %q", ErrEdgeSelfReference, edge.From)
+		}
+		key := edge.From + "\x00" + edge.To
+		if seenEdgeKeys[key] {
+			return fmt.Errorf("%w: from=%q to=%q", ErrDuplicateEdge, edge.From, edge.To)
+		}
+		seenEdgeKeys[key] = true
+	}
+	if err := detectEdgeCycle(ctx.Edges); err != nil {
+		return err
+	}
+	seenResolutionKeys := make(map[string]bool, len(ctx.Resolutions))
+	for _, res := range ctx.Resolutions {
+		if !seenEdgeKeys[res.From+"\x00"+res.To] && !seenEdgeKeys[res.To+"\x00"+res.From] {
+			return fmt.Errorf("%w: from=%q to=%q", ErrResolutionEdgeMissing, res.From, res.To)
+		}
+		key := res.From + "\x00" + res.To
+		if seenResolutionKeys[key] {
+			return fmt.Errorf("%w: from=%q to=%q", ErrDuplicateResolution, res.From, res.To)
+		}
+		seenResolutionKeys[key] = true
+	}
+	return nil
+}
+

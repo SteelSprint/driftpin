@@ -1,0 +1,53 @@
+func collapseResolvedNodes(
+	edges []Edge,
+	specsByID map[string]*Spec,
+	markersByID map[string]*Marker,
+	resolutionsByEdge map[string]EdgeResolution,
+	scan Scan,
+	collapsedMarkers map[string]bool,
+	collapsedSpecs map[string]bool,
+) {
+	for {
+		anyNodeCollapsed := false
+		for markerID, marker := range markersByID {
+			if collapsedMarkers[markerID] {
+				continue
+			}
+			if nodeHasAllEdgesChecked(markerID, edges, specsByID, markersByID, resolutionsByEdge, scan) {
+				if scan.MarkerHashes[markerID] == "" {
+					delete(markersByID, markerID)
+					collapsedMarkers[markerID] = true
+				} else {
+					marker.Hash = scan.MarkerHashes[markerID]
+					collapsedMarkers[markerID] = true
+				}
+				anyNodeCollapsed = true
+			}
+		}
+		for specID, spec := range specsByID {
+			if collapsedSpecs[specID] {
+				continue
+			}
+			if nodeHasAllEdgesChecked(specID, edges, specsByID, markersByID, resolutionsByEdge, scan) {
+				if scan.SpecHashes[specID] == "" {
+					delete(specsByID, specID)
+					collapsedSpecs[specID] = true
+				} else {
+					spec.Hash = scan.SpecHashes[specID]
+					collapsedSpecs[specID] = true
+				}
+				anyNodeCollapsed = true
+			}
+		}
+		if !anyNodeCollapsed {
+			break
+		}
+	}
+	for nodeID := range collapsedMarkers {
+		pruneResolutionsForCollapsedNode(resolutionsByEdge, nodeID, edges, specsByID, markersByID, scan)
+	}
+	for nodeID := range collapsedSpecs {
+		pruneResolutionsForCollapsedNode(resolutionsByEdge, nodeID, edges, specsByID, markersByID, scan)
+	}
+}
+

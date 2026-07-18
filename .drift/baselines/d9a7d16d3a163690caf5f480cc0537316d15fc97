@@ -1,0 +1,1 @@
+Unlink acquires an exclusive state lock for the entire Load→modify→Save window, loads State, finds the link-style edge matching the given marker and spec, removes it from Edges, also removes any EdgeResolutions referencing the pair in either direction, and saves the State. If no matching edge exists, returns an error.

@@ -1,0 +1,19 @@
+func nodeHasAllEdgesChecked(
+	nodeID string,
+	edges []Edge,
+	specsByID map[string]*Spec,
+	markersByID map[string]*Marker,
+	resolutionsByEdge map[string]EdgeResolution,
+	scan Scan,
+) bool {
+	for _, e := range edges {
+		if e.From != nodeID && e.To != nodeID {
+			continue
+		}
+		if edgeIsUnchecked(e, specsByID, markersByID, resolutionsByEdge, scan) {
+			return false
+		}
+	}
+	return true
+}
+

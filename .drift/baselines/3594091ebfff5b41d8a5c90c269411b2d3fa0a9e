@@ -1,0 +1,123 @@
+func validateRefs(specs []Spec, refs []Ref) error {
+	seenSpecIDs := make(map[string]bool, len(specs))
+	for _, s := range specs {
+		seenSpecIDs[s.ID] = true
+	}
+	seenRefKeys := make(map[string]bool, len(refs))
+	for _, ref := range refs {
+		if !seenSpecIDs[ref.FromSpec] {
+			return fmt.Errorf("%w: %q", ErrRefUnknownSpec, ref.FromSpec)
+		}
+		if !seenSpecIDs[ref.ToSpec] {
+			return fmt.Errorf("%w: %q", ErrRefUnknownSpec, ref.ToSpec)
+		}
+		if ref.FromSpec == ref.ToSpec {
+			return fmt.Errorf("%w: %q", ErrRefSelfReference, ref.FromSpec)
+		}
+		// Dedup on the declared (from, to) pair. The mirror (to, from) is a
+		// distinct declared edge — but if both exist they trivially form a
+		// 2-cycle and are rejected by cycle detection below.
+		key := ref.FromSpec + "\x00" + ref.ToSpec
+		if seenRefKeys[key] {
+			return fmt.Errorf("%w: from=%q to=%q", ErrDuplicateRef, ref.FromSpec, ref.ToSpec)
+		}
+		seenRefKeys[key] = true
+	}
+	if err := detectRefCycle(refs); err != nil {
+		return err
+	}
+	return nil
+}
+
+// detectRefCycle runs DFS over the directed ref graph and returns ErrRefCycle
+// (with the offending path) on the first back-edge encountered.
+func detectRefCycle(refs []Ref) error {
+	adj := make(map[string][]string)
+	for _, r := range refs {
+		adj[r.FromSpec] = append(adj[r.FromSpec], r.ToSpec)
+	}
+	const (
+		white = 0
+		gray  = 1
+		black = 2
+	)
+	color := make(map[string]int)
+	var stack []string
+	var visit func(node string) error
+	visit = func(node string) error {
+		color[node] = gray
+		stack = append(stack, node)
+		for _, next := range adj[node] {
+			switch color[next] {
+			case gray:
+				path := append(append([]string{}, stack...), next)
+				return fmt.Errorf("%w: %s", ErrRefCycle, joinPath(path))
+			case white:
+				if err := visit(next); err != nil {
+					return err
+				}
+			}
+		}
+		stack = stack[:len(stack)-1]
+		color[node] = black
+		return nil
+	}
+	// Iterate in sorted order for deterministic error messages.
+	var nodes []string
+	for n := range adj {
+		nodes = append(nodes, n)
+	}
+	sort.Strings(nodes)
+	for _, n := range nodes {
+		if color[n] == white {
+			if err := visit(n); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func joinPath(nodes []string) string {
+	out := ""
+	for i, n := range nodes {
+		if i > 0 {
+			out += " → "
+		}
+		out += n
+	}
+	return out
+}
+
+func validateRefResolutions(specs []Spec, refs []Ref, resolutions []RefResolutionState) error {
+	seenSpecIDs := make(map[string]bool, len(specs))
+	for _, s := range specs {
+		seenSpecIDs[s.ID] = true
+	}
+	// Index ref edges by undirected key. A ref resolution may reference an
+	// edge in either direction.
+	edgeKeys := make(map[string]bool, len(refs))
+	for _, r := range refs {
+		edgeKeys[r.FromSpec+"\x00"+r.ToSpec] = true
+		edgeKeys[r.ToSpec+"\x00"+r.FromSpec] = true
+	}
+	seenResKeys := make(map[string]bool, len(resolutions))
+	for _, res := range resolutions {
+		if !seenSpecIDs[res.ReviewedSpec] {
+			return fmt.Errorf("%w: %q", ErrRefResolutionUnknownSpec, res.ReviewedSpec)
+		}
+		if !seenSpecIDs[res.SourceSpec] {
+			return fmt.Errorf("%w: %q", ErrRefResolutionUnknownSpec, res.SourceSpec)
+		}
+		if !edgeKeys[res.ReviewedSpec+"\x00"+res.SourceSpec] {
+			return fmt.Errorf("%w: reviewed=%q source=%q", ErrRefResolutionEdgeMissing, res.ReviewedSpec, res.SourceSpec)
+		}
+		key := res.ReviewedSpec + "\x00" + res.SourceSpec
+		if seenResKeys[key] {
+			return fmt.Errorf("%w: reviewed=%q source=%q", ErrDuplicateRefResolution, res.ReviewedSpec, res.SourceSpec)
+		}
+		seenResKeys[key] = true
+	}
+	return nil
+}
+
