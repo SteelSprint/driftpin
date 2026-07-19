@@ -14,10 +14,10 @@ import (
 )
 
 //go:embed skill.md
-var skillContent string
+var SkillContent string
 
 //go:embed help.txt
-var helpContent string
+var HelpContent string
 
 //go:embed init_main.drift.xml
 var initMainDriftXML string
@@ -59,7 +59,7 @@ func RunWithRender(args []string, dir string, presenter output.Presenter) (strin
 	args = stripGlobalFlags(args)
 
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		return presenter.Text(output.TextResult{Text: helpContent}), 0
+		return presenter.Text(output.TextResult{Text: HelpContent}), 0
 	}
 
 	if help, ok := subcommandHelp(args[0]); ok && len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
@@ -73,7 +73,7 @@ func RunWithRender(args []string, dir string, presenter output.Presenter) (strin
 	cmd, ok := Registry[args[0]]
 	if !ok {
 		return presenter.Error(output.ErrorResult{
-			Message: fmt.Sprintf("unknown command: %s\n\n%s", args[0], helpContent),
+			Message: fmt.Sprintf("unknown command: %s\n\n%s", args[0], HelpContent),
 			Exit:    1,
 		}), 1
 	}

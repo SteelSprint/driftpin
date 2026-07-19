@@ -57,6 +57,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 - Markers can be nested and overlapping — the scanner blank inner-marker declarations before hashing, so they don't interfere.
 - Marker syntax (`//`, `#`, `--`, etc.) works in any comment style across any text file.
 
+### Marker placement (refactors)
+
+When you extract helpers or move code across a marker boundary:
+
+- **Keep the marker on the public entry-point function** that the spec describes. If a spec describes what `Validate` does, the marker wraps `Validate` — not the helpers it now calls.
+- Helpers stay outside the marked range unless they warrant their own spec + marker.
+- Nested markers are supported but produce noisier diffs and are not preferred — prefer one marker per spec.
+- Drift is content-addressed. A marker reports changes to the bytes inside its range. Refactors that move code across a marker boundary without changing behavior still produce NODE_CHANGED events (intentional). There is no "this was just a refactor" annotation — the reviewer's job is to confirm the move didn't change semantics, then reset.
+
 ## Linking
 
 `drift link <marker> <module.spec>` connects a marker to a spec. After linking, drift tracks the marker's hash and the spec's hash; if either changes, drift derives a closure.
@@ -130,6 +139,24 @@ Every closure contains one or more events:
 - **Per-seed**: each closure has one seed (the citer-side party of the change). Reset syncs only the seed's events. Non-seed citers' state is untouched.
 - **Strictly disjoint**: two seeds produce two closures, even when sharing non-seed citers. Resetting one closure never affects another.
 - **Broken edges persist**: closures with broken-edge events survive reset (the broken edge event is a no-op on reset). The user must fix the scan to clear the broken edge.
+
+## Decision tree
+
+Drift is a deterministic signal — it reports that a hash changed but does not judge whether the change is semantically consistent with the spec. The decision tree is the rubric you (human or LLM) apply to decide what to fix before resetting.
+
+For each event in the closure, ask the question in the right column and act:
+
+| Event kind                | Question to ask                                                       | If yes                                   | If no                                              |
+| ------------------------- | -------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------- |
+| `NODE_CHANGED` on marker  | Does the code still implement the spec?                              | Reset the closure                        | Fix the code so it does, then reset              |
+| `NODE_CHANGED` on spec    | Does the spec still describe what the code does?                      | Reset the closure                        | Fix the spec text (or the code, whichever is wrong), then reset |
+| `NODE_ADDED`              | Is this node supposed to be tracked here?                             | Reset the closure                        | Delete or relink the file/entity, then reset      |
+| `NODE_REMOVED`            | Was this deletion intentional?                                       | Reset the closure                        | Restore the file, then reset                      |
+| `EDGE_ADDED`              | Is the new ref intentional?                                          | Reset the closure                        | Remove the ref from the spec text, then reset     |
+| `EDGE_REMOVED`            | Was the removal intentional?                                         | Reset the closure                        | Restore the ref in the spec text, then reset      |
+| `EDGE_BROKEN`             | (always — drift can't auto-fix)                                       | Fix the scan: add the missing spec, or remove the ref | — |
+
+When two events live in the same closure (e.g. spec text changed AND the linked marker hash changed), the closure's hash stays the same; reset syncs the seed's events, which includes both.
 
 ## Output modes
 

@@ -10,6 +10,31 @@ import (
 	"drift/internal/testutil"
 )
 
+// TestSkill_ContainsDecisionTree asserts that `drift skill`'s output
+// includes the Decision tree section referenced by cli.skill_decision_tree.
+func TestSkill_ContainsDecisionTree(t *testing.T) {
+	if !strings.Contains(cli.SkillContent, "## Decision tree") {
+		t.Fatalf("skill.md missing '## Decision tree' section header")
+	}
+	// Spot-check that the table covers every event kind.
+	for _, kind := range []string{
+		"NODE_CHANGED", "NODE_ADDED", "NODE_REMOVED",
+		"EDGE_ADDED", "EDGE_REMOVED", "EDGE_BROKEN",
+	} {
+		if !strings.Contains(cli.SkillContent, kind) {
+			t.Fatalf("skill.md decision tree missing event kind %q", kind)
+		}
+	}
+}
+
+// TestSkill_ContainsMarkerPlacement asserts that `drift skill`'s output
+// includes the Marker placement section.
+func TestSkill_ContainsMarkerPlacement(t *testing.T) {
+	if !strings.Contains(cli.SkillContent, "## Marker placement") {
+		t.Fatalf("skill.md missing '## Marker placement' section header")
+	}
+}
+
 // TestCLI_ClosureWorkflow exercises the closure-driven UX end-to-end:
 // init → link → drift → todo shows closures → reset by hash → clean.
 func TestCLI_ClosureWorkflow(t *testing.T) {

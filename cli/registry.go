@@ -24,8 +24,8 @@ var Registry = map[string]commands.Command{
 	"link":    commands.LinkCommand{},
 	"unlink":  commands.UnlinkCommand{},
 	"reset":   commands.ResetCommand{},
-	"help":    commands.HelpCommand{Text: helpContent},
-	"skill":   commands.SkillCommand{Text: skillContent},
+	"help":    commands.HelpCommand{Text: HelpContent},
+	"skill":   commands.SkillCommand{Text: SkillContent},
 	"version": commands.VersionCommand{},
 	"config":  commands.ConfigCommand{},
 }
