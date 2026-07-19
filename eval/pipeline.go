@@ -38,7 +38,7 @@ func NewPipeline(repoRoot, label, fixtureName, subjectModel, judgeModel string) 
 	}
 }
 
-func (p *Pipeline) Run(prompt string, dryRun bool) error {
+func (p *Pipeline) Run(prompt string, dryRun bool, skipJudge bool) error {
 	p.printf("=== eval run ===\n")
 	p.printf("subject model: %s\n", p.subjectModel)
 	p.printf("judge model:   %s\n", p.judgeModel)
@@ -57,6 +57,11 @@ func (p *Pipeline) Run(prompt string, dryRun bool) error {
 		return fmt.Errorf("subject: %w", err)
 	}
 	p.println("[subject] done")
+
+	if skipJudge {
+		p.println("[skip-judge] skipping judge pass; subject transcript preserved")
+		return nil
+	}
 
 	if err := p.runJudge(prompt); err != nil {
 		return fmt.Errorf("judge: %w", err)
@@ -401,7 +406,7 @@ func (p *Pipeline) RunDir() string {
 	return p.runDir
 }
 
-func synthesize(repoRoot, batchLabel string, runDirs []string, judgeModel string, dryRun bool) error {
+func synthesize(repoRoot, batchLabel string, runDirs []string, judgeModel string, dryRun bool, skipJudge bool) error {
 	stdoutMu.Lock()
 	fmt.Printf("\n=== synthesis: %s ===\n", batchLabel)
 	fmt.Printf("runs: %d\n", len(runDirs))
@@ -411,6 +416,13 @@ func synthesize(repoRoot, batchLabel string, runDirs []string, judgeModel string
 	if dryRun {
 		stdoutMu.Lock()
 		fmt.Println("[dry-run] skipping synthesis LLM call")
+		stdoutMu.Unlock()
+		return nil
+	}
+
+	if skipJudge {
+		stdoutMu.Lock()
+		fmt.Println("[skip-judge] skipping synthesis (no report.md to synthesize)")
 		stdoutMu.Unlock()
 		return nil
 	}

@@ -17,14 +17,15 @@ type promptItem struct {
 
 func main() {
 	var (
-	subjectModel = flag.String("subject", "openrouter/xiaomi/mimo-v2.5-pro", "subject LLM model ID")
-	judgeModel   = flag.String("judge", "openrouter/z-ai/glm-5.2", "judge LLM model ID")
-	battery      = flag.Bool("battery", false, "run all prompts in eval/prompts/ instead of a single prompt")
-	only         = flag.String("only", "", "comma-separated list of prompt names to run (implies --battery). Example: --only level1,level2,level3")
-	runs         = flag.Int("runs", 2, "number of battery prompts to run (capped by available prompts)")
-	repeat       = flag.Int("repeat", 1, "repeat each prompt N times for statistical baseline")
-	label        = flag.String("label", "", "label for this run (defaults to timestamp)")
-	dryRun       = flag.Bool("dry-run", false, "stage only, skip LLM calls")
+		subjectModel = flag.String("subject", "openrouter/xiaomi/mimo-v2.5-pro", "subject LLM model ID")
+		judgeModel   = flag.String("judge", "openrouter/z-ai/glm-5.2", "judge LLM model ID")
+		battery      = flag.Bool("battery", false, "run all prompts in eval/prompts/ instead of a single prompt")
+		only         = flag.String("only", "", "comma-separated list of prompt names to run (implies --battery). Example: --only level1,level2,level3")
+		runs         = flag.Int("runs", 2, "number of battery prompts to run (capped by available prompts)")
+		repeat       = flag.Int("repeat", 1, "repeat each prompt N times for statistical baseline")
+		label        = flag.String("label", "", "label for this run (defaults to timestamp)")
+		dryRun       = flag.Bool("dry-run", false, "stage only, skip LLM calls")
+		skipJudge    = flag.Bool("skip-judge", false, "skip the judge pass; subject transcripts are still written. Useful for cheap iteration when the subject signal is the primary value")
 	)
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: go run ./eval [flags] [prompt]\n\n")
@@ -109,7 +110,7 @@ func main() {
 					rl = fmt.Sprintf("%s-r%d", runLabel, idx)
 				}
 				pipe := NewPipeline(repoRoot, rl, p.name, *subjectModel, *judgeModel)
-				err := pipe.Run(p.content, *dryRun)
+				err := pipe.Run(p.content, *dryRun, *skipJudge)
 				results[idx] = runResult{dir: pipe.RunDir(), err: err}
 			}(idx, prompt)
 		}
@@ -124,7 +125,7 @@ func main() {
 		runDirs = append(runDirs, r.dir)
 	}
 
-	if err := synthesize(repoRoot, runLabel, runDirs, *judgeModel, *dryRun); err != nil {
+	if err := synthesize(repoRoot, runLabel, runDirs, *judgeModel, *dryRun, *skipJudge); err != nil {
 		fatal("synthesize failed: %v", err)
 	}
 }
