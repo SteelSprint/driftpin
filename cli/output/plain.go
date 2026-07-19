@@ -273,8 +273,10 @@ func (p PlainPresenter) List(r ListResult) string {
 	}
 
 	if len(state.Edges) > 0 {
-		sb.WriteString(fmt.Sprintf("\nEdges (%d):\n", len(state.Edges)))
-		for _, e := range state.Edges {
+		sortedEdges := append([]core.Edge(nil), state.Edges...)
+		sortEdgesByFromTo(sortedEdges)
+		sb.WriteString(fmt.Sprintf("\nEdges (%d):\n", len(sortedEdges)))
+		for _, e := range sortedEdges {
 			status := "[synced]"
 			if driftedNodes[e.From] || driftedNodes[e.To] {
 				status = "[DRIFTED]"

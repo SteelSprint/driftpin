@@ -1,0 +1,113 @@
+func (p PlainPresenter) List(r ListResult) string {
+	state := r.State
+	if len(state.Specs) == 0 && len(state.Markers) == 0 {
+		return "No specs or markers registered.\nRun `drift init` to get started, then create spec files (*.drift.xml) and place " + markerSyntax + " markers in your code."
+	}
+
+	driftedNodes := make(map[string]bool)
+	for _, c := range state.Closures {
+		for _, n := range c.Nodes {
+			driftedNodes[n.ID] = true
+		}
+	}
+
+	linkedSpecs := make(map[string]bool)
+	linkedMarkers := make(map[string]bool)
+	for _, e := range state.Edges {
+		if isSpecIDOutput(e.From) {
+			continue
+		}
+		linkedMarkers[e.From] = true
+		linkedSpecs[e.To] = true
+	}
+
+	var sb strings.Builder
+
+	sortedSpecs := make([]core.Spec, len(state.Specs))
+	copy(sortedSpecs, state.Specs)
+	sortSpecsByID(sortedSpecs)
+
+	sb.WriteString(fmt.Sprintf("Specs (%d):\n", len(sortedSpecs)))
+	for _, spec := range sortedSpecs {
+		linkFlag := ""
+		if spec.Deleted {
+			linkFlag = " [deleted]"
+		} else if !linkedSpecs[spec.ID] {
+			linkFlag = " [unlinked]"
+		}
+		if driftedNodes[spec.ID] {
+			linkFlag += " [DRIFTED]"
+		}
+		sb.WriteString(fmt.Sprintf("  %-30s %s%s\n", spec.ID, spec.Filepath, linkFlag))
+		if r.Verbose && !spec.Deleted {
+			if content, ok := r.SpecContents[spec.ID]; ok && len(content) > 0 {
+				preview := content
+				if len(preview) > 80 {
+					preview = preview[:80] + "..."
+				}
+				sb.WriteString(fmt.Sprintf("    %s\n", preview))
+			}
+		}
+	}
+
+	sortedMarkers := make([]core.Marker, len(state.Markers))
+	copy(sortedMarkers, state.Markers)
+	sortMarkersByID(sortedMarkers)
+
+	sb.WriteString(fmt.Sprintf("\nMarkers (%d):\n", len(sortedMarkers)))
+	for _, marker := range sortedMarkers {
+		linkFlag := ""
+		if marker.Deleted {
+			linkFlag = " [deleted]"
+		} else if !linkedMarkers[marker.ID] {
+			linkFlag = " [unlinked]"
+		}
+		if driftedNodes[marker.ID] {
+			linkFlag += " [DRIFTED]"
+		}
+		sb.WriteString(fmt.Sprintf("  %-30s %s:%d-%d%s\n", marker.ID, marker.Filepath, marker.LineNumber, marker.EndLineNumber, linkFlag))
+		if r.Verbose && !marker.Deleted {
+			if content, ok := r.MarkerContents[marker.ID]; ok && len(content) > 0 {
+				firstLine := strings.Split(content, "\n")[0]
+				if len(firstLine) > 80 {
+					firstLine = firstLine[:80] + "..."
+				}
+				if firstLine != "" {
+					sb.WriteString(fmt.Sprintf("    %s\n", firstLine))
+				}
+			}
+		}
+	}
+
+	if len(state.Edges) > 0 {
+		sortedEdges := append([]core.Edge(nil), state.Edges...)
+		sortEdgesByFromTo(sortedEdges)
+		sb.WriteString(fmt.Sprintf("\nEdges (%d):\n", len(sortedEdges)))
+		for _, e := range sortedEdges {
+			status := "[synced]"
+			if driftedNodes[e.From] || driftedNodes[e.To] {
+				status = "[DRIFTED]"
+			}
+			sb.WriteString(fmt.Sprintf("  %-30s → %-30s %s\n", e.From, e.To, status))
+		}
+	}
+
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+func sortSpecsByID(specs []core.Spec) {
+	for i := 1; i < len(specs); i++ {
+		for j := i; j > 0 && specs[j-1].ID > specs[j].ID; j-- {
+			specs[j], specs[j-1] = specs[j-1], specs[j]
+		}
+	}
+}
+
+func sortMarkersByID(markers []core.Marker) {
+	for i := 1; i < len(markers); i++ {
+		for j := i; j > 0 && markers[j-1].ID > markers[j].ID; j-- {
+			markers[j], markers[j-1] = markers[j-1], markers[j]
+		}
+	}
+}
+

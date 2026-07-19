@@ -237,3 +237,20 @@ func DiffEdgeExists(state core.EvaluatedState, markerID, specID string) bool {
 	}
 	return false
 }
+
+// sortEdgesByFromTo sorts a slice of edges lexicographically by (From, To).
+// Used by the List presenters to produce diff-stable output across runs
+// (state-store mutations may otherwise shuffle the slice). See
+// cli.list_format.
+func sortEdgesByFromTo(edges []core.Edge) {
+	for i := 1; i < len(edges); i++ {
+		for j := i; j > 0; j-- {
+			a, b := edges[j-1], edges[j]
+			if a.From > b.From || (a.From == b.From && a.To > b.To) {
+				edges[j-1], edges[j] = edges[j], edges[j-1]
+			} else {
+				break
+			}
+		}
+	}
+}
