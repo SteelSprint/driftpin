@@ -1,0 +1,46 @@
+<module name="diff">
+<spec id="unified_format">
+Overview: UnifiedDiff computes a unified-diff style comparison of two text inputs, suitable for human review in `drift diff` output. The format follows the conventional `@@ -oldStart,oldCount +newStart,newCount @@` hunk-header shape with single-character prefixes on body lines.
+
+Defined terms:
+  hunk      — a contiguous region of change surrounded by up to contextLines (R4) of unchanged context on each side
+  op        — a single classified line; kind is ' ' (context), '-' (removed), or '+' (added)
+  context   — an op of kind ' '
+  change    — an op of kind '-' or '+'
+
+Requirements:
+  R1. UnifiedDiff(old, new) MUST return an empty string when old and new are equal (byte-identical after line normalization per R3).
+  R2. UnifiedDiff MUST return an empty string when both inputs are empty.
+  R3. UnifiedDiff MUST normalize "\r\n" to "\n" before comparison so that Windows-style newlines do not produce spurious diffs.
+  R4. Each hunk MUST include up to 3 lines of unchanged context on each side of a change region. Two change regions separated by more than 2*3+1 context lines MUST produce separate hunks.
+  R5. Each hunk body line MUST be prefixed with one of: ' ' (context), '-' (removed from old), '+' (added in new).
+  R6. The hunk header MUST be of the form "@@ -OS,OC +NS,NC @@" where OS/NS are 1-based start line numbers and OC/NC are line counts. When count is 1, the ",N" suffix MUST be omitted (e.g. "@@ -5 +6,2 @@"), matching GNU diff convention.
+  R7. When count is 0, the start MUST be decremented by 1 (e.g. an insertion at line 5 of old reports "@@ -4,0 +5,N @@"), matching GNU diff convention.
+  R8. The output MUST NOT have a trailing newline; callers add line breaks as needed.
+  R9. The diff algorithm MUST be the classic O(m*n) LCS dynamic-programming algorithm. The output is deterministic for equal inputs regardless of platform or runtime.
+
+Algorithm:
+  (i)   Split both inputs into lines (splitLines).
+  (ii)  Compute the LCS DP table (lcsTable).
+  (iii) Walk the table backwards to classify each line as context/removed/added (diffOps).
+  (iv)  Group ops into hunks of up to 3 context lines each side (buildHunks).
+  (v)   Format each hunk header + body (formatHunkHeader, formatRange).
+
+See also: cli.diff_command, output.diff_seed_label.
+</spec>
+
+<spec id="range_format">
+Overview: formatRange formats a single side (old or new) of a hunk header per GNU diff conventions.
+
+Defined terms:
+  count — the number of lines on this side covered by the hunk (may be 0, 1, or many)
+
+Requirements:
+  R1. With count == 0, formatRange MUST emit "prefix(start-1),0" where start is the 1-based line number before the insertion point. (GNU convention: zero-count ranges report the line before.)
+  R2. With count == 1, formatRange MUST emit "prefix start" with no comma or count suffix.
+  R3. With count > 1, formatRange MUST emit "prefix start,count".
+  R4. itoa(n) MUST return the decimal representation of n, including a leading '-' for negative inputs and "0" for zero.
+
+See also: diff.unified_format.
+</spec>
+</module>

@@ -13,6 +13,8 @@ import (
 // resolution happens here so that every Presenter implementation — Plain,
 // Color, JSON — formats from identical, fully-resolved data.
 
+// D! id=obldl range-start
+
 // resolvePath joins dir with a relative path, or returns p unchanged if it's
 // already absolute.
 func resolvePath(dir, p string) string {
@@ -63,6 +65,10 @@ func BuildListResult(state core.EvaluatedState, dir string, verbose bool) ListRe
 	}
 	return result
 }
+
+// D! id=obldl range-end
+
+// D! id=oblds range-start
 
 // BuildShowResult constructs a ShowResult by resolving the entity lookup and
 // reading all file content. Returns a non-nil error when content reading fails
@@ -198,6 +204,10 @@ func buildShowMarkerResult(state core.EvaluatedState, dir, markerID string) (Sho
 	}, nil
 }
 
+// D! id=oblds range-end
+
+// D! id=oblde range-start
+
 // EntityExists reports whether the given ID exists in state as a spec or
 // marker. Used by the dispatch to set the exit code for `drift show`.
 func EntityExists(state core.EvaluatedState, id string) bool {
@@ -254,3 +264,5 @@ func sortEdgesByFromTo(edges []core.Edge) {
 		}
 	}
 }
+
+// D! id=oblde range-end

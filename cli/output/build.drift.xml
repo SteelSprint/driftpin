@@ -1,0 +1,44 @@
+<module name="build">
+<spec id="list_result">
+Overview: BuildListResult constructs a ListResult by resolving file content for each spec and marker when verbose mode is requested. Presenters consume the fully-resolved result; they never perform I/O themselves.
+
+Defined terms:
+  verbose — when true, content previews are read from disk and stored in SpecContents / MarkerContents maps; when false, both maps are nil
+
+Requirements:
+  R1. BuildListResult MUST skip specs and markers marked Deleted (no content read attempted for missing files).
+  R2. When verbose is false, BuildListResult MUST return a ListResult with nil SpecContents and nil MarkerContents. The presenter renders the compact view.
+  R3. When verbose is true, BuildListResult MUST populate SpecContents[specID] and MarkerContents[markerID] for every non-deleted spec and marker. Entries whose content read fails MUST be silently omitted (partial result is preferred over hard failure for list output).
+  R4. BuildListResult MUST NOT return an error; content-read failures are best-effort.
+
+See also: cli.list_format.
+</spec>
+
+<spec id="show_result">
+Overview: BuildShowResult constructs a ShowResult for a single spec or marker identified by ID, resolving content and linked entities from state and disk. Used by `drift show &lt;id&gt;`.
+
+Defined terms:
+  isSpec — heuristic: ID contains exactly one dot → spec; no dot → marker
+
+Requirements:
+  R1. BuildShowResult MUST dispatch on isSpecID(id): spec IDs (containing a dot) route to buildShowSpecResult; marker IDs (no dot) route to buildShowMarkerResult.
+  R2. If the primary entity is not found in state, BuildShowResult MUST return a ShowResult with nil Spec and nil Marker and a nil error. The caller (drift show command) sets exit code 1.
+  R3. If the primary entity's content cannot be read from disk, BuildShowResult MUST return a non-nil error wrapping the read failure. The caller maps this to exit code 1.
+  R4. For a spec result, BuildShowResult MUST resolve all linked markers (markers whose From points to this spec) and their content. Linked-marker content reads that fail MUST be silently omitted (R3 applies only to the primary entity).
+  R5. For a marker result, BuildShowResult MUST resolve all linked specs (specs whose ID appears as To in any edge with this marker as From) and their content. Linked-spec content reads that fail MUST be silently omitted.
+  R6. Inbound and outbound spec-spec references (OutboundRefs, InboundRefs) MUST be computed from the baseline edge set, deduplicated, and order-stable (insertion order from the edge slice).
+
+See also: cli.show_command.
+</spec>
+
+<spec id="edge_predicates">
+Overview: EntityExists and DiffEdgeExists query state for the existence of nodes and edges, used by command dispatch to set exit codes without constructing full results.
+
+Requirements:
+  R1. EntityExists(state, id) MUST return true if and only if id matches a spec ID (when id contains a dot) or a marker ID (when id has no dot) in state.
+  R2. DiffEdgeExists(state, markerID, specID) MUST return true if and only if both the named marker and the named spec exist in state.
+  R3. sortEdgesByFromTo MUST sort edges lexicographically by (From, To) using insertion sort. The sort MUST be stable to preserve deterministic output across state-store iteration orders.
+
+See also: cli.show_command, cli.list_format.
+</spec>
+</module>

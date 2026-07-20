@@ -12,4 +12,37 @@
 <spec id="range_markers">Every marker must declare a range-start or range-end suffix as part of the marker line. This is enforced by the marker regex (the suffix is required for a match, not optional) — lines matching D! id=foo without a suffix do not match and are silently ignored. Each range-start with ID X must have a matching range-end with ID X in the same file appearing after the start. Each range-end with ID X must have a matching range-start with ID X in the same file appearing before the end. The scanner reports all unpaired markers at once, not fail-on-first.</spec>
 <spec id="marker_blanking">Before hashing a marker's range, every line within the range that matches the marker pattern has its D! declaration stripped (from D! to end of line), leaving only the comment prefix. This makes markers invisible to each other's hashes, enabling nested and overlapping ranges without interference.</spec>
 <spec id="ref_parsing">processSpecContent extracts &lt;ref spec="…"&gt; edges from a spec's innerxml using a strict regex grammar: the spec attribute must use double quotes and appear as the first attribute, in either self-closing form (&lt;ref spec="X" /&gt;) or paired form (&lt;ref spec="X"&gt;label&lt;/ref&gt;). It returns the canonical content (each ref replaced by its label text, or removed entirely for self-closing refs) plus the list of referenced spec IDs in source order. Duplicate (from, to) pairs within the same spec are deduped at the scanner level so validation never sees them. Malformed &lt;ref&gt; tags (typos like &lt;red spec="X"&gt; or missing spec attribute) cause a scan error; refs to nonexistent spec IDs do NOT error here — they surface as TodoBrokenEdge drift items. See principles.specs_are_truth.</spec>
+<spec id="spec_content_read">
+Overview: ReadSpecContent reads a .drift.xml file and returns the trimmed inner text of the &lt;spec&gt; element whose id attribute matches the local part (post-dot suffix) of a fully-qualified spec ID. Used by drift diff, drift show, drift list --verbose, and writeBaseline to read or seed baseline content snapshots.
+
+Defined terms:
+  specID    — fully-qualified spec ID (e.g. "core.validate"); the local part is the substring after the first dot
+  localID   — the local part of specID (e.g. "validate")
+
+Requirements:
+  R1. ReadSpecContent(filepath, specID) MUST return an error if specID does not contain a dot.
+  R2. ReadSpecContent MUST parse the file as XML and locate the first &lt;spec&gt; element whose id attribute equals localID.
+  R3. ReadSpecContent MUST return the trimmed inner content of the matched spec element. Trimming removes leading and trailing whitespace.
+  R4. If no matching spec element exists in the file, ReadSpecContent MUST return an error naming the specID and filepath.
+  R5. ReadSpecContent MUST NOT strip &lt;ref&gt; tags from the returned content. Refs are stripped only for canonical hashing (see scanner.spec_discovery); display content preserves them verbatim.
+
+See also: scanner.spec_discovery, build.show_result, pinstore.baselines.
+</spec>
+<spec id="marker_content_read">
+Overview: ReadMarkerContent reads a code file and returns the lines between a marker's range-start and range-end, with nested marker declarations blanked. Used by drift diff, drift show, drift list --verbose, and writeBaseline.
+
+Defined terms:
+  startLine — the line number (1-indexed) immediately after the range-start marker
+  endLine   — the line number (1-indexed) of the range-end marker line itself
+  half-open range — [startLine, endLine-1]; excludes both marker lines
+
+Requirements:
+  R1. ReadMarkerContent(filepath, startLine, endLine) MUST return the lines in the half-open range [startLine, endLine-1], 1-indexed.
+  R2. Lines within the range that contain a nested "D! id=" marker declaration MUST have that declaration stripped (from "D!" to end of line) but the remainder of the line preserved.
+  R3. If the range extends past the end of the file, ReadMarkerContent MUST return only the available lines without error.
+  R4. The returned content MUST end with a trailing newline when at least one line is returned; an empty result MUST be the empty string (no trailing newline).
+  R5. ReadMarkerContent MUST NOT strip lines matching the parent range-start or range-end markers — those are excluded by the half-open range definition.
+
+See also: scanner.marker_discovery, scanner.range_markers, scanner.marker_blanking, build.show_result.
+</spec>
 </module>

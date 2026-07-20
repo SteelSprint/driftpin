@@ -9,6 +9,8 @@ import (
 	"drift/cli/output"
 )
 
+// D! id=mmain range-start
+
 var version = "dev"
 
 func main() {
@@ -26,3 +28,5 @@ func main() {
 	}
 	os.Exit(code)
 }
+
+// D! id=mmain range-end

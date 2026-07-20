@@ -59,4 +59,21 @@ Requirements:
 
 See also: fileio.session, fileio.read.
 </spec>
+<spec id="platform_syscalls">
+Overview: The platform-specific lock acquisition and release functions translate the cross-platform Session contract (fileio.session) into the actual syscall API of the host operating system. Exactly one of fileio_unix.go or fileio_windows.go is compiled into any given build, selected by Go's build-tag mechanism.
+
+Defined terms:
+  lockFileExclusive(f *os.File) — internal helper that acquires LOCK_EX (Unix) or LOCKFILE_EXCLUSIVE_LOCK (Windows) on the given file descriptor; blocks until acquired
+  unlockFile(f *os.File)        — internal helper that releases the lock AND closes the file descriptor
+
+Requirements:
+  R1. fileio_unix.go MUST be compiled only when GOOS != windows. fileio_windows.go MUST be compiled only when GOOS == windows. The two files MUST never both compile into the same binary.
+  R2. lockFileExclusive MUST block until the lock is acquired; it MUST NOT return early with a timeout or "would block" error.
+  R3. On Unix, lockFileExclusive MUST call unix.Flock(fd, unix.LOCK_EX). The lock is associated with the open file description; closing any duplicated fd releases the lock.
+  R4. On Windows, lockFileExclusive MUST call windows.LockFileEx with the LOCKFILE_EXCLUSIVE_LOCK flag (0x2). The lock range MUST be at least 1 byte starting at offset 0.
+  R5. unlockFile MUST release the lock (flock LOCK_UN on Unix; UnlockFileEx on Windows) AND close the file descriptor.
+  R6. unlockFile MUST release the lock before closing the fd; if release fails, the fd MUST still be closed to avoid leaking descriptors.
+
+See also: fileio.session.
+</spec>
 </module>

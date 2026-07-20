@@ -8,6 +8,8 @@ import (
 	"drift/orchestrator"
 )
 
+// D! id=cinitcmd range-start
+
 // InitCommand implements `drift init`.
 type InitCommand struct {
 	InitTemplate string // starter main.drift.xml content, injected by Registry
@@ -34,6 +36,8 @@ func (c InitCommand) Run(ctx Context) (output.Result, int) {
 		Message: "Initialized .drift/ and main.drift.xml\nEdit main.drift.xml to add your specs, then place " + markerSyntax + " markers in your code.\nRun `drift skill` for a comprehensive guide.",
 	}, 0
 }
+
+// D! id=cinitcmd range-end
 
 func (c InitCommand) Meta() Meta {
 	return Meta{

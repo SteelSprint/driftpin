@@ -8,10 +8,13 @@
   <import path="./core/core.drift.xml" />
   <import path="./scanner/scanner.drift.xml" />
   <import path="./internal/fileio/fileio.drift.xml" />
+  <import path="./internal/diff/diff.drift.xml" />
   <import path="./statestore/statestore.drift.xml" />
   <import path="./orchestrator/orchestrator.drift.xml" />
   <import path="./cli/cli.drift.xml" />
   <import path="./cli/output/output_intent.drift.xml" />
+  <import path="./cli/output/build.drift.xml" />
   <import path="./cli/output/output.drift.xml" />
   <import path="./cli/output/output_impl.drift.xml" />
+  <import path="./eval/eval.drift.xml" />
 </main>

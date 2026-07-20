@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+// D! id=scon range-start
+
 // ReadSpecContent reads the .drift.xml file at filepath, locates the <spec>
 // element whose id attribute matches the local part of specID (the suffix
 // after the first dot), and returns its trimmed inner content.
@@ -47,6 +49,10 @@ func ReadSpecContent(filepath, specID string) (string, error) {
 	}
 	return "", fmt.Errorf("spec %q not found in %s", specID, filepath)
 }
+
+// D! id=scon range-end
+
+// D! id=mcon range-start
 
 var showMarkerPattern = regexp.MustCompile(`D!\s+id=\S+`)
 
@@ -97,3 +103,5 @@ func ReadMarkerContent(filepath string, startLine, endLine int) (string, error) 
 	}
 	return content, nil
 }
+
+// D! id=mcon range-end

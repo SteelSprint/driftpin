@@ -2,6 +2,8 @@ package diff
 
 import "strings"
 
+// D! id=dunif range-start
+
 // UnifiedDiff returns a unified-diff style string comparing old and new.
 // Uses LCS-based algorithm with 3 lines of context. Returns empty string
 // when inputs are identical (or both empty).
@@ -204,20 +206,6 @@ func buildHunks(oldLines, newLines []string) []hunk {
 	return hunks
 }
 
-func formatHunkHeader(oldStart, oldCount, newStart, newCount int) string {
-	return formatRange("@@ -", oldStart, oldCount) + formatRange(" +", newStart, newCount) + " @@"
-}
-
-func formatRange(prefix string, start, count int) string {
-	if count == 0 {
-		return prefix + itoa(start-1) + ",0"
-	}
-	if count == 1 {
-		return prefix + itoa(start)
-	}
-	return prefix + itoa(start) + "," + itoa(count)
-}
-
 func itoa(n int) string {
 	if n == 0 {
 		return "0"
@@ -239,3 +227,23 @@ func itoa(n int) string {
 	}
 	return string(buf[i:])
 }
+
+// D! id=dunif range-end
+
+// D! id=dfmt range-start
+
+func formatHunkHeader(oldStart, oldCount, newStart, newCount int) string {
+	return formatRange("@@ -", oldStart, oldCount) + formatRange(" +", newStart, newCount) + " @@"
+}
+
+func formatRange(prefix string, start, count int) string {
+	if count == 0 {
+		return prefix + itoa(start-1) + ",0"
+	}
+	if count == 1 {
+		return prefix + itoa(start)
+	}
+	return prefix + itoa(start) + "," + itoa(count)
+}
+
+// D! id=dfmt range-end

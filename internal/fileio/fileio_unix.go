@@ -8,6 +8,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// D! id=fsysu range-start
+
 // lockFileExclusive acquires an exclusive advisory lock on the file using
 // flock (Unix). Blocks until acquired. The lock is released when the file
 // descriptor is closed.
@@ -22,3 +24,5 @@ func unlockFile(f *os.File) error {
 	}
 	return f.Close()
 }
+
+// D! id=fsysu range-end

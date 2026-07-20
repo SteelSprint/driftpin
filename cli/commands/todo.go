@@ -7,6 +7,8 @@ import (
 	"drift/core"
 )
 
+// D! id=ctodocmd range-start
+
 // TodoCommand implements `drift todo`.
 type TodoCommand struct{}
 
@@ -46,6 +48,8 @@ func isSpecIDLocal(id string) bool {
 	}
 	return strings.Index(id[first+1:], ".") < 0
 }
+
+// D! id=ctodocmd range-end
 
 func (c TodoCommand) Meta() Meta {
 	return Meta{

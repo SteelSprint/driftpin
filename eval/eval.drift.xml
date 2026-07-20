@@ -1,0 +1,22 @@
+<module name="eval">
+<spec id="entry_point">
+Overview: eval/main.go is the standalone entry point for the eval harness, invoked via `go run ./eval [flags] [prompt]`. It parses flags, constructs an eval pipeline, and dispatches either a single-prompt run or a battery run across multiple prompts in parallel.
+
+Defined terms:
+  subject — the LLM being tested (drives drift against a fixture workspace)
+  judge   — the LLM scoring the subject's output
+  battery — running all (or N) prompts under eval/prompts/ instead of one explicit prompt
+  repeat  — running the same prompt N times for statistical baseline
+
+Requirements:
+  R1. main MUST accept flags: --subject, --judge, --battery, --only, --runs, --repeat, --label, --dry-run, --skip-judge.
+  R2. --only MUST imply --battery and MUST accept a comma-separated list of prompt names; only those prompts run.
+  R3. --runs MUST be capped by the number of available prompts when --battery is set.
+  R4. --dry-run MUST stage the run (write workspace setup) but skip LLM calls.
+  R5. --skip-judge MUST run the subject pass but skip the judge pass; subject transcripts MUST still be written.
+  R6. When no prompt is supplied positionally and --battery/--only is not set, main MUST print usage to stderr and exit non-zero.
+  R7. Per-prompt overrides via &lt;name&gt;-subject.md and &lt;name&gt;-judge.md files alongside &lt;name&gt;.md MUST be honored when present.
+
+See also: eval.pipeline (when specced).
+</spec>
+</module>

@@ -8,6 +8,10 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// Windows implementation of fileio.platform_syscalls. Not visible to drift's
+// scanner on non-Windows hosts (build-tagged); the Unix counterpart in
+// fileio_unix.go carries the marker for this spec on Linux/macOS.
+
 // lockFileExclusive acquires an exclusive advisory lock on the file using
 // LockFileEx (Windows). Blocks until acquired. The lock is released when the
 // file handle is closed.
