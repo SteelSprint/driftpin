@@ -1,16 +1,3 @@
-package commands
-
-import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
-
-	"drift/cli/output"
-)
-
-// D! id=ccfg range-start
 
 // ConfigCommand handles `drift config <key> [value]` — user-specific
 // preferences stored in .drift/user-settings.xml (not committed to git).
@@ -106,4 +93,3 @@ func (c ConfigCommand) Meta() Meta {
 	}
 }
 
-// D! id=ccfg range-end

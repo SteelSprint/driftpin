@@ -9,7 +9,8 @@ import (
 func TestLoadCustomTheme(t *testing.T) {
 	t.Run("file_not_exist_returns_ErrNotExist", func(t *testing.T) {
 		dir := t.TempDir()
-		_, err := LoadCustomTheme(dir)
+		sess := beginSettingsSession(t, dir)
+		_, err := LoadCustomTheme(sess)
 		if !os.IsNotExist(err) {
 			t.Fatalf("expected os.ErrNotExist, got: %v", err)
 		}
@@ -17,6 +18,7 @@ func TestLoadCustomTheme(t *testing.T) {
 
 	t.Run("valid_full_theme", func(t *testing.T) {
 		dir := t.TempDir()
+		sess := beginSettingsSession(t, dir)
 		xml := `<theme>
   <element id="marker_id" color="94" bold="true"/>
   <element id="spec_id" color="95" bold="true"/>
@@ -37,10 +39,9 @@ func TestLoadCustomTheme(t *testing.T) {
   <element id="code_keyword" color="96"/>
   <element id="code_number" color="93"/>
 </theme>`
-		os.MkdirAll(filepath.Join(dir, ".drift"), 0755)
 		os.WriteFile(filepath.Join(dir, ".drift", "theme.xml"), []byte(xml), 0644)
 
-		theme, err := LoadCustomTheme(dir)
+		theme, err := LoadCustomTheme(sess)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -63,18 +64,17 @@ func TestLoadCustomTheme(t *testing.T) {
 
 	t.Run("missing_element_returns_error_naming_it", func(t *testing.T) {
 		dir := t.TempDir()
+		sess := beginSettingsSession(t, dir)
 		xml := `<theme>
   <element id="marker_id" color="94" bold="true"/>
   <element id="spec_id" color="95" bold="true"/>
 </theme>`
-		os.MkdirAll(filepath.Join(dir, ".drift"), 0755)
 		os.WriteFile(filepath.Join(dir, ".drift", "theme.xml"), []byte(xml), 0644)
 
-		_, err := LoadCustomTheme(dir)
+		_, err := LoadCustomTheme(sess)
 		if err == nil {
 			t.Fatal("expected error for missing elements, got nil")
 		}
-		// Error should name the first missing element
 		if !contains(err.Error(), "filepath") {
 			t.Errorf("error should mention 'filepath' (first missing element), got: %s", err.Error())
 		}
@@ -82,6 +82,7 @@ func TestLoadCustomTheme(t *testing.T) {
 
 	t.Run("256_color_values", func(t *testing.T) {
 		dir := t.TempDir()
+		sess := beginSettingsSession(t, dir)
 		xml := `<theme>
   <element id="marker_id" color="38;5;33" bold="true"/>
   <element id="spec_id" color="38;5;162" bold="true"/>
@@ -102,10 +103,9 @@ func TestLoadCustomTheme(t *testing.T) {
   <element id="code_keyword" color="38;5;33"/>
   <element id="code_number" color="38;5;136"/>
 </theme>`
-		os.MkdirAll(filepath.Join(dir, ".drift"), 0755)
 		os.WriteFile(filepath.Join(dir, ".drift", "theme.xml"), []byte(xml), 0644)
 
-		theme, err := LoadCustomTheme(dir)
+		theme, err := LoadCustomTheme(sess)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

@@ -8,12 +8,29 @@ import (
 
 	"drift/cli/commands"
 	"drift/cli/output"
+	"drift/internal/fileio"
 )
+
+// beginConfigTestSession creates a project dir + .drift/ and returns a
+// commands.Context with Args preset and a live Session for I/O.
+func beginConfigTestSession(t *testing.T, args []string) (commands.Context, func()) {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".drift"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	sess, err := fileio.Begin(dir)
+	if err != nil {
+		t.Fatalf("fileio.Begin: %v", err)
+	}
+	ctx := commands.Context{Args: args, Dir: dir, Sess: sess}
+	return ctx, func() { sess.Close() }
+}
 
 func TestConfigTheme(t *testing.T) {
 	t.Run("set_theme_writes_user_settings", func(t *testing.T) {
-		dir := t.TempDir()
-		ctx := commands.Context{Args: []string{"config", "theme", "gruvbox"}, Dir: dir}
+		ctx, cleanup := beginConfigTestSession(t, []string{"config", "theme", "gruvbox"})
+		defer cleanup()
 
 		result, code := commands.ConfigCommand{}.Run(ctx)
 		if code != 0 {
@@ -21,7 +38,7 @@ func TestConfigTheme(t *testing.T) {
 		}
 
 		// Verify user-settings.xml was written
-		settings, err := output.LoadUserSettings(dir)
+		settings, err := output.LoadUserSettings(ctx.Sess)
 		if err != nil {
 			t.Fatalf("LoadUserSettings: %v", err)
 		}
@@ -31,9 +48,8 @@ func TestConfigTheme(t *testing.T) {
 	})
 
 	t.Run("print_theme_no_args", func(t *testing.T) {
-		dir := t.TempDir()
-		// No user-settings.xml — should show default
-		ctx := commands.Context{Args: []string{"config", "theme"}, Dir: dir}
+		ctx, cleanup := beginConfigTestSession(t, []string{"config", "theme"})
+		defer cleanup()
 
 		result, code := commands.ConfigCommand{}.Run(ctx)
 		if code != 0 {
@@ -50,13 +66,13 @@ func TestConfigTheme(t *testing.T) {
 	})
 
 	t.Run("print_theme_after_setting", func(t *testing.T) {
-		dir := t.TempDir()
+		ctx, cleanup := beginConfigTestSession(t, []string{"config", "theme", "nord"})
+		defer cleanup()
+
 		// Set theme first
-		commands.ConfigCommand{}.Run(commands.Context{
-			Args: []string{"config", "theme", "nord"}, Dir: dir,
-		})
+		commands.ConfigCommand{}.Run(ctx)
 		// Now read it
-		ctx := commands.Context{Args: []string{"config", "theme"}, Dir: dir}
+		ctx.Args = []string{"config", "theme"}
 		result, code := commands.ConfigCommand{}.Run(ctx)
 		if code != 0 {
 			t.Fatalf("exit code = %d, want 0", code)
@@ -69,8 +85,8 @@ func TestConfigTheme(t *testing.T) {
 	})
 
 	t.Run("invalid_theme_name_rejected", func(t *testing.T) {
-		dir := t.TempDir()
-		ctx := commands.Context{Args: []string{"config", "theme", "nonexistent"}, Dir: dir}
+		ctx, cleanup := beginConfigTestSession(t, []string{"config", "theme", "nonexistent"})
+		defer cleanup()
 
 		result, code := commands.ConfigCommand{}.Run(ctx)
 		if code != 1 {
@@ -87,8 +103,8 @@ func TestConfigTheme(t *testing.T) {
 	})
 
 	t.Run("no_subcommand_usage_error", func(t *testing.T) {
-		dir := t.TempDir()
-		ctx := commands.Context{Args: []string{"config"}, Dir: dir}
+		ctx, cleanup := beginConfigTestSession(t, []string{"config"})
+		defer cleanup()
 
 		_, code := commands.ConfigCommand{}.Run(ctx)
 		if code != 1 {
@@ -97,8 +113,8 @@ func TestConfigTheme(t *testing.T) {
 	})
 
 	t.Run("unknown_config_key", func(t *testing.T) {
-		dir := t.TempDir()
-		ctx := commands.Context{Args: []string{"config", "unknown_key"}, Dir: dir}
+		ctx, cleanup := beginConfigTestSession(t, []string{"config", "unknown_key"})
+		defer cleanup()
 
 		_, code := commands.ConfigCommand{}.Run(ctx)
 		if code != 1 {
@@ -107,12 +123,12 @@ func TestConfigTheme(t *testing.T) {
 	})
 
 	t.Run("gitignore_created_on_first_setting", func(t *testing.T) {
-		dir := t.TempDir()
-		ctx := commands.Context{Args: []string{"config", "theme", "dracula"}, Dir: dir}
+		ctx, cleanup := beginConfigTestSession(t, []string{"config", "theme", "dracula"})
+		defer cleanup()
 
 		commands.ConfigCommand{}.Run(ctx)
 
-		gitignorePath := filepath.Join(dir, ".drift", ".gitignore")
+		gitignorePath := filepath.Join(ctx.Dir, ".drift", ".gitignore")
 		data, err := os.ReadFile(gitignorePath)
 		if err != nil {
 			t.Fatalf(".drift/.gitignore should exist: %v", err)

@@ -1,6 +1,3 @@
-package output
-
-// D! id=ousr range-start
 
 import (
 	"encoding/xml"
@@ -53,4 +50,3 @@ func SaveUserSettings(sess *fileio.Session, settings UserSettings) error {
 	return sess.Write("user-settings.xml", data)
 }
 
-// D! id=ousr range-end
