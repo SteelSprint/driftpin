@@ -1,0 +1,140 @@
+func (o *Orchestrator) Unlink(sess *fileio.Session, markerID, specID string) error {
+	_, err := o.UnlinkWithSummary(sess, markerID, specID)
+	return err
+}
+
+// UnlinkWithSummary does the same work as Unlink and returns the ChangeSummary.
+func (o *Orchestrator) UnlinkWithSummary(sess *fileio.Session, markerID, specID string) (ChangeSummary, error) {
+	return o.unlinkInner(sess, markerID, specID, true)
+}
+
+// PreviewUnlink computes the ChangeSummary Unlink would apply, WITHOUT saving.
+func (o *Orchestrator) PreviewUnlink(sess *fileio.Session, markerID, specID string) (ChangeSummary, error) {
+	return o.unlinkInner(sess, markerID, specID, false)
+}
+
+func (o *Orchestrator) unlinkInner(sess *fileio.Session, markerID, specID string, save bool) (ChangeSummary, error) {
+	beforeState, err := o.stateStore.Load(sess)
+	if err != nil {
+		return ChangeSummary{}, err
+	}
+
+	edgeIndex := -1
+	for i, e := range beforeState.Edges {
+		if e.From == markerID && e.To == specID {
+			edgeIndex = i
+			break
+		}
+	}
+	if edgeIndex == -1 {
+		return ChangeSummary{}, fmt.Errorf("%w: marker=%q spec=%q", ErrUnlinkNotFound, markerID, specID)
+	}
+
+	newEdges := make([]core.Edge, 0, len(beforeState.Edges)-1)
+	newEdges = append(newEdges, beforeState.Edges[:edgeIndex]...)
+	newEdges = append(newEdges, beforeState.Edges[edgeIndex+1:]...)
+
+	afterState := statestore.State{
+		Specs:   beforeState.Specs,
+		Markers: beforeState.Markers,
+		Edges:   newEdges,
+	}
+	if save {
+		if err := o.stateStore.Save(sess, afterState); err != nil {
+			return ChangeSummary{}, err
+		}
+	}
+	summary := computeChangeSummary(beforeState, afterState, fmt.Sprintf("unlink %s → %s", markerID, specID))
+	return summary, nil
+}
+
+// computeChangeSummary diffs two statestore.State values and returns a
+// ChangeSummary describing the mutations. Used by reset/link/unlink in both
+// preview (dry-run) and post-apply forms. See output.change_summary_format.
+func computeChangeSummary(before, after statestore.State, operation string) ChangeSummary {
+	summary := ChangeSummary{Operation: operation}
+
+	beforeSpecs := make(map[string]core.Spec, len(before.Specs))
+	for _, s := range before.Specs {
+		beforeSpecs[s.ID] = s
+	}
+	afterSpecs := make(map[string]core.Spec, len(after.Specs))
+	for _, s := range after.Specs {
+		afterSpecs[s.ID] = s
+	}
+	for id, a := range afterSpecs {
+		if b, ok := beforeSpecs[id]; ok {
+			if b.Hash != a.Hash {
+				summary.NodeChanges = append(summary.NodeChanges, NodeChange{
+					ID: id, Kind: "changed", OldHash: b.Hash, NewHash: a.Hash,
+				})
+			}
+		} else {
+			summary.NodeChanges = append(summary.NodeChanges, NodeChange{
+				ID: id, Kind: "added", NewHash: a.Hash,
+			})
+		}
+	}
+	for id, b := range beforeSpecs {
+		if _, ok := afterSpecs[id]; !ok {
+			summary.NodeChanges = append(summary.NodeChanges, NodeChange{
+				ID: id, Kind: "removed", OldHash: b.Hash,
+			})
+		}
+	}
+
+	beforeMarkers := make(map[string]core.Marker, len(before.Markers))
+	for _, m := range before.Markers {
+		beforeMarkers[m.ID] = m
+	}
+	afterMarkers := make(map[string]core.Marker, len(after.Markers))
+	for _, m := range after.Markers {
+		afterMarkers[m.ID] = m
+	}
+	for id, a := range afterMarkers {
+		if b, ok := beforeMarkers[id]; ok {
+			if b.Hash != a.Hash {
+				summary.NodeChanges = append(summary.NodeChanges, NodeChange{
+					ID: id, Kind: "changed", OldHash: b.Hash, NewHash: a.Hash,
+				})
+			}
+		} else {
+			summary.NodeChanges = append(summary.NodeChanges, NodeChange{
+				ID: id, Kind: "added", NewHash: a.Hash,
+			})
+		}
+	}
+	for id, b := range beforeMarkers {
+		if _, ok := afterMarkers[id]; !ok {
+			summary.NodeChanges = append(summary.NodeChanges, NodeChange{
+				ID: id, Kind: "removed", OldHash: b.Hash,
+			})
+		}
+	}
+
+	beforeEdgeSet := make(map[string]bool, len(before.Edges))
+	for _, e := range before.Edges {
+		beforeEdgeSet[e.From+"\x00"+e.To] = true
+	}
+	afterEdgeSet := make(map[string]bool, len(after.Edges))
+	for _, e := range after.Edges {
+		afterEdgeSet[e.From+"\x00"+e.To] = true
+	}
+	for _, e := range after.Edges {
+		if !beforeEdgeSet[e.From+"\x00"+e.To] {
+			summary.EdgeChanges = append(summary.EdgeChanges, EdgeChange{
+				From: e.From, To: e.To, Kind: "added",
+			})
+		}
+	}
+	for _, e := range before.Edges {
+		if !afterEdgeSet[e.From+"\x00"+e.To] {
+			summary.EdgeChanges = append(summary.EdgeChanges, EdgeChange{
+				From: e.From, To: e.To, Kind: "removed",
+			})
+		}
+	}
+
+	return summary
+}
+

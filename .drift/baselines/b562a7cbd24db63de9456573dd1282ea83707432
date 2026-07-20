@@ -1,0 +1,33 @@
+func (o *Orchestrator) Todo(sess *fileio.Session) (core.EvaluatedState, error) {
+	state, err := o.stateStore.Load(sess)
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	reconciledSpecs, err := reconcileSpecs(state.Specs, scanResult.Specs)
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	reconciledMarkers, err := reconcileMarkers(state.Markers, scanResult.Markers)
+	if err != nil {
+		return core.EvaluatedState{}, err
+	}
+
+	scan := buildScan(scanResult, reconciledSpecs, reconciledMarkers)
+
+	ctx := core.CoreAlgorithmContext{
+		Specs:   reconciledSpecs,
+		Markers: reconciledMarkers,
+		Edges:   state.Edges,
+		Action:  core.TodoAction{Scan: scan},
+	}
+
+	return o.core.EvaluateState(ctx)
+}
+

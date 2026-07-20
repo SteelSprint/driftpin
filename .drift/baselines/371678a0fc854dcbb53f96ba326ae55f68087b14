@@ -1,0 +1,1 @@
+Unlink receives a caller-provided fileio.Session (see fileio.session) whose lock is already held for the entire Load→modify→Save window. It loads State via the Session, finds the link-style edge matching the given marker and spec, removes it from Edges, and saves the State via the Session. If no matching edge exists, returns an error.

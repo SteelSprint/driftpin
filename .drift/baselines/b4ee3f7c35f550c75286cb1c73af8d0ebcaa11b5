@@ -1,0 +1,217 @@
+// DiffClosure returns per-node diff results for every node referenced by
+// the closure: each spec node produces a DiffResult with Spec set, each
+// marker node produces a DiffResult with Marker set.
+func (o *Orchestrator) DiffClosure(sess *fileio.Session, hash string) ([]DiffResult, error) {
+	state, err := o.stateStore.Load(sess)
+	if err != nil {
+		return nil, err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return nil, err
+	}
+
+	reconciledSpecs, err := reconcileSpecs(state.Specs, scanResult.Specs)
+	if err != nil {
+		return nil, err
+	}
+	reconciledMarkers, err := reconcileMarkers(state.Markers, scanResult.Markers)
+	if err != nil {
+		return nil, err
+	}
+
+	scan := buildScan(scanResult, reconciledSpecs, reconciledMarkers)
+	closures := core.DeriveClosures(reconciledSpecs, reconciledMarkers, state.Edges, scan)
+
+	var target *core.Closure
+	for i := range closures {
+		if closures[i].Hash == hash {
+			target = &closures[i]
+			break
+		}
+	}
+	if target == nil {
+		return nil, ErrDiffClosureNotFound
+	}
+
+	seen := map[string]bool{}
+	seedSet := make(map[string]bool, len(target.Seeds))
+	for _, s := range target.Seeds {
+		seedSet[s] = true
+	}
+	var out []DiffResult
+	for _, n := range target.Nodes {
+		if seen[n.ID] {
+			continue
+		}
+		seen[n.ID] = true
+		isSeed := seedSet[n.ID]
+		if n.IsSpec {
+			side := o.buildSpecDiffSide(n.ID, reconciledSpecs, scanResult)
+			if side != nil {
+				out = append(out, DiffResult{Spec: side, IsSeed: isSeed})
+			}
+		} else {
+			side := o.buildMarkerDiffSide(n.ID, reconciledMarkers, scanResult)
+			if side != nil {
+				out = append(out, DiffResult{Marker: side, IsSeed: isSeed})
+			}
+		}
+	}
+	return out, nil
+}
+
+// DiffAll returns per-closure diff results, one entry per closure.
+type ClosureDiff struct {
+	Hash   string
+	Events []core.DriftEvent
+	Diffs  []DiffResult
+}
+
+func (o *Orchestrator) DiffAll(sess *fileio.Session) ([]ClosureDiff, core.EvaluatedState, error) {
+	state, err := o.stateStore.Load(sess)
+	if err != nil {
+		return nil, core.EvaluatedState{}, err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return nil, core.EvaluatedState{}, err
+	}
+
+	reconciledSpecs, err := reconcileSpecs(state.Specs, scanResult.Specs)
+	if err != nil {
+		return nil, core.EvaluatedState{}, err
+	}
+	reconciledMarkers, err := reconcileMarkers(state.Markers, scanResult.Markers)
+	if err != nil {
+		return nil, core.EvaluatedState{}, err
+	}
+
+	scan := buildScan(scanResult, reconciledSpecs, reconciledMarkers)
+	closures := core.DeriveClosures(reconciledSpecs, reconciledMarkers, state.Edges, scan)
+
+	evaluated := core.EvaluatedState{
+		Specs:    reconciledSpecs,
+		Markers:  reconciledMarkers,
+		Edges:    state.Edges,
+		Closures: closures,
+	}
+
+	out := make([]ClosureDiff, 0, len(closures))
+	for _, c := range closures {
+		var diffs []DiffResult
+		seen := map[string]bool{}
+		seedSet := make(map[string]bool, len(c.Seeds))
+		for _, s := range c.Seeds {
+			seedSet[s] = true
+		}
+		for _, n := range c.Nodes {
+			if seen[n.ID] {
+				continue
+			}
+			seen[n.ID] = true
+			isSeed := seedSet[n.ID]
+			if n.IsSpec {
+				if side := o.buildSpecDiffSide(n.ID, reconciledSpecs, scanResult); side != nil {
+					diffs = append(diffs, DiffResult{Spec: side, IsSeed: isSeed})
+				}
+			} else {
+				if side := o.buildMarkerDiffSide(n.ID, reconciledMarkers, scanResult); side != nil {
+					diffs = append(diffs, DiffResult{Marker: side, IsSeed: isSeed})
+				}
+			}
+		}
+		out = append(out, ClosureDiff{
+			Hash:   c.Hash,
+			Events: c.Events,
+			Diffs:  diffs,
+		})
+	}
+	return out, evaluated, nil
+}
+
+func (o *Orchestrator) buildSpecDiffSide(specID string, reconciledSpecs []core.Spec, scanResult scanner.ScanResult) *DiffSide {
+	var spec *core.Spec
+	for i := range reconciledSpecs {
+		if reconciledSpecs[i].ID == specID {
+			spec = &reconciledSpecs[i]
+			break
+		}
+	}
+	if spec == nil {
+		return nil
+	}
+	side := &DiffSide{
+		ID:           spec.ID,
+		Filepath:     spec.Filepath,
+		BaselineHash: spec.Hash,
+		CurrentHash:  scanHashForSpec(scanResult, spec.ID),
+		Deleted:      spec.Deleted,
+	}
+	if !spec.Deleted {
+		if content, err := scanner.ReadSpecContent(o.resolvePath(spec.Filepath), spec.ID); err == nil {
+			side.Current = content
+		}
+	}
+	if o.baselines != nil {
+		if content, ok := o.baselines.Read(spec.Hash); ok {
+			side.Baseline = content
+			side.HasBaseline = true
+		}
+	}
+	return side
+}
+
+func (o *Orchestrator) buildMarkerDiffSide(markerID string, reconciledMarkers []core.Marker, scanResult scanner.ScanResult) *DiffSide {
+	var marker *core.Marker
+	for i := range reconciledMarkers {
+		if reconciledMarkers[i].ID == markerID {
+			marker = &reconciledMarkers[i]
+			break
+		}
+	}
+	if marker == nil {
+		return nil
+	}
+	side := &DiffSide{
+		ID:           marker.ID,
+		Filepath:     marker.Filepath,
+		Lines:        fmt.Sprintf("%d-%d", marker.LineNumber, marker.EndLineNumber),
+		BaselineHash: marker.Hash,
+		CurrentHash:  scanHashForMarker(scanResult, marker.ID),
+		Deleted:      marker.Deleted,
+	}
+	if !marker.Deleted {
+		if content, err := scanner.ReadMarkerContent(o.resolvePath(marker.Filepath), marker.LineNumber, marker.EndLineNumber); err == nil {
+			side.Current = content
+		}
+	}
+	if o.baselines != nil {
+		if content, ok := o.baselines.Read(marker.Hash); ok {
+			side.Baseline = content
+			side.HasBaseline = true
+		}
+	}
+	return side
+}
+
+func scanHashForSpec(scanResult scanner.ScanResult, id string) string {
+	for _, s := range scanResult.Specs {
+		if s.ID == id {
+			return s.Hash
+		}
+	}
+	return ""
+}
+
+func scanHashForMarker(scanResult scanner.ScanResult, id string) string {
+	for _, m := range scanResult.Markers {
+		if m.ID == id {
+			return m.Hash
+		}
+	}
+	return ""
+}
+

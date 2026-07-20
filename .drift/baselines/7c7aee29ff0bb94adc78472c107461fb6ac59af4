@@ -1,0 +1,20 @@
+	if dryRun {
+		summary, err := ctx.Orch.PreviewResetClosure(ctx.Sess, hash)
+		if err != nil {
+			return output.ErrorResult{Command: "reset", Message: err.Error(), Exit: 1}, 1
+		}
+		return output.ChangeSummaryResult{
+			Summary: summary,
+			Preview: true,
+		}, 3
+	}
+	evaluated, summary, err := ctx.Orch.ResetClosureWithSummary(ctx.Sess, hash)
+	if err != nil {
+		return output.ErrorResult{Command: "reset", Message: err.Error(), Exit: 1}, 1
+	}
+	_ = evaluated
+	return output.ChangeSummaryResult{
+		Summary: summary,
+		Preview: false,
+		Message: fmt.Sprintf("Closure %s resolved.", hash),
+	}, 0

@@ -1,12 +1,3 @@
-package commands
-
-import (
-	"drift/cli/output"
-	"drift/internal/fileio"
-	"drift/orchestrator"
-)
-
-// D! id=ocmd range-start
 // Command is the interface every subcommand implements. The dispatcher
 // (cli.RunWithRender) looks up a Command by name in cli.Registry, constructs a
 // Context, calls Run, and renders the returned Result via the active
@@ -44,4 +35,3 @@ type Meta struct {
 // Version is the build version string, set by main.go via ldflags before any
 // command dispatches. VersionCommand reads this at Run time.
 var Version = "dev"
-// D! id=ocmd range-end

@@ -8,7 +8,7 @@ type ListCommand struct{}
 // D! id=clst range-start
 func (c ListCommand) Run(ctx Context) (output.Result, int) {
 	verbose := len(ctx.Args) >= 2 && ctx.Args[1] == "--verbose"
-	state, err := ctx.Orch.Todo()
+	state, err := ctx.Orch.Todo(ctx.Sess)
 	if err != nil {
 		return output.ErrorResult{Command: "list", Message: err.Error(), Exit: 1}, 1
 	}

@@ -1,0 +1,126 @@
+// Link constructs a link-style Edge (marker stores edge to spec) and appends
+// it to baseline. The edge kind is implicit from endpoint types: marker IDs
+// contain no dot, spec IDs contain exactly one.
+func (o *Orchestrator) Link(sess *fileio.Session, markerID, specID string) error {
+	_, err := o.LinkWithSummary(sess, markerID, specID)
+	return err
+}
+
+// LinkWithSummary does the same work as Link and returns the ChangeSummary.
+func (o *Orchestrator) LinkWithSummary(sess *fileio.Session, markerID, specID string) (ChangeSummary, error) {
+	return o.linkInner(sess, markerID, specID, true)
+}
+
+// PreviewLink computes the ChangeSummary Link would apply, WITHOUT saving.
+func (o *Orchestrator) PreviewLink(sess *fileio.Session, markerID, specID string) (ChangeSummary, error) {
+	return o.linkInner(sess, markerID, specID, false)
+}
+
+func (o *Orchestrator) linkInner(sess *fileio.Session, markerID, specID string, save bool) (ChangeSummary, error) {
+	beforeState, err := o.stateStore.Load(sess)
+	if err != nil {
+		return ChangeSummary{}, err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return ChangeSummary{}, err
+	}
+
+	reconciledSpecs, err := reconcileSpecs(beforeState.Specs, scanResult.Specs)
+	if err != nil {
+		return ChangeSummary{}, err
+	}
+
+	reconciledMarkers, err := reconcileMarkers(beforeState.Markers, scanResult.Markers)
+	if err != nil {
+		return ChangeSummary{}, err
+	}
+
+	// 
+	markerExists := false
+	for _, m := range reconciledMarkers {
+		if m.ID == markerID {
+			markerExists = true
+			break
+		}
+	}
+	// 
+	if !markerExists {
+		var available []string
+		for _, m := range reconciledMarkers {
+			available = append(available, m.ID)
+		}
+		return ChangeSummary{}, fmt.Errorf("link references unknown marker %q.\nMarkers must be %s comment lines in code files.\nAvailable markers: %s", markerID, markerSyntax, strings.Join(available, ", "))
+	}
+
+	specExists := false
+	for _, s := range reconciledSpecs {
+		if s.ID == specID {
+			specExists = true
+			break
+		}
+	}
+	if !specExists {
+		var available []string
+		for _, s := range reconciledSpecs {
+			available = append(available, s.ID)
+		}
+		return ChangeSummary{}, fmt.Errorf("link references unknown spec %q.\nSpec IDs are module-qualified: <module>.<specId> (e.g. main.example or core.validate).\nAvailable specs: %s", specID, strings.Join(available, ", "))
+	}
+
+	for _, e := range beforeState.Edges {
+		if e.From == markerID && e.To == specID {
+			return ChangeSummary{}, fmt.Errorf("%w: marker=%q spec=%q", ErrLinkAlreadyExists, markerID, specID)
+		}
+	}
+
+	mergedEdges := mergeScannedEdges(beforeState.Edges, scanResult.Edges)
+
+	scanSpecHashes := make(map[string]string, len(scanResult.Specs))
+	for _, s := range scanResult.Specs {
+		scanSpecHashes[s.ID] = s.Hash
+	}
+	scanMarkerHashes := make(map[string]string, len(scanResult.Markers))
+	for _, m := range scanResult.Markers {
+		scanMarkerHashes[m.ID] = m.Hash
+	}
+	for i := range reconciledSpecs {
+		if reconciledSpecs[i].ID == specID && scanSpecHashes[specID] != "" {
+			reconciledSpecs[i].Hash = scanSpecHashes[specID]
+		}
+	}
+	for i := range reconciledMarkers {
+		if reconciledMarkers[i].ID == markerID && scanMarkerHashes[markerID] != "" {
+			reconciledMarkers[i].Hash = scanMarkerHashes[markerID]
+		}
+	}
+
+	afterState := statestore.State{
+		Specs:   reconciledSpecs,
+		Markers: reconciledMarkers,
+		Edges:   append(mergedEdges, core.Edge{From: markerID, To: specID}),
+	}
+
+	if save {
+		if err := o.stateStore.Save(sess, afterState); err != nil {
+			return ChangeSummary{}, err
+		}
+		for _, s := range scanResult.Specs {
+			if s.ID == specID {
+				_ = o.writeBaseline(s.Hash, s.Filepath, specID, 0, 0, true)
+				break
+			}
+		}
+		for _, m := range scanResult.Markers {
+			if m.ID == markerID {
+				_ = o.writeBaseline(m.Hash, m.Filepath, "", m.LineNumber, m.EndLineNumber, false)
+				break
+			}
+		}
+	}
+
+	summary := computeChangeSummary(beforeState, afterState, fmt.Sprintf("link %s → %s", markerID, specID))
+	return summary, nil
+}
+

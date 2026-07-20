@@ -1,0 +1,48 @@
+func RunWithRender(args []string, dir string, presenter output.Presenter) (string, int) {
+	args = stripGlobalFlags(args)
+
+	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+		return presenter.Text(output.TextResult{Text: HelpContent}), 0
+	}
+
+	if help, ok := subcommandHelp(args[0]); ok && len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
+		return presenter.Text(output.TextResult{Text: help}), 0
+	}
+
+	if msg, bad := rejectUnknownFlags(args); bad {
+		return presenter.Error(output.ErrorResult{Message: msg, Exit: 1}), 1
+	}
+
+	cmd, ok := Registry[args[0]]
+	if !ok {
+		return presenter.Error(output.ErrorResult{
+			Message: fmt.Sprintf("unknown command: %s\n\n%s", args[0], HelpContent),
+			Exit:    1,
+		}), 1
+	}
+
+	stateStore := statestore.NewFileStateStore(dir)
+	scn := scanner.NewFileScanner(dir)
+	baselines := statestore.NewBaselineStore(filepath.Join(dir, ".drift", "baselines"))
+	orch := orchestrator.NewOrchestrator(stateStore, scn, baselines)
+
+	sess, err := fileio.Begin(dir)
+	if err != nil {
+		return presenter.Error(output.ErrorResult{
+			Message: fmt.Sprintf("drift: could not acquire session lock on %s: %v", filepath.Join(dir, ".drift"), err),
+			Exit:    1,
+		}), 1
+	}
+	defer sess.Close()
+
+	ctx := commands.Context{
+		Args: args,
+		Dir:  dir,
+		Orch: orch,
+		Sess: sess,
+	}
+
+	result, code := cmd.Run(ctx)
+	return output.Render(presenter, result), code
+}
+

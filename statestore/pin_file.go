@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"drift/core"
+	"drift/internal/fileio"
 )
 
 // D! id=pnope range-start
@@ -29,11 +30,13 @@ type State struct {
 	Edges   []core.Edge
 }
 
+// stateFileName is the name of the state file inside .drift/.
+const stateFileName = "state.xml"
+
 type StateStore interface {
-	Load() (State, error)
-	Save(State) error
+	Load(sess *fileio.Session) (State, error)
+	Save(sess *fileio.Session, state State) error
 	Initialized() (bool, error)
-	Lock() (func(), error)
 }
 
 type FileStateStore struct {
@@ -49,7 +52,7 @@ func (s *FileStateStore) Dir() string {
 }
 
 func (s *FileStateStore) Initialized() (bool, error) {
-	_, err := os.Stat(s.statePath())
+	_, err := os.Stat(filepath.Join(s.dir, ".drift", stateFileName))
 	if err == nil {
 		return true, nil
 	}
@@ -57,14 +60,6 @@ func (s *FileStateStore) Initialized() (bool, error) {
 		return false, nil
 	}
 	return false, err
-}
-
-func (s *FileStateStore) statePath() string {
-	return filepath.Join(s.dir, ".drift", "state.xml")
-}
-
-func (s *FileStateStore) baselinesDir() string {
-	return filepath.Join(s.dir, ".drift", "baselines")
 }
 
 // stateFileXML serializes .drift/state.xml. version=4 is the
@@ -99,8 +94,8 @@ type edgeXML struct {
 }
 
 // D! id=pload range-start
-func (s *FileStateStore) Load() (State, error) {
-	data, err := os.ReadFile(s.statePath())
+func (s *FileStateStore) Load(sess *fileio.Session) (State, error) {
+	data, err := sess.Read(stateFileName)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return State{}, ErrStateNotFound
@@ -155,10 +150,7 @@ func (s *FileStateStore) Load() (State, error) {
 // D! id=pload range-end
 
 // D! id=psave range-start
-func (s *FileStateStore) Save(state State) error {
-	if err := os.MkdirAll(s.baselinesDir(), 0755); err != nil {
-		return err
-	}
+func (s *FileStateStore) Save(sess *fileio.Session, state State) error {
 	file := stateFileXML{
 		Version: 4,
 		Specs:   make([]specXML, len(state.Specs)),
@@ -195,7 +187,7 @@ func (s *FileStateStore) Save(state State) error {
 	}
 
 	data = append(data, '\n')
-	return os.WriteFile(s.statePath(), data, 0644)
+	return sess.Write(stateFileName, data)
 }
 
 // D! id=psave range-end

@@ -1,17 +1,3 @@
-package commands
-
-import (
-	"fmt"
-
-	"drift/cli/output"
-)
-
-// ResetCommand implements `drift reset <hash>`: sync the closure's seed
-// events into baseline. Closures containing only broken-edge events are
-// refused (require scan fix).
-type ResetCommand struct{}
-
-// D! id=crfmt range-start
 func (c ResetCommand) Run(ctx Context) (output.Result, int) {
 	args := ctx.Args
 	if len(args) < 2 {
@@ -36,7 +22,7 @@ func (c ResetCommand) Run(ctx Context) (output.Result, int) {
 	} else {
 		hash = args[1]
 	}
-	// D! id=cnobulk range-start
+	// 
 	if dryRun {
 		summary, err := ctx.Orch.PreviewResetClosure(ctx.Sess, hash)
 		if err != nil {
@@ -57,15 +43,6 @@ func (c ResetCommand) Run(ctx Context) (output.Result, int) {
 		Preview: false,
 		Message: fmt.Sprintf("Closure %s resolved.", hash),
 	}, 0
-	// D! id=cnobulk range-end
+	// 
 }
 
-// D! id=crfmt range-end
-func (c ResetCommand) Meta() Meta {
-	return Meta{
-		Name:  "reset",
-		Short: "Resolve a drift closure by syncing baseline to scan",
-		Usage: "Usage:\n  drift reset <hash>           Resolve a closure by syncing its seed events into baseline (exit 0)\n  drift reset --dry-run <hash>  Preview the change summary without writing; exits 3 (LLM signal: no change applied)\n\nThe hash is the 8-character closure ID printed by `drift todo`.\nClosures containing only broken-edge events are refused (fix the scan instead).\n\nExamples:\n  drift reset a3f7b2c1\n  drift reset --dry-run a3f7b2c1",
-		Flags: []string{"--dry-run"},
-	}
-}

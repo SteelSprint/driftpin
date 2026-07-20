@@ -6,14 +6,29 @@ import (
 	"testing"
 
 	"drift/core"
+	"drift/internal/fileio"
 	"drift/statestore"
 )
 
-func TestFileStateStore_SaveLoad_v4(t *testing.T) {
-	dir := t.TempDir()
+// beginTestSession creates a fresh project dir + .drift/ and returns a
+// fileio.Session rooted there. The Session is closed automatically via
+// t.Cleanup.
+func beginTestSession(t *testing.T, dir string) *fileio.Session {
+	t.Helper()
 	if err := os.MkdirAll(filepath.Join(dir, ".drift"), 0755); err != nil {
 		t.Fatal(err)
 	}
+	sess, err := fileio.Begin(dir)
+	if err != nil {
+		t.Fatalf("fileio.Begin: %v", err)
+	}
+	t.Cleanup(func() { sess.Close() })
+	return sess
+}
+
+func TestFileStateStore_SaveLoad_v4(t *testing.T) {
+	dir := t.TempDir()
+	sess := beginTestSession(t, dir)
 	store := statestore.NewFileStateStore(dir)
 
 	want := statestore.State{
@@ -21,10 +36,10 @@ func TestFileStateStore_SaveLoad_v4(t *testing.T) {
 		Markers: []core.Marker{{ID: "cval", Hash: "mmm", Filepath: "a.go", LineNumber: 10, EndLineNumber: 20}},
 		Edges:   []core.Edge{{From: "cval", To: "m.a"}},
 	}
-	if err := store.Save(want); err != nil {
+	if err := store.Save(sess, want); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	got, err := store.Load()
+	got, err := store.Load(sess)
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
@@ -41,9 +56,7 @@ func TestFileStateStore_SaveLoad_v4(t *testing.T) {
 
 func TestFileStateStore_RefusesPreV4(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, ".drift"), 0755); err != nil {
-		t.Fatal(err)
-	}
+	sess := beginTestSession(t, dir)
 	// Write a v3 file (with edgeResolutions).
 	v3Content := `<?xml version="1.0" encoding="UTF-8"?>
 <drift version="3">
@@ -57,7 +70,7 @@ func TestFileStateStore_RefusesPreV4(t *testing.T) {
 		t.Fatal(err)
 	}
 	store := statestore.NewFileStateStore(dir)
-	_, err := store.Load()
+	_, err := store.Load(sess)
 	if err == nil {
 		t.Fatalf("expected error for v3 file, got nil")
 	}
@@ -69,10 +82,8 @@ func TestFileStateStore_Initialized(t *testing.T) {
 	if ok, _ := store.Initialized(); ok {
 		t.Fatal("expected not initialized")
 	}
-	if err := os.MkdirAll(filepath.Join(dir, ".drift"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Save(statestore.State{}); err != nil {
+	sess := beginTestSession(t, dir)
+	if err := store.Save(sess, statestore.State{}); err != nil {
 		t.Fatal(err)
 	}
 	if ok, _ := store.Initialized(); !ok {

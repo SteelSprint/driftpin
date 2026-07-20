@@ -8,6 +8,7 @@ import (
 
 	"drift/cli/commands"
 	"drift/cli/output"
+	"drift/internal/fileio"
 	"drift/orchestrator"
 	"drift/scanner"
 	"drift/statestore"
@@ -83,10 +84,20 @@ func RunWithRender(args []string, dir string, presenter output.Presenter) (strin
 	baselines := statestore.NewBaselineStore(filepath.Join(dir, ".drift", "baselines"))
 	orch := orchestrator.NewOrchestrator(stateStore, scn, baselines)
 
+	sess, err := fileio.Begin(dir)
+	if err != nil {
+		return presenter.Error(output.ErrorResult{
+			Message: fmt.Sprintf("drift: could not acquire session lock on %s: %v", filepath.Join(dir, ".drift"), err),
+			Exit:    1,
+		}), 1
+	}
+	defer sess.Close()
+
 	ctx := commands.Context{
 		Args: args,
 		Dir:  dir,
 		Orch: orch,
+		Sess: sess,
 	}
 
 	result, code := cmd.Run(ctx)

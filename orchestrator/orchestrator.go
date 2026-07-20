@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"drift/core"
+	"drift/internal/fileio"
 	"drift/scanner"
 	"drift/statestore"
 )
@@ -116,7 +117,7 @@ func (o *Orchestrator) resolvePath(p string) string {
 }
 
 // D! id=oinit range-start
-func (o *Orchestrator) Init() error {
+func (o *Orchestrator) Init(sess *fileio.Session) error {
 	initialized, err := o.stateStore.Initialized()
 	if err != nil {
 		return fmt.Errorf("check initialized state: %w", err)
@@ -124,14 +125,14 @@ func (o *Orchestrator) Init() error {
 	if initialized {
 		return ErrAlreadyInitialized
 	}
-	return o.stateStore.Save(statestore.State{})
+	return o.stateStore.Save(sess, statestore.State{})
 }
 
 // D! id=oinit range-end
 
 // D! id=otodo range-start
-func (o *Orchestrator) Todo() (core.EvaluatedState, error) {
-	state, err := o.stateStore.Load()
+func (o *Orchestrator) Todo(sess *fileio.Session) (core.EvaluatedState, error) {
+	state, err := o.stateStore.Load(sess)
 	if err != nil {
 		return core.EvaluatedState{}, err
 	}
@@ -171,33 +172,27 @@ func (o *Orchestrator) Todo() (core.EvaluatedState, error) {
 // edges for EDGE_ADDED/REMOVED, remove node for NODE_REMOVED), and saves.
 // Broken-edge events are no-ops; closures with only broken-edge events
 // are refused.
-func (o *Orchestrator) ResetClosure(hash string) (core.EvaluatedState, error) {
-	evaluated, _, err := o.ResetClosureWithSummary(hash)
+func (o *Orchestrator) ResetClosure(sess *fileio.Session, hash string) (core.EvaluatedState, error) {
+	evaluated, _, err := o.ResetClosureWithSummary(sess, hash)
 	return evaluated, err
 }
 
 // ResetClosureWithSummary does the same work as ResetClosure and additionally
 // returns a ChangeSummary describing what mutated. Used by the CLI to print
 // the per-event change summary after applying (see cli.reset_format).
-func (o *Orchestrator) ResetClosureWithSummary(hash string) (core.EvaluatedState, ChangeSummary, error) {
-	return o.resetClosureInner(hash, true)
+func (o *Orchestrator) ResetClosureWithSummary(sess *fileio.Session, hash string) (core.EvaluatedState, ChangeSummary, error) {
+	return o.resetClosureInner(sess, hash, true)
 }
 
 // PreviewResetClosure computes the ChangeSummary that ResetClosure would
 // apply, WITHOUT saving state. Used by --dry-run. See cli.reset_format.
-func (o *Orchestrator) PreviewResetClosure(hash string) (ChangeSummary, error) {
-	_, summary, err := o.resetClosureInner(hash, false)
+func (o *Orchestrator) PreviewResetClosure(sess *fileio.Session, hash string) (ChangeSummary, error) {
+	_, summary, err := o.resetClosureInner(sess, hash, false)
 	return summary, err
 }
 
-func (o *Orchestrator) resetClosureInner(hash string, save bool) (core.EvaluatedState, ChangeSummary, error) {
-	unlock, err := o.stateStore.Lock()
-	if err != nil {
-		return core.EvaluatedState{}, ChangeSummary{}, err
-	}
-	defer unlock()
-
-	beforeState, err := o.stateStore.Load()
+func (o *Orchestrator) resetClosureInner(sess *fileio.Session, hash string, save bool) (core.EvaluatedState, ChangeSummary, error) {
+	beforeState, err := o.stateStore.Load(sess)
 	if err != nil {
 		return core.EvaluatedState{}, ChangeSummary{}, err
 	}
@@ -245,7 +240,7 @@ func (o *Orchestrator) resetClosureInner(hash string, save bool) (core.Evaluated
 	}
 
 	if save {
-		if err := o.stateStore.Save(afterState); err != nil {
+		if err := o.stateStore.Save(sess, afterState); err != nil {
 			return core.EvaluatedState{}, ChangeSummary{}, err
 		}
 		// Best-effort: refresh baseline files for any node whose hash changed.
@@ -295,29 +290,23 @@ func findMarkerByID(markers []core.Marker, id string) (core.Marker, bool) {
 // Link constructs a link-style Edge (marker stores edge to spec) and appends
 // it to baseline. The edge kind is implicit from endpoint types: marker IDs
 // contain no dot, spec IDs contain exactly one.
-func (o *Orchestrator) Link(markerID, specID string) error {
-	_, err := o.LinkWithSummary(markerID, specID)
+func (o *Orchestrator) Link(sess *fileio.Session, markerID, specID string) error {
+	_, err := o.LinkWithSummary(sess, markerID, specID)
 	return err
 }
 
 // LinkWithSummary does the same work as Link and returns the ChangeSummary.
-func (o *Orchestrator) LinkWithSummary(markerID, specID string) (ChangeSummary, error) {
-	return o.linkInner(markerID, specID, true)
+func (o *Orchestrator) LinkWithSummary(sess *fileio.Session, markerID, specID string) (ChangeSummary, error) {
+	return o.linkInner(sess, markerID, specID, true)
 }
 
 // PreviewLink computes the ChangeSummary Link would apply, WITHOUT saving.
-func (o *Orchestrator) PreviewLink(markerID, specID string) (ChangeSummary, error) {
-	return o.linkInner(markerID, specID, false)
+func (o *Orchestrator) PreviewLink(sess *fileio.Session, markerID, specID string) (ChangeSummary, error) {
+	return o.linkInner(sess, markerID, specID, false)
 }
 
-func (o *Orchestrator) linkInner(markerID, specID string, save bool) (ChangeSummary, error) {
-	unlock, err := o.stateStore.Lock()
-	if err != nil {
-		return ChangeSummary{}, err
-	}
-	defer unlock()
-
-	beforeState, err := o.stateStore.Load()
+func (o *Orchestrator) linkInner(sess *fileio.Session, markerID, specID string, save bool) (ChangeSummary, error) {
+	beforeState, err := o.stateStore.Load(sess)
 	if err != nil {
 		return ChangeSummary{}, err
 	}
@@ -403,7 +392,7 @@ func (o *Orchestrator) linkInner(markerID, specID string, save bool) (ChangeSumm
 	}
 
 	if save {
-		if err := o.stateStore.Save(afterState); err != nil {
+		if err := o.stateStore.Save(sess, afterState); err != nil {
 			return ChangeSummary{}, err
 		}
 		for _, s := range scanResult.Specs {
@@ -427,29 +416,23 @@ func (o *Orchestrator) linkInner(markerID, specID string, save bool) (ChangeSumm
 // D! id=olink range-end
 
 // D! id=ounlnk range-start
-func (o *Orchestrator) Unlink(markerID, specID string) error {
-	_, err := o.UnlinkWithSummary(markerID, specID)
+func (o *Orchestrator) Unlink(sess *fileio.Session, markerID, specID string) error {
+	_, err := o.UnlinkWithSummary(sess, markerID, specID)
 	return err
 }
 
 // UnlinkWithSummary does the same work as Unlink and returns the ChangeSummary.
-func (o *Orchestrator) UnlinkWithSummary(markerID, specID string) (ChangeSummary, error) {
-	return o.unlinkInner(markerID, specID, true)
+func (o *Orchestrator) UnlinkWithSummary(sess *fileio.Session, markerID, specID string) (ChangeSummary, error) {
+	return o.unlinkInner(sess, markerID, specID, true)
 }
 
 // PreviewUnlink computes the ChangeSummary Unlink would apply, WITHOUT saving.
-func (o *Orchestrator) PreviewUnlink(markerID, specID string) (ChangeSummary, error) {
-	return o.unlinkInner(markerID, specID, false)
+func (o *Orchestrator) PreviewUnlink(sess *fileio.Session, markerID, specID string) (ChangeSummary, error) {
+	return o.unlinkInner(sess, markerID, specID, false)
 }
 
-func (o *Orchestrator) unlinkInner(markerID, specID string, save bool) (ChangeSummary, error) {
-	unlock, err := o.stateStore.Lock()
-	if err != nil {
-		return ChangeSummary{}, err
-	}
-	defer unlock()
-
-	beforeState, err := o.stateStore.Load()
+func (o *Orchestrator) unlinkInner(sess *fileio.Session, markerID, specID string, save bool) (ChangeSummary, error) {
+	beforeState, err := o.stateStore.Load(sess)
 	if err != nil {
 		return ChangeSummary{}, err
 	}
@@ -475,7 +458,7 @@ func (o *Orchestrator) unlinkInner(markerID, specID string, save bool) (ChangeSu
 		Edges:   newEdges,
 	}
 	if save {
-		if err := o.stateStore.Save(afterState); err != nil {
+		if err := o.stateStore.Save(sess, afterState); err != nil {
 			return ChangeSummary{}, err
 		}
 	}
@@ -681,8 +664,8 @@ func reconcileMarkers(baselined []core.Marker, scanned []core.Marker) ([]core.Ma
 // DiffClosure returns per-node diff results for every node referenced by
 // the closure: each spec node produces a DiffResult with Spec set, each
 // marker node produces a DiffResult with Marker set.
-func (o *Orchestrator) DiffClosure(hash string) ([]DiffResult, error) {
-	state, err := o.stateStore.Load()
+func (o *Orchestrator) DiffClosure(sess *fileio.Session, hash string) ([]DiffResult, error) {
+	state, err := o.stateStore.Load(sess)
 	if err != nil {
 		return nil, err
 	}
@@ -749,8 +732,8 @@ type ClosureDiff struct {
 	Diffs  []DiffResult
 }
 
-func (o *Orchestrator) DiffAll() ([]ClosureDiff, core.EvaluatedState, error) {
-	state, err := o.stateStore.Load()
+func (o *Orchestrator) DiffAll(sess *fileio.Session) ([]ClosureDiff, core.EvaluatedState, error) {
+	state, err := o.stateStore.Load(sess)
 	if err != nil {
 		return nil, core.EvaluatedState{}, err
 	}

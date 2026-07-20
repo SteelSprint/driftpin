@@ -1,15 +1,3 @@
-package commands
-
-import (
-	"drift/cli/output"
-)
-
-// DiffCommand implements `drift diff`:
-//   - drift diff <hash>     Show diff for all nodes in a closure
-//   - drift diff --all      Show diffs for ALL closures
-type DiffCommand struct{}
-
-// D! id=cdiff range-start
 func (c DiffCommand) Run(ctx Context) (output.Result, int) {
 	args := ctx.Args
 	if len(args) < 2 {
@@ -34,12 +22,3 @@ func (c DiffCommand) Run(ctx Context) (output.Result, int) {
 	return output.DiffClosureResult{Hash: hash, Diffs: diffs}, 0
 }
 
-// D! id=cdiff range-end
-func (c DiffCommand) Meta() Meta {
-	return Meta{
-		Name:  "diff",
-		Short: "Show what changed in a closure (or all closures)",
-		Usage: "Usage:\n  drift diff <hash>     Show unified diff for every node in the closure\n  drift diff --all      Show diffs for ALL closures at once\n\nThe hash is the 8-character closure ID printed by `drift todo`.\n\nExamples:\n  drift diff a3f7b2c1\n  drift diff --all",
-		Flags: []string{"--all"},
-	}
-}

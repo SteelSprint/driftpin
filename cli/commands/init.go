@@ -14,7 +14,7 @@ type InitCommand struct {
 }
 
 func (c InitCommand) Run(ctx Context) (output.Result, int) {
-	if err := ctx.Orch.Init(); err != nil {
+	if err := ctx.Orch.Init(ctx.Sess); err != nil {
 		if errors.Is(err, orchestrator.ErrAlreadyInitialized) {
 			return output.OkResult{
 				Command: "init",

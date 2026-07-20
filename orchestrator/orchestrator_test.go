@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"drift/core"
+	"drift/internal/fileio"
 	"drift/internal/testutil"
 	"drift/orchestrator"
 	"drift/scanner"
@@ -20,14 +21,14 @@ type fakeStateStore struct {
 	initializedErr error
 }
 
-func (f *fakeStateStore) Load() (statestore.State, error) {
+func (f *fakeStateStore) Load(_ *fileio.Session) (statestore.State, error) {
 	if f.loadErr != nil {
 		return statestore.State{}, f.loadErr
 	}
 	return f.state, nil
 }
 
-func (f *fakeStateStore) Save(state statestore.State) error {
+func (f *fakeStateStore) Save(_ *fileio.Session, state statestore.State) error {
 	if f.saveErr != nil {
 		return f.saveErr
 	}
@@ -41,10 +42,6 @@ func (f *fakeStateStore) Initialized() (bool, error) {
 		return false, f.initializedErr
 	}
 	return f.initialized, nil
-}
-
-func (f *fakeStateStore) Lock() (func(), error) {
-	return func() {}, nil
 }
 
 type fakeScanner struct {
@@ -78,7 +75,7 @@ func TestOrchestrator_Todo_NoDrift(t *testing.T) {
 		Markers: []core.Marker{marker},
 	}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	testutil.AssertClosureCount(t, state, 0)
 }
@@ -99,7 +96,7 @@ func TestOrchestrator_Todo_SpecDrift(t *testing.T) {
 		Markers: []core.Marker{marker},
 	}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	testutil.AssertClosureCount(t, state, 1)
 	testutil.AssertNodeInClosure(t, state.Closures[0], "m.a")
@@ -117,12 +114,12 @@ func TestOrchestrator_ResetClosure(t *testing.T) {
 		Specs: []core.Spec{scanSpec},
 	}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	testutil.AssertClosureCount(t, state, 1)
 	hash := state.Closures[0].Hash
 
-	_, err = orch.ResetClosure(hash)
+	_, err = orch.ResetClosure(nil, hash)
 	testutil.AssertNoError(t, err)
 
 	if len(store.saved) != 1 {
@@ -140,7 +137,7 @@ func TestOrchestrator_ResetClosure_NotFound(t *testing.T) {
 	store := &fakeStateStore{state: statestore.State{Specs: []core.Spec{spec}}}
 	sc := &fakeScanner{result: scanner.ScanResult{Specs: []core.Spec{spec}}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	_, err := orch.ResetClosure("deadbeef")
+	_, err := orch.ResetClosure(nil, "deadbeef")
 	if !errors.Is(err, orchestrator.ErrResetClosureNotFound) {
 		t.Fatalf("expected ErrResetClosureNotFound, got %v", err)
 	}
@@ -159,7 +156,7 @@ func TestOrchestrator_Link(t *testing.T) {
 		Markers: []core.Marker{marker},
 	}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	if err := orch.Link("cval", "m.a"); err != nil {
+	if err := orch.Link(nil, "cval", "m.a"); err != nil {
 		t.Fatalf("Link: %v", err)
 	}
 	if len(store.state.Edges) != 1 {
@@ -182,7 +179,7 @@ func TestOrchestrator_Unlink(t *testing.T) {
 		Markers: []core.Marker{marker},
 	}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	if err := orch.Unlink("cval", "m.a"); err != nil {
+	if err := orch.Unlink(nil, "cval", "m.a"); err != nil {
 		t.Fatalf("Unlink: %v", err)
 	}
 	if len(store.state.Edges) != 0 {
@@ -198,7 +195,7 @@ func TestOrchestrator_Todo_SpecRemoved(t *testing.T) {
 	}}
 	sc := &fakeScanner{result: scanner.ScanResult{}} // empty scan: spec deleted
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	testutil.AssertClosureCount(t, state, 1)
 	if len(state.Closures[0].Events) != 1 {
@@ -218,12 +215,12 @@ func TestOrchestrator_ResetClosure_SpecRemoved(t *testing.T) {
 	}}
 	sc := &fakeScanner{result: scanner.ScanResult{}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	testutil.AssertClosureCount(t, state, 1)
 	hash := state.Closures[0].Hash
 
-	_, err = orch.ResetClosure(hash)
+	_, err = orch.ResetClosure(nil, hash)
 	testutil.AssertNoError(t, err)
 
 	if len(store.saved) != 1 {
@@ -245,7 +242,7 @@ func TestOrchestrator_Todo_NewSpecAdded(t *testing.T) {
 		Specs: []core.Spec{scanSpec},
 	}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	testutil.AssertClosureCount(t, state, 1)
 	if state.Closures[0].Events[0].Kind != core.EventNodeAdded {
@@ -262,11 +259,11 @@ func TestOrchestrator_ResetClosure_NewSpecAdded(t *testing.T) {
 		Specs: []core.Spec{scanSpec},
 	}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	hash := state.Closures[0].Hash
 
-	_, err = orch.ResetClosure(hash)
+	_, err = orch.ResetClosure(nil, hash)
 	testutil.AssertNoError(t, err)
 
 	if len(store.state.Specs) != 1 || store.state.Specs[0].Hash != "hash-a" {
@@ -296,7 +293,7 @@ func TestOrchestrator_Todo_StrictDisjoint(t *testing.T) {
 		Edges:  baselineEdges, // refs preserved in scan
 	}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	testutil.AssertClosureCount(t, state, 2)
 	s1Closure := testutil.FindClosureContainingNode(t, state, "m.s1")
@@ -308,7 +305,7 @@ func TestOrchestrator_Todo_StrictDisjoint(t *testing.T) {
 	testutil.AssertNodeInClosure(t, s2Closure, "m.s3")
 
 	// Reset only closure_S1. closure_S2 should remain.
-	_, err = orch.ResetClosure(s1Closure.Hash)
+	_, err = orch.ResetClosure(nil, s1Closure.Hash)
 	testutil.AssertNoError(t, err)
 	// saved state has S1 with new hash, S2 still has old hash.
 	for _, s := range store.state.Specs {
@@ -340,13 +337,13 @@ func TestOrchestrator_DiffClosure(t *testing.T) {
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
 
 	// Get the closure hash via Todo.
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	testutil.AssertClosureCount(t, state, 1)
 	hash := state.Closures[0].Hash
 
 	// DiffClosure should return one DiffResult per node (spec + marker = 2).
-	diffs, err := orch.DiffClosure(hash)
+	diffs, err := orch.DiffClosure(nil, hash)
 	testutil.AssertNoError(t, err)
 	if len(diffs) != 2 {
 		t.Fatalf("expected 2 diffs (spec + marker), got %d", len(diffs))
@@ -388,7 +385,7 @@ func TestOrchestrator_DiffClosure_NotFound(t *testing.T) {
 	store := &fakeStateStore{state: statestore.State{Specs: []core.Spec{spec}}}
 	sc := &fakeScanner{result: scanner.ScanResult{Specs: []core.Spec{spec}}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	_, err := orch.DiffClosure("deadbeef")
+	_, err := orch.DiffClosure(nil, "deadbeef")
 	if !errors.Is(err, orchestrator.ErrDiffClosureNotFound) {
 		t.Fatalf("expected ErrDiffClosureNotFound, got %v", err)
 	}
@@ -410,11 +407,11 @@ func TestOrchestrator_DiffAll(t *testing.T) {
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
 
 	// Two drifts = two closures.
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	testutil.AssertClosureCount(t, state, 2)
 
-	closures, _, err := orch.DiffAll()
+	closures, _, err := orch.DiffAll(nil)
 	testutil.AssertNoError(t, err)
 	if len(closures) != 2 {
 		t.Fatalf("expected 2 ClosureDiff entries, got %d", len(closures))
@@ -449,7 +446,7 @@ func TestOrchestrator_DiffAll_NoDrift(t *testing.T) {
 	sc := &fakeScanner{result: scanner.ScanResult{Specs: []core.Spec{spec}}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
 
-	closures, state, err := orch.DiffAll()
+	closures, state, err := orch.DiffAll(nil)
 	testutil.AssertNoError(t, err)
 	if len(closures) != 0 {
 		t.Fatalf("expected 0 closures on clean tree, got %d", len(closures))
@@ -491,7 +488,7 @@ func TestOrchestrator_ClosureMerge_DefensiveOnly(t *testing.T) {
 		Edges: edges,
 	}}
 	orch := orchestrator.NewOrchestrator(store, sc, nil)
-	state, err := orch.Todo()
+	state, err := orch.Todo(nil)
 	testutil.AssertNoError(t, err)
 	// Two drifted specs cited by a shared citer → two strictly disjoint
 	// closures (the merge path is NOT taken).

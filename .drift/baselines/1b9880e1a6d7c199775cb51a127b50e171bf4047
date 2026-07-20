@@ -1,0 +1,53 @@
+func (s *FileStateStore) Load(sess *fileio.Session) (State, error) {
+	data, err := sess.Read(stateFileName)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return State{}, ErrStateNotFound
+		}
+		return State{}, err
+	}
+
+	var file stateFileXML
+	if err := xml.Unmarshal(data, &file); err != nil {
+		return State{}, err
+	}
+
+	// Refuse pre-v4 state files. v4 dropped <edgeResolutions>; older files
+	// must be deleted and re-initialized.
+	if file.Version > 0 && file.Version < 4 {
+		return State{}, fmt.Errorf("%w: version=%d", ErrStateVersionUnsupported, file.Version)
+	}
+
+	specs := make([]core.Spec, len(file.Specs))
+	for i, sp := range file.Specs {
+		specs[i] = core.Spec{
+			ID:         sp.ID,
+			Hash:       sp.Hash,
+			Filepath:   sp.Filepath,
+			LineNumber: sp.LineNumber,
+		}
+	}
+
+	markers := make([]core.Marker, len(file.Markers))
+	for i, m := range file.Markers {
+		markers[i] = core.Marker{
+			ID:            m.ID,
+			Hash:          m.Hash,
+			Filepath:      m.Filepath,
+			LineNumber:    m.LineNumber,
+			EndLineNumber: m.EndLineNumber,
+		}
+	}
+
+	edges := make([]core.Edge, len(file.Edges))
+	for i, e := range file.Edges {
+		edges[i] = core.Edge{From: e.From, To: e.To}
+	}
+
+	return State{
+		Specs:   specs,
+		Markers: markers,
+		Edges:   edges,
+	}, nil
+}
+

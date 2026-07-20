@@ -1,0 +1,40 @@
+func (s *FileStateStore) Save(sess *fileio.Session, state State) error {
+	file := stateFileXML{
+		Version: 4,
+		Specs:   make([]specXML, len(state.Specs)),
+		Markers: make([]markerXML, len(state.Markers)),
+		Edges:   make([]edgeXML, len(state.Edges)),
+	}
+
+	for i, spec := range state.Specs {
+		file.Specs[i] = specXML{
+			ID:         spec.ID,
+			Hash:       spec.Hash,
+			Filepath:   spec.Filepath,
+			LineNumber: spec.LineNumber,
+		}
+	}
+
+	for i, marker := range state.Markers {
+		file.Markers[i] = markerXML{
+			ID:            marker.ID,
+			Hash:          marker.Hash,
+			Filepath:      marker.Filepath,
+			LineNumber:    marker.LineNumber,
+			EndLineNumber: marker.EndLineNumber,
+		}
+	}
+
+	for i, e := range state.Edges {
+		file.Edges[i] = edgeXML{From: e.From, To: e.To}
+	}
+
+	data, err := xml.MarshalIndent(file, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	data = append(data, '\n')
+	return sess.Write(stateFileName, data)
+}
+

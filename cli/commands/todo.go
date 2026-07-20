@@ -11,7 +11,7 @@ import (
 type TodoCommand struct{}
 
 func (c TodoCommand) Run(ctx Context) (output.Result, int) {
-	state, err := ctx.Orch.Todo()
+	state, err := ctx.Orch.Todo(ctx.Sess)
 	if err != nil {
 		return output.ErrorResult{Command: "todo", Message: err.Error(), Exit: 2}, 2
 	}

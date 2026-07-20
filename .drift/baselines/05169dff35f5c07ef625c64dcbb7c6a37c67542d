@@ -1,0 +1,99 @@
+// ResetClosure locates the closure by hash, applies its seed events to
+// baseline (sync baseline hash → scan hash for NODE_CHANGED, add/remove
+// edges for EDGE_ADDED/REMOVED, remove node for NODE_REMOVED), and saves.
+// Broken-edge events are no-ops; closures with only broken-edge events
+// are refused.
+func (o *Orchestrator) ResetClosure(sess *fileio.Session, hash string) (core.EvaluatedState, error) {
+	evaluated, _, err := o.ResetClosureWithSummary(sess, hash)
+	return evaluated, err
+}
+
+// ResetClosureWithSummary does the same work as ResetClosure and additionally
+// returns a ChangeSummary describing what mutated. Used by the CLI to print
+// the per-event change summary after applying (see cli.reset_format).
+func (o *Orchestrator) ResetClosureWithSummary(sess *fileio.Session, hash string) (core.EvaluatedState, ChangeSummary, error) {
+	return o.resetClosureInner(sess, hash, true)
+}
+
+// PreviewResetClosure computes the ChangeSummary that ResetClosure would
+// apply, WITHOUT saving state. Used by --dry-run. See cli.reset_format.
+func (o *Orchestrator) PreviewResetClosure(sess *fileio.Session, hash string) (ChangeSummary, error) {
+	_, summary, err := o.resetClosureInner(sess, hash, false)
+	return summary, err
+}
+
+func (o *Orchestrator) resetClosureInner(sess *fileio.Session, hash string, save bool) (core.EvaluatedState, ChangeSummary, error) {
+	beforeState, err := o.stateStore.Load(sess)
+	if err != nil {
+		return core.EvaluatedState{}, ChangeSummary{}, err
+	}
+
+	scanResult, err := o.scanner.Scan()
+	if err != nil {
+		return core.EvaluatedState{}, ChangeSummary{}, err
+	}
+
+	reconciledSpecs, err := reconcileSpecs(beforeState.Specs, scanResult.Specs)
+	if err != nil {
+		return core.EvaluatedState{}, ChangeSummary{}, err
+	}
+
+	reconciledMarkers, err := reconcileMarkers(beforeState.Markers, scanResult.Markers)
+	if err != nil {
+		return core.EvaluatedState{}, ChangeSummary{}, err
+	}
+
+	scan := buildScan(scanResult, reconciledSpecs, reconciledMarkers)
+
+	ctx := core.CoreAlgorithmContext{
+		Specs:   reconciledSpecs,
+		Markers: reconciledMarkers,
+		Edges:   beforeState.Edges,
+		Action:  core.ResetClosureAction{Hash: hash, Scan: scan},
+	}
+
+	evaluated, err := o.core.EvaluateState(ctx)
+	if err != nil {
+		if errors.Is(err, core.ErrClosureNotFound) {
+			return core.EvaluatedState{}, ChangeSummary{}, ErrResetClosureNotFound
+		}
+		if errors.Is(err, core.ErrBrokenEdgeNotResettable) {
+			return core.EvaluatedState{}, ChangeSummary{}, ErrResetClosureOnlyBroken
+		}
+		return core.EvaluatedState{}, ChangeSummary{}, err
+	}
+
+	savedEdges := mergeScannedEdges(evaluated.Edges, scanResult.Edges)
+	afterState := statestore.State{
+		Specs:   evaluated.Specs,
+		Markers: evaluated.Markers,
+		Edges:   savedEdges,
+	}
+
+	if save {
+		if err := o.stateStore.Save(sess, afterState); err != nil {
+			return core.EvaluatedState{}, ChangeSummary{}, err
+		}
+		// Best-effort: refresh baseline files for any node whose hash changed.
+		for _, ev := range evaluated.Closures {
+			if ev.Hash != hash {
+				continue
+			}
+			for _, e := range ev.Events {
+				switch e.Kind {
+				case core.EventNodeChanged, core.EventNodeAdded:
+					if s, ok := findSpecByID(scanResult.Specs, e.NodeID); ok {
+						_ = o.writeBaseline(s.Hash, s.Filepath, s.ID, 0, 0, true)
+					}
+					if m, ok := findMarkerByID(scanResult.Markers, e.NodeID); ok {
+						_ = o.writeBaseline(m.Hash, m.Filepath, "", m.LineNumber, m.EndLineNumber, false)
+					}
+				}
+			}
+		}
+	}
+
+	summary := computeChangeSummary(beforeState, afterState, "resolve closure "+hash)
+	return evaluated, summary, nil
+}
+
