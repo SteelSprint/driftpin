@@ -1,9 +1,29 @@
+// Package output implements the presenter layer of the drift CLI.
+//
+// File layout (see output_impl.package_layout):
+//   result.go        — Result interface and concrete types (TodoResult, etc.)
+//   presenter.go     — Presenter interface + Render dispatcher
+//   plain.go         — PlainPresenter (no ANSI, no JSON)
+//   color.go         — ColorPresenter (theme-driven ANSI)
+//   json.go          — JSONPresenter (structured output for LLM consumption)
+//   ansi.go          — ANSI SGR constants and helpers
+//   tty.go           — IsTerminal + SelectPresenter
+//   theme.go         — Style, Theme types and Apply
+//   themes.go        — 12 built-in themes
+//   theme_load.go    — LoadCustomTheme from .drift/theme.xml
+//   user_settings.go — LoadUserSettings / SaveUserSettings (.drift/user-settings.xml)
+//   tokenize.go      — Language-agnostic code tokenizer (for syntax highlighting)
+//   build.go         — Result constructors (BuildListResult, BuildShowResult, etc.)
+//
+// D! id=opkg range-start
 package output
 
 import (
 	"drift/core"
 	"drift/orchestrator"
 )
+
+// D! id=opkg range-end
 
 // D! id=ores range-start
 // Result is a sealed interface implemented by exactly the types below. Each

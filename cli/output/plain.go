@@ -9,11 +9,15 @@ import (
 	"drift/orchestrator"
 )
 
+// D! id=oplain range-start
+
 // PlainPresenter is the byte-identical continuation of pre-output-layer output.
 type PlainPresenter struct{}
 
 // markerSyntax is the user-facing shorthand for marker comments.
 var markerSyntax = "D" + "! id=<markerid>"
+
+// D! id=oplain range-end
 
 // D! id=cfmt range-start
 func (p PlainPresenter) Todo(r TodoResult) string {

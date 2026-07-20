@@ -59,12 +59,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 ### Marker placement (refactors)
 
+<!-- D! id=skillmp range-start -->
+
 When you extract helpers or move code across a marker boundary:
 
 - **Keep the marker on the public entry-point function** that the spec describes. If a spec describes what `Validate` does, the marker wraps `Validate` — not the helpers it now calls.
 - Helpers stay outside the marked range unless they warrant their own spec + marker.
 - Nested markers are supported but produce noisier diffs and are not preferred — prefer one marker per spec.
 - Drift is content-addressed. A marker reports changes to the bytes inside its range. Refactors that move code across a marker boundary without changing behavior still produce NODE_CHANGED events (intentional). There is no "this was just a refactor" annotation — the reviewer's job is to confirm the move didn't change semantics, then reset.
+
+<!-- D! id=skillmp range-end -->
 
 ## Linking
 
@@ -142,6 +146,8 @@ Every closure contains one or more events:
 
 ## Decision tree
 
+<!-- D! id=skilldt range-start -->
+
 Drift is a deterministic signal — it reports that a hash changed but does not judge whether the change is semantically consistent with the spec. The decision tree is the rubric you (human or LLM) apply to decide what to fix before resetting.
 
 For each event in the closure, ask the question in the right column and act:
@@ -157,6 +163,8 @@ For each event in the closure, ask the question in the right column and act:
 | `EDGE_BROKEN`             | (always — drift can't auto-fix)                                       | Fix the scan: add the missing spec, or remove the ref | — |
 
 When two events live in the same closure (e.g. spec text changed AND the linked marker hash changed), the closure's hash stays the same; reset syncs the seed's events, which includes both.
+
+<!-- D! id=skilldt range-end -->
 
 ## Output modes
 

@@ -7,6 +7,8 @@ import (
 	"drift/cli/commands"
 )
 
+// D! id=oreg range-start
+
 // Registry is the single source of truth for command metadata. Every command
 // registers here with its name, implementation, and Meta. Help text, usage
 // strings, and flag validation are all derived from this map — replacing the
@@ -29,6 +31,8 @@ var Registry = map[string]commands.Command{
 	"version": commands.VersionCommand{},
 	"config":  commands.ConfigCommand{},
 }
+
+// D! id=oreg range-end
 
 // D! id=chelp range-start
 // subcommandHelp returns the usage text for a known subcommand. Derived from
