@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 
 	"drift/core"
 	"drift/scanner"
@@ -70,16 +71,173 @@ func BuildListResult(state core.EvaluatedState, dir string, verbose bool) ListRe
 
 // D! id=oblds range-start
 
-// BuildShowResult constructs a ShowResult by resolving the entity lookup and
-// reading all file content. Returns a non-nil error when content reading fails
-// for the primary entity. When the entity is not found, returns a ShowResult
-// with nil Spec and Marker (and the caller sets exit code 1).
+// BuildShowResult constructs a ShowResult containing the full citation closure
+// reachable from the seed (a spec or marker ID). The closure walks spec-spec
+// edges in both directions to fixpoint, includes every marker linked to any
+// reached spec, and resolves content for every node. The 1-hop behavior is
+// deprecated; show always returns the full transitive closure.
 func BuildShowResult(state core.EvaluatedState, dir, id string) (ShowResult, error) {
 	isSpec := isSpecID(id)
+
+	// Locate the seed in state to confirm it exists. The caller maps
+	// not-found to exit code 1 via EntityExists; here we just produce a
+	// minimal ShowResult if the seed isn't present.
+	seedExists := false
 	if isSpec {
-		return buildShowSpecResult(state, dir, id)
+		for _, s := range state.Specs {
+			if s.ID == id {
+				seedExists = true
+				break
+			}
+		}
+	} else {
+		for _, m := range state.Markers {
+			if m.ID == id {
+				seedExists = true
+				break
+			}
+		}
 	}
-	return buildShowMarkerResult(state, dir, id)
+
+	// Build incoming and outgoing spec-spec edge maps.
+	incoming := map[string]map[string]bool{}
+	outgoing := map[string]map[string]bool{}
+	addIncoming := func(to, from string) {
+		if incoming[to] == nil {
+			incoming[to] = map[string]bool{}
+		}
+		incoming[to][from] = true
+	}
+	addOutgoing := func(from, to string) {
+		if outgoing[from] == nil {
+			outgoing[from] = map[string]bool{}
+		}
+		outgoing[from][to] = true
+	}
+	for _, e := range state.Edges {
+		if !isSpecID(e.From) || !isSpecID(e.To) {
+			continue
+		}
+		addOutgoing(e.From, e.To)
+		addIncoming(e.To, e.From)
+	}
+
+	// Seed the BFS reachability set. If the seed is a marker, expand to its
+	// linked specs first (markers cannot be intermediate nodes in the spec
+	// graph; they're leaves).
+	reached := map[string]bool{}
+	queue := []string{}
+	if seedExists {
+		reached[id] = true
+		queue = append(queue, id)
+		if !isSpec {
+			for _, e := range state.Edges {
+				if e.From == id && isSpecID(e.To) {
+					if !reached[e.To] {
+						reached[e.To] = true
+						queue = append(queue, e.To)
+					}
+				}
+			}
+		}
+	}
+
+	// Bidirectional BFS to fixpoint over the spec-spec graph.
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		for next := range outgoing[curr] {
+			if !reached[next] {
+				reached[next] = true
+				queue = append(queue, next)
+			}
+		}
+		for next := range incoming[curr] {
+			if !reached[next] {
+				reached[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+
+	// Add markers linked to any reached spec. Markers are leaf attendees;
+	// they don't seed further BFS expansion.
+	for _, e := range state.Edges {
+		if isSpecID(e.From) {
+			continue // not a marker→spec edge
+		}
+		if !isSpecID(e.To) {
+			continue
+		}
+		if reached[e.To] {
+			reached[e.From] = true
+		}
+	}
+
+	// Resolve content for every reached spec.
+	var nodes []ShowNode
+	for _, s := range state.Specs {
+		if !reached[s.ID] {
+			continue
+		}
+		node := ShowNode{
+			Kind:     "spec",
+			ID:       s.ID,
+			Filepath: s.Filepath,
+			Hash:     s.Hash,
+			Deleted:  s.Deleted,
+		}
+		if !s.Deleted {
+			if content, err := readSpecContent(dir, s.Filepath, s.ID); err == nil {
+				node.Content = content
+			}
+		}
+		nodes = append(nodes, node)
+	}
+	// Resolve content for every reached marker.
+	for _, m := range state.Markers {
+		if !reached[m.ID] {
+			continue
+		}
+		node := ShowNode{
+			Kind:     "marker",
+			ID:       m.ID,
+			Filepath: m.Filepath,
+			Hash:     m.Hash,
+			Lines:    fmt.Sprintf("%d-%d", m.LineNumber, m.EndLineNumber),
+			Deleted:  m.Deleted,
+		}
+		if !m.Deleted {
+			if content, err := readMarkerContent(dir, m.Filepath, m.LineNumber, m.EndLineNumber); err == nil {
+				node.Content = content
+			}
+		}
+		nodes = append(nodes, node)
+	}
+
+	// Collect edges among reached nodes.
+	var edges []core.Edge
+	for _, e := range state.Edges {
+		if reached[e.From] && reached[e.To] {
+			edges = append(edges, e)
+		}
+	}
+
+	// Sort nodes by ID and edges by (From, To) for stable output.
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ID < nodes[j].ID })
+	sort.Slice(edges, func(i, j int) bool {
+		if edges[i].From != edges[j].From {
+			return edges[i].From < edges[j].From
+		}
+		return edges[i].To < edges[j].To
+	})
+
+	return ShowResult{
+		IsSpec: isSpec,
+		ID:     id,
+		Nodes:  nodes,
+		Edges:  edges,
+	}, nil
 }
 
 func isSpecID(id string) bool {
@@ -93,115 +251,6 @@ func containsDot(s string) bool {
 		}
 	}
 	return false
-}
-
-func buildShowSpecResult(state core.EvaluatedState, dir, specID string) (ShowResult, error) {
-	var spec *core.Spec
-	for i := range state.Specs {
-		if state.Specs[i].ID == specID {
-			spec = &state.Specs[i]
-			break
-		}
-	}
-	if spec == nil {
-		return ShowResult{IsSpec: true, ID: specID}, nil
-	}
-	content, err := readSpecContent(dir, spec.Filepath, spec.ID)
-	if err != nil {
-		return ShowResult{}, fmt.Errorf("error reading spec content: %s", err)
-	}
-	var linkedMarkers []LinkedMarker
-	for _, e := range state.Edges {
-		// Link-style edge: From is marker (no dot), To is spec.
-		if isSpecID(e.From) {
-			continue
-		}
-		if e.To != specID {
-			continue
-		}
-		for i := range state.Markers {
-			if state.Markers[i].ID == e.From {
-				m := state.Markers[i]
-				markerContent, err := readMarkerContent(dir, m.Filepath, m.LineNumber, m.EndLineNumber)
-				if err != nil {
-					continue
-				}
-				linkedMarkers = append(linkedMarkers, LinkedMarker{Marker: m, Content: markerContent})
-				break
-			}
-		}
-	}
-	// Compute inbound/outbound ref sets from baseline spec-spec edges.
-	var outbound, inbound []string
-	seenOut := make(map[string]bool)
-	seenIn := make(map[string]bool)
-	for _, e := range state.Edges {
-		if !isSpecID(e.From) || !isSpecID(e.To) {
-			continue
-		}
-		if e.From == specID && !seenOut[e.To] {
-			outbound = append(outbound, e.To)
-			seenOut[e.To] = true
-		}
-		if e.To == specID && !seenIn[e.From] {
-			inbound = append(inbound, e.From)
-			seenIn[e.From] = true
-		}
-	}
-	return ShowResult{
-		IsSpec:        true,
-		ID:            specID,
-		Spec:          spec,
-		Content:       content,
-		LinkedMarkers: linkedMarkers,
-		OutboundRefs:  outbound,
-		InboundRefs:   inbound,
-	}, nil
-}
-
-func buildShowMarkerResult(state core.EvaluatedState, dir, markerID string) (ShowResult, error) {
-	var marker *core.Marker
-	for i := range state.Markers {
-		if state.Markers[i].ID == markerID {
-			marker = &state.Markers[i]
-			break
-		}
-	}
-	if marker == nil {
-		return ShowResult{IsSpec: false, ID: markerID}, nil
-	}
-	var linkedSpecs []LinkedSpec
-	for _, e := range state.Edges {
-		// Link-style edge: From is marker.
-		if isSpecID(e.From) {
-			continue
-		}
-		if e.From != markerID {
-			continue
-		}
-		for i := range state.Specs {
-			if state.Specs[i].ID == e.To {
-				s := state.Specs[i]
-				content, err := readSpecContent(dir, s.Filepath, s.ID)
-				if err != nil {
-					continue
-				}
-				linkedSpecs = append(linkedSpecs, LinkedSpec{Spec: s, Content: content})
-				break
-			}
-		}
-	}
-	markerContent, err := readMarkerContent(dir, marker.Filepath, marker.LineNumber, marker.EndLineNumber)
-	if err != nil {
-		return ShowResult{}, fmt.Errorf("error reading marker content: %s", err)
-	}
-	return ShowResult{
-		IsSpec:      false,
-		ID:          markerID,
-		Marker:      marker,
-		Content:     markerContent,
-		LinkedSpecs: linkedSpecs,
-	}, nil
 }
 
 // D! id=oblds range-end

@@ -266,48 +266,84 @@ func (p JSONPresenter) List(r ListResult) string {
 // --- Show ---
 
 func (p JSONPresenter) Show(r ShowResult) string {
-	if r.IsSpec && r.Spec == nil {
-		return marshal(jsonError{Error: "spec \"" + r.ID + "\" not found", Exit: 1})
-	}
-	if !r.IsSpec && r.Marker == nil {
-		return marshal(jsonError{Error: "marker \"" + r.ID + "\" not found", Exit: 1})
-	}
-
-	if r.IsSpec {
-		linked := make([]jsonLinked, 0, len(r.LinkedMarkers))
-		for _, m := range r.LinkedMarkers {
-			linked = append(linked, jsonLinked{
-				Kind:     "marker",
-				ID:       m.Marker.ID,
-				Filepath: m.Marker.Filepath,
-				Lines:    itoa(m.Marker.LineNumber) + "-" + itoa(m.Marker.EndLineNumber),
-				Hash:     m.Marker.Hash,
-				Content:  m.Content,
-			})
+	// Not-found: no nodes at all means the seed wasn't in state.
+	if len(r.Nodes) == 0 {
+		kind := "spec"
+		if !r.IsSpec {
+			kind = "marker"
 		}
-		return marshal(jsonShow{
-			Kind: "spec", ID: r.ID, Filepath: r.Spec.Filepath,
-			Hash: r.Spec.Hash, Content: r.Content, Linked: linked,
-		})
+		return marshal(jsonError{Error: kind + " \"" + r.ID + "\" not found", Exit: 1})
 	}
 
-	linked := make([]jsonLinked, 0, len(r.LinkedSpecs))
-	for _, s := range r.LinkedSpecs {
-		linked = append(linked, jsonLinked{
-			Kind:     "spec",
-			ID:       s.Spec.ID,
-			Filepath: s.Spec.Filepath,
-			Hash:     s.Spec.Hash,
-			Content:  s.Content,
+	nodes := make([]jsonShowNode, 0, len(r.Nodes))
+	for _, n := range r.Nodes {
+		nodes = append(nodes, jsonShowNode{
+			Kind:     n.Kind,
+			ID:       n.ID,
+			Filepath: n.Filepath,
+			Lines:    n.Lines,
+			Hash:     n.Hash,
+			Content:  n.Content,
+			Deleted:  n.Deleted,
 		})
 	}
-	return marshal(jsonShow{
-		Kind: "marker", ID: r.ID, Filepath: r.Marker.Filepath,
-		Lines:   itoa(r.Marker.LineNumber) + "-" + itoa(r.Marker.EndLineNumber),
-		Hash:    r.Marker.Hash,
-		Content: r.Content,
-		Linked:  linked,
+	edges := make([]jsonShowEdge, 0, len(r.Edges))
+	for _, e := range r.Edges {
+		edges = append(edges, jsonShowEdge{From: e.From, To: e.To})
+	}
+
+	specCount, markerCount, contentBytes := 0, 0, 0
+	for _, n := range r.Nodes {
+		if n.Kind == "spec" {
+			specCount++
+		} else {
+			markerCount++
+		}
+		contentBytes += len(n.Content)
+	}
+
+	return marshal(jsonShowClosure{
+		Seed:   r.ID,
+		Nodes:  nodes,
+		Edges:  edges,
+		Summary: jsonShowSummary{
+			NodeCount:        len(r.Nodes),
+			EdgeCount:        len(r.Edges),
+			SpecCount:        specCount,
+			MarkerCount:      markerCount,
+			TotalContentBytes: contentBytes,
+		},
 	})
+}
+
+type jsonShowClosure struct {
+	Seed    string           `json:"seed"`
+	Nodes   []jsonShowNode   `json:"nodes"`
+	Edges   []jsonShowEdge   `json:"edges"`
+	Summary jsonShowSummary  `json:"summary"`
+}
+
+type jsonShowNode struct {
+	Kind     string `json:"kind"`
+	ID       string `json:"id"`
+	Filepath string `json:"filepath"`
+	Lines    string `json:"lines,omitempty"`
+	Hash     string `json:"hash"`
+	Content  string `json:"content,omitempty"`
+	Deleted  bool   `json:"deleted,omitempty"`
+}
+
+type jsonShowEdge struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+type jsonShowSummary struct {
+	NodeCount         int `json:"nodeCount"`
+	EdgeCount         int `json:"edgeCount"`
+	SpecCount         int `json:"specCount"`
+	MarkerCount       int `json:"markerCount"`
+	TotalContentBytes int `json:"totalContentBytes"`
 }
 
 func itoa(n int) string {
@@ -331,27 +367,6 @@ func itoa(n int) string {
 	}
 	return string(buf[i:])
 }
-
-type jsonShow struct {
-	Kind     string       `json:"kind"`
-	ID       string       `json:"id"`
-	Filepath string       `json:"filepath"`
-	Lines    string       `json:"lines,omitempty"`
-	Hash     string       `json:"hash"`
-	Content  string       `json:"content"`
-	Linked   []jsonLinked `json:"linked"`
-}
-
-type jsonLinked struct {
-	Kind     string `json:"kind"`
-	ID       string `json:"id"`
-	Filepath string `json:"filepath"`
-	Lines    string `json:"lines,omitempty"`
-	Hash     string `json:"hash"`
-	Content  string `json:"content"`
-}
-
-// --- Diff ---
 
 type jsonDiffSide struct {
 	ID           string `json:"id"`

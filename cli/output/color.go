@@ -295,69 +295,110 @@ func (p ColorPresenter) List(r ListResult) string {
 
 func (p ColorPresenter) Show(r ShowResult) string {
 	t := p.Theme
-	if r.IsSpec {
-		if r.Spec == nil {
-			return t.StatusError.Apply(fmt.Sprintf("spec %q not found", r.ID))
-		}
-		return p.showSpec(r)
-	}
-	if r.Marker == nil {
-		return t.StatusError.Apply(fmt.Sprintf("marker %q not found", r.ID))
-	}
-	return p.showMarker(r)
-}
-
-func (p ColorPresenter) showSpec(r ShowResult) string {
-	t := p.Theme
 	var sb strings.Builder
 
-	sb.WriteString(t.SectionHeader.Apply(fmt.Sprintf("=== Spec: %s ===", t.SpecID.Apply(r.ID))) + "\n")
-	sb.WriteString(fmt.Sprintf("File: %s\n", t.Filepath.Apply(r.Spec.Filepath)))
-	sb.WriteString(fmt.Sprintf("Hash: %s\n\n", t.Hash.Apply(r.Spec.Hash)))
-	sb.WriteString(p.colorizeCodeBlock(r.Content))
+	var seed *ShowNode
+	for i := range r.Nodes {
+		if r.Nodes[i].ID == r.ID {
+			seed = &r.Nodes[i]
+			break
+		}
+	}
+	if seed == nil {
+		return t.StatusError.Apply(fmt.Sprintf("%s %q not found", map[bool]string{true: "spec", false: "marker"}[r.IsSpec], r.ID))
+	}
+
+	ancestors, descendants := classifyClosureSpecs(r, r.ID)
+
+	seedLabel := t.SpecID
+	if !r.IsSpec {
+		seedLabel = t.MarkerID
+	}
+	sb.WriteString(t.SectionHeader.Apply(fmt.Sprintf("=== Citation closure: %s ===", seedLabel.Apply(r.ID))) + "\n")
+	sb.WriteString(fmt.Sprintf("Seed: %s (%s)\n", seedLabel.Apply(r.ID), t.Filepath.Apply(seed.Filepath)))
+	if seed.Lines != "" {
+		sb.WriteString(fmt.Sprintf("Lines: %s\n", t.LineNumber.Apply(seed.Lines)))
+	}
+	sb.WriteString(fmt.Sprintf("Hash: %s\n", t.Hash.Apply(seed.Hash)))
+	if seed.Deleted {
+		sb.WriteString(t.StatusWarn.Apply("Status: deleted from disk") + "\n")
+	}
+	sb.WriteString("\n" + t.SectionHeader.Apply("--- Seed content ---") + "\n")
+	sb.WriteString(p.colorizeCodeBlock(seed.Content))
+
+	if len(ancestors) > 0 {
+		sb.WriteString(fmt.Sprintf("\n\n%s\n", t.SectionHeader.Apply(fmt.Sprintf("=== Ancestors (%d, specs that transitively cite %s) ===", len(ancestors), r.ID))))
+		for _, n := range ancestors {
+			p.renderColorSpecSection(&sb, n)
+		}
+	}
+
+	if len(descendants) > 0 {
+		sb.WriteString(fmt.Sprintf("\n%s\n", t.SectionHeader.Apply(fmt.Sprintf("=== Descendants (%d, specs that %s transitively cites) ===", len(descendants), r.ID))))
+		for _, n := range descendants {
+			p.renderColorSpecSection(&sb, n)
+		}
+	}
+
+	var markers []ShowNode
+	for _, n := range r.Nodes {
+		if n.Kind != "marker" {
+			continue
+		}
+		if n.ID == r.ID {
+			continue
+		}
+		markers = append(markers, n)
+	}
+	if len(markers) > 0 {
+		sb.WriteString(fmt.Sprintf("\n%s\n", t.SectionHeader.Apply(fmt.Sprintf("=== Markers in closure (%d) ===", len(markers)))))
+		for _, m := range markers {
+			p.renderColorMarkerSection(&sb, m)
+		}
+	}
+
+	if len(r.Edges) > 0 {
+		sb.WriteString(fmt.Sprintf("\n%s\n", t.SectionHeader.Apply(fmt.Sprintf("=== Edges (%d total) ===", len(r.Edges)))))
+		for _, e := range r.Edges {
+			from := t.MarkerID.Apply(e.From)
+			if isSpecID(e.From) {
+				from = t.SpecID.Apply(e.From)
+			}
+			to := t.MarkerID.Apply(e.To)
+			if isSpecID(e.To) {
+				to = t.SpecID.Apply(e.To)
+			}
+			sb.WriteString(fmt.Sprintf("%s → %s\n", from, to))
+		}
+	}
+
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+func (p ColorPresenter) renderColorSpecSection(sb *strings.Builder, n ShowNode) {
+	t := p.Theme
+	sb.WriteString("\n" + fmt.Sprintf("%s (%s)\n", t.SpecID.Apply(n.ID), t.Filepath.Apply(n.Filepath)))
+	sb.WriteString(fmt.Sprintf("Hash: %s\n", t.Hash.Apply(n.Hash)))
+	if n.Deleted {
+		sb.WriteString(t.StatusWarn.Apply("Status: deleted from disk") + "\n")
+		return
+	}
+	sb.WriteString(t.SectionHeader.Apply("--- content ---") + "\n")
+	sb.WriteString(p.colorizeCodeBlock(n.Content))
 	sb.WriteString("\n")
-
-	if len(r.OutboundRefs) > 0 || len(r.InboundRefs) > 0 {
-		sb.WriteString("\n")
-		if len(r.OutboundRefs) > 0 {
-			sb.WriteString(fmt.Sprintf("Outbound refs (%d): %s\n", len(r.OutboundRefs), t.SpecID.Apply(strings.Join(r.OutboundRefs, ", "))))
-		}
-		if len(r.InboundRefs) > 0 {
-			sb.WriteString(fmt.Sprintf("Inbound refs (%d): %s\n", len(r.InboundRefs), t.SpecID.Apply(strings.Join(r.InboundRefs, ", "))))
-		}
-	}
-
-	for _, m := range r.LinkedMarkers {
-		sb.WriteString("\n" + t.SectionHeader.Apply(fmt.Sprintf("=== Marker: %s ===", t.MarkerID.Apply(m.Marker.ID))) + "\n")
-		sb.WriteString(fmt.Sprintf("File: %s\n", t.Filepath.Apply(m.Marker.Filepath)))
-		sb.WriteString(fmt.Sprintf("Lines: %s\n", t.LineNumber.Apply(fmt.Sprintf("%d-%d", m.Marker.LineNumber, m.Marker.EndLineNumber))))
-		sb.WriteString(fmt.Sprintf("Hash: %s\n\n", t.Hash.Apply(m.Marker.Hash)))
-		sb.WriteString(p.colorizeCodeBlock(m.Content))
-		sb.WriteString("\n")
-	}
-
-	return strings.TrimRight(sb.String(), "\n")
 }
 
-func (p ColorPresenter) showMarker(r ShowResult) string {
+func (p ColorPresenter) renderColorMarkerSection(sb *strings.Builder, n ShowNode) {
 	t := p.Theme
-	var sb strings.Builder
-
-	for _, s := range r.LinkedSpecs {
-		sb.WriteString(t.SectionHeader.Apply(fmt.Sprintf("=== Spec: %s ===", t.SpecID.Apply(s.Spec.ID))) + "\n")
-		sb.WriteString(fmt.Sprintf("File: %s\n", t.Filepath.Apply(s.Spec.Filepath)))
-		sb.WriteString(fmt.Sprintf("Hash: %s\n\n", t.Hash.Apply(s.Spec.Hash)))
-		sb.WriteString(p.colorizeCodeBlock(s.Content))
-		sb.WriteString("\n\n")
+	sb.WriteString("\n" + fmt.Sprintf("%s (%s:%s)\n", t.MarkerID.Apply(n.ID), t.Filepath.Apply(n.Filepath), t.LineNumber.Apply(n.Lines)))
+	sb.WriteString(fmt.Sprintf("Hash: %s\n", t.Hash.Apply(n.Hash)))
+	if n.Deleted {
+		sb.WriteString(t.StatusWarn.Apply("Status: deleted from disk") + "\n")
+		return
 	}
-
-	sb.WriteString(t.SectionHeader.Apply(fmt.Sprintf("=== Marker: %s ===", t.MarkerID.Apply(r.ID))) + "\n")
-	sb.WriteString(fmt.Sprintf("File: %s\n", t.Filepath.Apply(r.Marker.Filepath)))
-	sb.WriteString(fmt.Sprintf("Lines: %s\n", t.LineNumber.Apply(fmt.Sprintf("%d-%d", r.Marker.LineNumber, r.Marker.EndLineNumber))))
-	sb.WriteString(fmt.Sprintf("Hash: %s\n\n", t.Hash.Apply(r.Marker.Hash)))
-	sb.WriteString(p.colorizeCodeBlock(r.Content))
-
-	return strings.TrimRight(sb.String(), "\n")
+	sb.WriteString(t.SectionHeader.Apply("--- content ---") + "\n")
+	sb.WriteString(p.colorizeCodeBlock(n.Content))
+	sb.WriteString("\n")
 }
 
 // --- Diff ---

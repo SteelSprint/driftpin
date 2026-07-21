@@ -49,32 +49,33 @@ type ListResult struct {
 	MarkerContents map[string]string
 }
 
-// ShowResult carries the resolved entity (spec or marker), its content, and
-// any linked counterparts with their content. Outbound/Inbound refs are
-// computed from baseline spec-spec edges for the spec view.
+// ShowResult carries the full citation closure reachable from a seed spec or
+// marker. Built by BuildShowResult via bidirectional BFS over the spec-spec
+// citation graph; consumed by Plain/Color/JSON presenters.
+//
+// Nodes contains one ShowNode per reached spec or marker, with content
+// pre-resolved. Edges contains every edge among reached nodes, preserving
+// diamond/forking structure (consumers reconstruct topology from edges).
 type ShowResult struct {
-	IsSpec        bool
-	ID            string
-	Spec          *core.Spec
-	Marker        *core.Marker
-	Content       string
-	LinkedSpecs   []LinkedSpec
-	LinkedMarkers []LinkedMarker
-	OutboundRefs  []string
-	InboundRefs   []string
+	IsSpec bool        // seed was a spec (true) or marker (false)
+	ID     string      // seed ID
+	Nodes  []ShowNode  // sorted by ID for stable output
+	Edges  []core.Edge // sorted by (From, To) for stable output
 }
 
-// LinkedSpec carries a spec linked to the primary marker plus its content.
-type LinkedSpec struct {
-	Spec    core.Spec
-	Content string
+// ShowNode is one node in a show closure: a spec or a marker with its content
+// pre-resolved. Kind is "spec" or "marker".
+type ShowNode struct {
+	Kind     string // "spec" or "marker"
+	ID       string
+	Filepath string
+	Hash     string
+	Lines    string // "start-end" for markers, "" for specs
+	Content  string // spec text or marker code; empty when Deleted
+	Deleted  bool
 }
 
-// LinkedMarker carries a marker linked to the primary spec plus its content.
-type LinkedMarker struct {
-	Marker  core.Marker
-	Content string
-}
+func (ShowResult) isResult() {}
 
 // DiffClosureResult carries the diff results for all nodes in one closure.
 type DiffClosureResult struct {
@@ -125,7 +126,6 @@ type VersionResult struct {
 
 func (TodoResult) isResult()         {}
 func (ListResult) isResult()         {}
-func (ShowResult) isResult()         {}
 func (DiffClosureResult) isResult()  {}
 func (DiffAllResult) isResult()      {}
 func (ChangeSummaryResult) isResult() {}

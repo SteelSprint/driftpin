@@ -2,6 +2,7 @@ package output
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"drift/core"
@@ -311,67 +312,167 @@ func sortMarkersByID(markers []core.Marker) {
 // D! id=ofmtl range-end
 
 func (p PlainPresenter) Show(r ShowResult) string {
-	if r.IsSpec {
-		if r.Spec == nil {
-			return fmt.Sprintf("spec %q not found", r.ID)
-		}
-		return p.showSpec(r)
-	}
-	if r.Marker == nil {
-		return fmt.Sprintf("marker %q not found", r.ID)
-	}
-	return p.showMarker(r)
-}
-
-func (p PlainPresenter) showSpec(r ShowResult) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("=== Spec: %s ===\n", r.ID))
-	sb.WriteString(fmt.Sprintf("File: %s\n", r.Spec.Filepath))
-	sb.WriteString(fmt.Sprintf("Hash: %s\n\n", r.Spec.Hash))
-	sb.WriteString(r.Content)
+	// Locate seed node.
+	var seed *ShowNode
+	for i := range r.Nodes {
+		if r.Nodes[i].ID == r.ID {
+			seed = &r.Nodes[i]
+			break
+		}
+	}
+	if seed == nil {
+		return fmt.Sprintf("%s %q not found", map[bool]string{true: "spec", false: "marker"}[r.IsSpec], r.ID)
+	}
+
+	// Classify specs as ancestors (transitively cite the seed), descendants
+	// (transitively cited by the seed), or the seed itself. Markers are
+	// printed in their own section.
+	ancestors, descendants := classifyClosureSpecs(r, r.ID)
+
+	sb.WriteString(fmt.Sprintf("=== Citation closure: %s ===\n", r.ID))
+	sb.WriteString(fmt.Sprintf("Seed: %s (%s)\n", r.ID, seed.Filepath))
+	if seed.Lines != "" {
+		sb.WriteString(fmt.Sprintf("Lines: %s\n", seed.Lines))
+	}
+	sb.WriteString(fmt.Sprintf("Hash: %s\n", seed.Hash))
+	if seed.Deleted {
+		sb.WriteString("Status: deleted from disk\n")
+	}
+	sb.WriteString("\n--- Seed content ---\n")
+	sb.WriteString(seed.Content)
+
+	if len(ancestors) > 0 {
+		sb.WriteString(fmt.Sprintf("\n\n=== Ancestors (%d, specs that transitively cite %s) ===\n", len(ancestors), r.ID))
+		for _, n := range ancestors {
+			renderSpecSection(&sb, n)
+		}
+	}
+
+	if len(descendants) > 0 {
+		sb.WriteString(fmt.Sprintf("\n=== Descendants (%d, specs that %s transitively cites) ===\n", len(descendants), r.ID))
+		for _, n := range descendants {
+			renderSpecSection(&sb, n)
+		}
+	}
+
+	// Markers in closure (excluding the seed when seed is itself a marker).
+	var markers []ShowNode
+	for _, n := range r.Nodes {
+		if n.Kind != "marker" {
+			continue
+		}
+		if n.ID == r.ID {
+			continue
+		}
+		markers = append(markers, n)
+	}
+	if len(markers) > 0 {
+		sb.WriteString(fmt.Sprintf("\n=== Markers in closure (%d) ===\n", len(markers)))
+		for _, m := range markers {
+			renderMarkerSection(&sb, m)
+		}
+	}
+
+	if len(r.Edges) > 0 {
+		sb.WriteString(fmt.Sprintf("\n=== Edges (%d total) ===\n", len(r.Edges)))
+		for _, e := range r.Edges {
+			sb.WriteString(fmt.Sprintf("%s → %s\n", e.From, e.To))
+		}
+	}
+
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+// classifyClosureSpecs walks the closure edges from the seed in both directions
+// to identify which specs are ancestors (can reach the seed via outgoing edges)
+// and which are descendants (reachable from the seed via outgoing edges).
+// Returns ancestor and descendant node lists, sorted by ID, excluding the seed.
+func classifyClosureSpecs(r ShowResult, seedID string) (ancestors, descendants []ShowNode) {
+	outgoing := map[string]map[string]bool{}
+	incoming := map[string]map[string]bool{}
+	for _, e := range r.Edges {
+		if outgoing[e.From] == nil {
+			outgoing[e.From] = map[string]bool{}
+		}
+		outgoing[e.From][e.To] = true
+		if incoming[e.To] == nil {
+			incoming[e.To] = map[string]bool{}
+		}
+		incoming[e.To][e.From] = true
+	}
+
+	// Descendants: BFS from seed over outgoing edges.
+	desc := map[string]bool{}
+	queue := []string{seedID}
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		for next := range outgoing[curr] {
+			if !desc[next] && next != seedID {
+				desc[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+	// Ancestors: BFS from seed over incoming edges.
+	anc := map[string]bool{}
+	queue = []string{seedID}
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		for next := range incoming[curr] {
+			if !anc[next] && next != seedID {
+				anc[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+
+	nodeByID := map[string]ShowNode{}
+	for _, n := range r.Nodes {
+		if n.Kind == "spec" {
+			nodeByID[n.ID] = n
+		}
+	}
+	for id := range anc {
+		if n, ok := nodeByID[id]; ok {
+			ancestors = append(ancestors, n)
+		}
+	}
+	for id := range desc {
+		if n, ok := nodeByID[id]; ok {
+			descendants = append(descendants, n)
+		}
+	}
+	sort.Slice(ancestors, func(i, j int) bool { return ancestors[i].ID < ancestors[j].ID })
+	sort.Slice(descendants, func(i, j int) bool { return descendants[i].ID < descendants[j].ID })
+	return ancestors, descendants
+}
+
+func renderSpecSection(sb *strings.Builder, n ShowNode) {
+	sb.WriteString(fmt.Sprintf("\n%s (%s)\n", n.ID, n.Filepath))
+	sb.WriteString(fmt.Sprintf("Hash: %s\n", n.Hash))
+	if n.Deleted {
+		sb.WriteString("Status: deleted from disk\n")
+		return
+	}
+	sb.WriteString("--- content ---\n")
+	sb.WriteString(n.Content)
 	sb.WriteString("\n")
-
-	if len(r.OutboundRefs) > 0 || len(r.InboundRefs) > 0 {
-		sb.WriteString("\n")
-		if len(r.OutboundRefs) > 0 {
-			sb.WriteString(fmt.Sprintf("Outbound refs (%d): %s\n", len(r.OutboundRefs), strings.Join(r.OutboundRefs, ", ")))
-		}
-		if len(r.InboundRefs) > 0 {
-			sb.WriteString(fmt.Sprintf("Inbound refs (%d): %s\n", len(r.InboundRefs), strings.Join(r.InboundRefs, ", ")))
-		}
-	}
-
-	for _, m := range r.LinkedMarkers {
-		sb.WriteString(fmt.Sprintf("\n=== Marker: %s ===\n", m.Marker.ID))
-		sb.WriteString(fmt.Sprintf("File: %s\n", m.Marker.Filepath))
-		sb.WriteString(fmt.Sprintf("Lines: %d-%d\n", m.Marker.LineNumber, m.Marker.EndLineNumber))
-		sb.WriteString(fmt.Sprintf("Hash: %s\n\n", m.Marker.Hash))
-		sb.WriteString(m.Content)
-		sb.WriteString("\n")
-	}
-
-	return strings.TrimRight(sb.String(), "\n")
 }
 
-func (p PlainPresenter) showMarker(r ShowResult) string {
-	var sb strings.Builder
-
-	for _, s := range r.LinkedSpecs {
-		sb.WriteString(fmt.Sprintf("=== Spec: %s ===\n", s.Spec.ID))
-		sb.WriteString(fmt.Sprintf("File: %s\n", s.Spec.Filepath))
-		sb.WriteString(fmt.Sprintf("Hash: %s\n\n", s.Spec.Hash))
-		sb.WriteString(s.Content)
-		sb.WriteString("\n\n")
+func renderMarkerSection(sb *strings.Builder, n ShowNode) {
+	sb.WriteString(fmt.Sprintf("\n%s (%s:%s)\n", n.ID, n.Filepath, n.Lines))
+	sb.WriteString(fmt.Sprintf("Hash: %s\n", n.Hash))
+	if n.Deleted {
+		sb.WriteString("Status: deleted from disk\n")
+		return
 	}
-
-	sb.WriteString(fmt.Sprintf("=== Marker: %s ===\n", r.ID))
-	sb.WriteString(fmt.Sprintf("File: %s\n", r.Marker.Filepath))
-	sb.WriteString(fmt.Sprintf("Lines: %d-%d\n", r.Marker.LineNumber, r.Marker.EndLineNumber))
-	sb.WriteString(fmt.Sprintf("Hash: %s\n\n", r.Marker.Hash))
-	sb.WriteString(r.Content)
-
-	return strings.TrimRight(sb.String(), "\n")
+	sb.WriteString("--- content ---\n")
+	sb.WriteString(n.Content)
+	sb.WriteString("\n")
 }
 
 // D! id=cdifffmt range-start
